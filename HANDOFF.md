@@ -5,7 +5,7 @@
 ---
 
 ## 0. In one paragraph
-The user (Deus) runs several apps and wants **BizTrack** (a multi-store retail/POS system: sales, purchases, stock, reports, SMS, AI, subscriptions) rewritten on the same approach and look as his other app **EduTrack**, **without losing any BizTrack function**, with a **safe in-place database upgrade**, installable as a desktop/mobile app (PWA). **Phases 1–4 of 5 (foundation + Sales + Purchases + Inventory + Expenses) are done and delivered** (this zip). The rest is a page-by-page port with a proven recipe (section 6) and a test harness (section 5).
+The user (Deus) runs several apps and wants **BizTrack** (a multi-store retail/POS system: sales, purchases, stock, reports, SMS, AI, subscriptions) rewritten on the same approach and look as his other app **EduTrack**, **without losing any BizTrack function**, with a **safe in-place database upgrade**, installable as a desktop/mobile app (PWA). **Phases 1–4 and 5a (foundation + Sales + Purchases + Inventory + Expenses + all Reports) are done and delivered** (this zip). The rest is a page-by-page port with a proven recipe (section 6) and a test harness (section 5).
 
 ## 1. The user and the working agreement
 - **Language:** the user writes Swahili. **Reply in Swahili** (technical terms may stay English). Documentation in the repo is mixed; code and comments are English.
@@ -84,9 +84,10 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/biztrack_test bash tool
 cd frontend && npx vite build && npx eslint src --quiet      # build must pass; lint must show 0 errors (warnings are known debt)
 ```
 - Tests live in `tools/tests/*.mjs` and call the REAL `frontend/src/services/api.js` (the same calls the pages make) against the live backend. **Add a test file for every module you port** (copy `tools/tests/products.mjs`), including: create, update, search, delete, validation refusal, permission/auth refusal.
-- Current suites (165 checks, all pass): categories-customers (14), price-categories (7), products (9), profile (7), sales (34), purchases (29), **inventory (31: adjustments, batches, stock value + snapshots, price list, stock count, movements, expenses)**, **transfers (16, between two stores)**, **import-export (15, real .xlsx files)**, receipt-pdf (3, no server needed). `python3 tools/dev/check-keys.py` lists/adds missing translation keys (run it after every page).
+- Current suites (194 checks, all pass): categories-customers (14), price-categories (7), products (9), profile (7), sales (34), purchases (29), **inventory (31: adjustments, batches, stock value + snapshots, price list, stock count, movements, expenses)**, **transfers (16, between two stores)**, **import-export (15, real .xlsx files)**, **reports (29: all 47 report endpoints run + their numbers cross-checked)**, receipt-pdf (3, no server needed). `python3 tools/dev/check-keys.py` lists/adds missing translation keys (run it after every page).
 - Upgrade safety rehearsal (do again if you touch migrations/backup): `db:migrate` on a copy of the DB → `db:verify` (all tables identical) → damage something → `db:restore -- <file> --yes` → `db:verify`.
 - **Sandbox gotchas (these cost time):**
+  - **Never trust a fixed port for the test server.** A leftover backend from an earlier run (maybe connected to ANOTHER database) answers on the old port while the new one dies with EADDRINUSE — tests then fail in baffling ways (this cost an hour in Phase 5a: a setting written to the new DB was invisible to the old server). `tools/dev/with-server.sh` now picks a free port, checks that ITS process is alive and always stops it on exit; keep using it.
   - A background process dies when the tool call ends → start server + run test + stop it in ONE call (`tools/dev/with-server.sh`). Postgres may also stop between calls: scripts restart it with `service postgresql start`.
   - **Never `pkill -f node …`** — it matches your own shell and kills the tool call. Use `fuser -k PORT/tcp`.
   - `/bin/sh` has no brace expansion (`{a,b}` creates a literal folder) → use `bash -c`.
@@ -118,7 +119,7 @@ cd frontend && npx vite build && npx eslint src --quiet      # build must pass; 
 9. **Test:** add `tools/tests/<module>.mjs`, run `tools/run-all-tests.sh`, then `npx vite build` and `npx eslint src --quiet` (0 errors).
 10. **Update `MIGRATION_CHECKLIST.md`** (move the row to "done", list what is inside) and report to the user what was verified and what was not.
 
-## 7. Where we are — Phases 1–4 (DONE, delivered)
+## 7. Where we are — Phases 1–4 and 5a Reports (DONE, delivered)
 Backend: all 166 modules load; migrations/backup/restore/verify rehearsed; security fixes (section 8).
 Frontend (build passes, lint 0 errors / 22 warnings): shell (Sidebar, MainLayout, ProtectedRoute with password-expired / subscription-locked / no-permission states), auth pages (Login, Register, VerifyEmail, ForgotPassword, NewPassword), Dashboard v1, Product Categories, **Price Categories**, Customers, Products (full), Profile (incl. avatar and password), PWA files, i18n.
 **Verified by tests (37 checks, real DB):** login, store switch (176 perms), CRUD for categories/price categories/customers/products incl. bulk delete and barcode lookup, validation refusals, no-token refusal, profile + password change + old-token revocation, dashboard stats.
@@ -143,9 +144,9 @@ Server rules worth knowing (all discovered by `tools/tests/purchases.mjs`): a ne
 - `import-export` for contacts → Phase 5 Messaging.
 - Tests leave products, snapshots, transfers and expenses in the TEST database (re-run `tools/dev/load-test-db.sh` to reset).
 
-### Phase 5 — Reports, administration, messaging, settings, subscription, AI, support (≈ 16,000+ original lines)
+### Phase 5 — what is left after 5a Reports (5b and 5c)
 
-**Reports (6,552 lines; backend `report.controller.js` **4,547 lines** — the largest SQL in the system):** sales, purchases, expenses, profit, net profit, day report, inventory; each has filters by date range/store, summary cards, tables, **PDF/Excel/CSV with the BizTrack look** (`exportToPDF(..., withFooter, orientation, columnStyles, fromDate, toDate)`), and an AI "explain this report" hook (`services/ai/explain/*`). Reuse `ExportMenu` (pass `withFooter`, `orientation`, dates).
+**Reports: DONE in 5a** (only the AI "explain this report" hook remains — it belongs to 5c).
 **Users / Roles / Permissions / Stores (≈ 1,800 lines):** `user.controller`, `role.controller`, `permission.controller`, `storeUser.controller` (create users with default password + forced change), `store.controller` (create/update/delete store with password confirmation). Permission grid is per role per store (`role_permissions`). Run `npm run permissions:sync` after deploying new permission names.
 **Settings (3,831 lines):** configurations (currency, decimals, date format, negative stock, expiry, default price category, batch-wise price, units…), uploads (branding), bulk operations, integrations (**developer-only**, `DEVELOPER_EMAIL`, `middlewares/developerOnly.js`, env `DEVELOPER_EMAIL`), security (policy in `store_settings.settings.operations.security`: sessionTimeout, loginAttempts, passwordExpiry, accountLockMinutes — enforced by `authController` / `authMiddleware`), tools (activity/system logs, Google Drive backups UI: `backup.controller`), notifications (per-event toggles `inapp_<type>`), appearance (theme — `ThemeContext` already has presets incl. "BizTrack Navy"; also wire `PreferencesContext` to the server settings, today it only caches locally via `settingsService` stub in `services/api.js`).
 **Messaging / SMS (2,620 lines):** recent, contacts, groups (+subgroups), templates, account & top-up; providers/integrations (`messaging.controller`, `integration.controller`, tables `messaging_*`, `sms_*`).
@@ -199,7 +200,7 @@ Server rules worth knowing (all discovered by `tools/tests/purchases.mjs`): a ne
 ## 12. Questions to put to the user early (one at a time)
 1. Is the `_unattributed_files/` work his? (keep / merge / delete)
 2. Add auth to `POST /api/qz/sign`? (recommended yes)
-3. Phase 5 is the largest (≈16,000 original lines): propose splitting it into 5a Reports (the 4,547-line `report.controller`), 5b Users/Roles/Permissions/Stores/Settings/Security/Notifications/IdleLock, 5c Messaging, Subscription, Support, AI, Profile extras — and ask which he wants first.
+3. 5a Reports is done. Ask whether 5b (Users/Roles/Permissions/Stores/Settings/Security/Notifications/IdleLock) or 5c (Messaging, Subscription, Support, AI + AI report explanations, Dashboard AI cards) comes next.
 4. Can he give a backup of the REAL database (not only test data) for the final rehearsal, and which hosting does he use (cPanel Node app per `.cpanel.yml`)?
 5. Any OpenAI/Gemini/ClickPesa/SMS credentials available for testing Phase 5 integrations, or should they be mocked?
 

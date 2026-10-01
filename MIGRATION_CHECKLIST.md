@@ -4,7 +4,7 @@ Hali ya uhamisho kwenda BizTrack mpya (muundo wa EduTrack). **Hakuna kipengele k
 
 Njia (route) na majina ya permissions ni yale yale ya BizTrack ya sasa, kwa hiyo ufikiaji wa watumiaji haubadiliki.
 
-## Awamu 1–4 — zimehamishwa (25 kati ya 46 za menyu)
+## Awamu 1–4 na 5a (Reports) — zimehamishwa (31 kati ya 46 za menyu)
 
 | Ukurasa | Njia | Permission | Hali |
 |---|---|---|---|
@@ -33,6 +33,12 @@ Njia (route) na majina ya permissions ni yale yale ya BizTrack ya sasa, kwa hiyo
 | stock_transfer | `/inventory/stock-transfer` | `view_stock_transfer` | Imehamishwa — Kutuma, kuidhinisha, kupokea upande wa pili, kughairi, kufuta |
 | import_export | `/inventory/import-export` | `view_imports_exports` | Imehamishwa — Violezo, kupakia Excel kwa uthibitisho, makosa kwa safu, export |
 | expenses | `/expenses` | `view_expenses` | Imehamishwa — Vichujio, jumla, ongeza/hariri/futa, makundi, export |
+| sales_reports | `/reports/sales` | `view_sales_reports` | Imehamishwa — Ripoti 10 za mauzo (muhtasari, kina, returns, ulinganisho, kwa bidhaa/mhudumu/mteja/kundi/malipo, madeni); export kwa injini ya PDF ya BizTrack |
+| purchases_reports | `/reports/purchases` | `view_purchase_reports` | Imehamishwa — Ripoti 12 za manunuzi (muhtasari, kina, kwa bidhaa/msambazaji, madeni ya wasambazaji, ankara, returns, mwenendo, kujaza stock, gharama, utendaji, GRN); export kwa injini ya PDF ya BizTrack |
+| expenses_reports | `/reports/expenses` | `view_supplier_payments` | Imehamishwa — Ripoti ya malipo kwa wasambazaji (inaitwa expenses reports kwenye asili); export kwa injini ya PDF ya BizTrack |
+| profit_reports | `/reports/profit` | `view_profit_reports` | Imehamishwa — Ripoti 8 za faida (muhtasari, kina, kwa bidhaa/kundi/mhudumu/mteja, margins, mwenendo); export kwa injini ya PDF ya BizTrack |
+| net_profit_reports | `/reports/net-profit` | `view_profit_reports` | Imehamishwa — Faida halisi (mapato − gharama ya bidhaa − matumizi); export kwa injini ya PDF ya BizTrack |
+| inventory_reports | `/reports/inventory` | `view_current_stock` | Imehamishwa — Ripoti 13 za stock (sasa, muhtasari, kina, ledger, imeisha, chini ya kiwango, zinazoingia/zinazotoka, zinazouzwa haraka, zilizokaa, marekebisho, uhamisho); export kwa injini ya PDF ya BizTrack |
 
 Kurasa za kuingia zimehamishwa pia: Login, Register, VerifyEmail, ForgotPassword, NewPassword, pamoja na skrini ya "nenosiri limeisha" na ya "subscription imeisha".
 
@@ -43,16 +49,10 @@ Kurasa za kuingia zimehamishwa pia: Login, Register, VerifyEmail, ForgotPassword
 - **Profile:** jina, barua pepe, simu, lugha, picha, kubadilisha nenosiri.
 - **Dashboard:** KPI za leo/mwezi, mwenendo wa mapato, malipo kwa njia, mauzo ya hivi karibuni, bidhaa bora, vitendo vya haraka. **Bado hakuna:** kadi za AI (Awamu 5), "Top Selling", na DefaultDashboard kamili kwa watumiaji wenye ruhusa chache.
 
-## Bado — zinasubiri (21)
+## Bado — zinasubiri (15)
 
 | Ukurasa | Njia | Permission | Awamu |
 |---|---|---|---|
-| sales_reports | `/reports/sales` | `view_sales_reports` | 5 |
-| purchases_reports | `/reports/purchases` | `view_purchase_reports` | 5 |
-| expenses_reports | `/reports/expenses` | `view_supplier_payments` | 5 |
-| profit_reports | `/reports/profit` | `view_profit_reports` | 5 |
-| net_profit_reports | `/reports/net-profit` | `view_profit_reports` | 5 |
-| inventory_reports | `/reports/inventory` | `view_current_stock` | 5 |
 | users | `/users/all` | `view_users` | — |
 | roles | `/users/roles` | `view_roles` | — |
 | permissions | `/users/permissions` | `manage_permissions` | — |
@@ -72,6 +72,8 @@ Kurasa za kuingia zimehamishwa pia: Login, Register, VerifyEmail, ForgotPassword
 Kurasa za ndani ambazo hazimo kwenye menyu na bado hazijahamishwa: `/sales/pending/preview`, `/sales/receipt`, `/reports/day-report`, `/biztrack-ai`, `/support/admin`, `/lock` (IdleLock), `/user-manual`.
 
 Haitumiki kwenye app ya asili (code isiyotumika, haikuhamishwa): `PurchaseDashboardTab`, `PurchaseOrderPrintPage`. API zake (`/purchases/dashboard`, statement ya msambazaji) zinafanya kazi na zitatumika kwenye Reports (Awamu 5).
+
+Ukurasa wa ziada uliohamishwa: `/reports/day-report` (ripoti ya siku). **Bado:** kitufe cha "eleza ripoti kwa AI" cha kurasa za ripoti za asili (Awamu 5c).
 
 ## Vipengele visivyo kurasa — hali
 | Kipengele | Hali |
