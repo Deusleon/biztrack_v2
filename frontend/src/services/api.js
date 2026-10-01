@@ -243,6 +243,12 @@ export const importExportService = {
   importFile: (type, file, { confirmed = false } = {}) => { const fd = new FormData(); fd.append('file', file); return api.post(`/import-export/${type}`, fd, { params: confirmed ? { confirmed: 'true' } : undefined, headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 }); },
 };
 
+// ─── reports ───────────────────────────────────────────────────────────────────────────────────────
+// One call for all 47 report endpoints: reportService.get('/sales/by-product', { startDate, endDate, saleType }).
+export const reportService = {
+  get: (path, params = {}) => api.get(`/reports${path}`, { params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null)) }),
+};
+
 // ─── dashboard ────────────────────────────────────────────────────────────────────────────────────
 export const dashboardService = {
   getStats: async () => { const res = await api.get('/dashboard/stats'); return { success: true, data: res.data ?? res, raw: res }; },

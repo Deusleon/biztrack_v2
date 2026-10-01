@@ -42,6 +42,9 @@ const StockCount = lazy(() => import('./pages/inventory/StockCount'));
 const StockTransfer = lazy(() => import('./pages/inventory/StockTransfer'));
 const ImportExport = lazy(() => import('./pages/inventory/ImportExport'));
 const Expenses = lazy(() => import('./pages/expenses/Expenses'));
+const ReportPage = lazy(() => import('./pages/reports/ReportPage'));
+const DayReport = lazy(() => import('./pages/reports/DayReport'));
+const NetProfit = lazy(() => import('./pages/reports/NetProfit'));
 import NotFound from './pages/NotFound';
 import { NAV_SECTIONS } from './utils/navigation';
 
@@ -77,6 +80,13 @@ const READY = {
   '/inventory/stock-transfer': <StockTransfer />,
   '/inventory/import-export': <ImportExport />,
   '/expenses': <Expenses />,
+  '/reports/sales': <ReportPage group="sales" />,
+  '/reports/purchases': <ReportPage group="purchases" />,
+  '/reports/inventory': <ReportPage group="inventory" />,
+  '/reports/profit': <ReportPage group="profit" />,
+  '/reports/expenses': <ReportPage group="expenses" />,
+  '/reports/net-profit': <NetProfit />,
+  '/reports/day-report': <DayReport />,
 };
 
 const EXTRA_ROUTES = ['/sales/pending/preview', '/sales/receipt', '/reports/day-report', '/profile', '/biztrack-ai', '/support/admin'];
