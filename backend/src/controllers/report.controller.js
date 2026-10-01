@@ -201,7 +201,8 @@ export const getExpensesReport = async (req, res) => {
 
 export const getInventoryReport = async (req, res) => {
   const storeId = req.user.current_store_id;
-  const { stockState = 'all' } = req.query;
+  // accept both in-stock and in_stock spellings (the current-summary report uses underscores)
+  const stockState = String(req.query.stockState || 'all').replace(/_/g, '-');
 
   try {
     const params = [storeId];
@@ -2589,7 +2590,9 @@ export const getStockSummaryReport = async (req, res) => {
 // 2. Current Stock Summary (point-in-time, same as getInventoryReport but richer)
 export const getCurrentStockSummaryReport = async (req, res) => {
   const storeId = req.user.current_store_id;
-  const { stockState = 'all', categoryId } = req.query;
+  const { categoryId } = req.query;
+  // This report spelled the states with underscores (in_stock) and the base inventory report with hyphens (in-stock): accept both.
+  const stockState = String(req.query.stockState || 'all').replace(/-/g, '_');
   try {
     const params = [storeId];
     const cte = inventoryStockCTE(storeId);
