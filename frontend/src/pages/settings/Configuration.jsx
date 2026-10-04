@@ -7,6 +7,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { useStoreSettings } from '../../hooks/useStoreSettings';
+import useDeveloperAccess from '../../hooks/useDeveloperAccess';
 import { settingsAdminService, priceCategoryService } from '../../services/api';
 import { clearPdfSettingsCache } from '../../utils/exportUtils';
 import { Input, Select, Button } from '../../components/ui';
@@ -28,6 +29,8 @@ export default function Configuration() {
   const [values, setValues] = useState({ business: {}, ops: {}, sys: {} });
   const [saving, setSaving] = useState(false);
   const canEdit = can('edit_configurations');
+  const { isDeveloper } = useDeveloperAccess();
+  const primary = !!values.ops.isPrimaryStore;
 
   useEffect(() => {
     let live = true; setData(null);
@@ -46,19 +49,25 @@ export default function Configuration() {
     const out = [];
     const biz = find(sys, 'businessInfo'); if (biz && can('view_business_info')) out.push({ ...biz, group: 'business' });
     const loc = find(st, 'localization'); if (loc && can('view_system_defaults')) {
-      const fields = [{ key: 'defaultStore', type: 'select', label: 'default_store', dynamic: 'stores' }, ...loc.fields];
+      const fields = [{ key: 'defaultStore', type: 'select', label: 'default_store', dynamic: 'stores' }, ...loc.fields]
+        .filter((f) => f.key !== 'defaultSmsGateway' || (isDeveloper && primary));
       const at = fields.findIndex((f) => f.key === 'defaultTaxRate'); fields.splice(at < 0 ? fields.length : at, 0, { key: 'defaultPriceCategory', type: 'select', label: 'default_price_category', dynamic: 'priceCategories' });
+      // The SMS gateway is a developer setting on the primary store. The server ignores it for everyone else.
+      if (isDeveloper && primary && !fields.some((f) => f.key === 'defaultSmsGateway')) {
+        fields.push({
+          key: 'defaultSmsGateway', type: 'select', label: 'default_sms_gateway',
+          options: [{ label: 'Beem Africa', value: 'beem_africa' }, { label: 'NextSMS', value: 'next_sms' }, { label: 'Meseji', value: 'meseji' }],
+        });
+      }
       out.push({ ...loc, fields, group: 'ops' });
     }
     const op = find(st, 'operations'); if (op && can('view_system_operations')) out.push({ ...op, group: 'ops' });
     return out;
-  }, [data, can]);
+  }, [data, can, isDeveloper, primary]);
 
-  const isSystemKey = (k) => ['defaultStore', 'multiStoreSupport', 'interStoreTransfer'].includes(k);
+  const isSystemKey = (k) => ['defaultStore', 'multiStoreSupport', 'interStoreTransfer', 'defaultSmsGateway'].includes(k);
   const read = (group, k) => (group === 'business' ? values.business[k] : isSystemKey(k) ? values.sys[k] : values.ops[k]);
   const write = (group, k, v) => setValues((x) => (group === 'business' ? { ...x, business: { ...x.business, [k]: v } } : isSystemKey(k) ? { ...x, sys: { ...x.sys, [k]: v } } : { ...x, ops: { ...x.ops, [k]: v } }));
-  const primary = !!values.ops.isPrimaryStore;
-
   const save = async () => {
     const o = values.ops;
     if (primary && !String(values.business.businessName || '').trim()) { showError(t('business_name_required', lang)); return; }
@@ -82,7 +91,7 @@ export default function Configuration() {
 
   return (
     <MainLayout>
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('configurations', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{currentStore?.name}</p></div>
           {canEdit && <Button onClick={save} loading={saving} disabled={!data}>{t('save_changes', lang)}</Button>}

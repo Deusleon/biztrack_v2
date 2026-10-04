@@ -9,7 +9,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { inventoryService, stockCountService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { DataTable, Button, RowActions, ACTION_ICONS, Input, Select, Textarea } from '../../components/ui';
+import { DataTable, Button, RowActions, ACTION_ICONS, Input, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { toPaging, dateOnly } from '../sales/common';
 import { useAllProducts } from '../purchases/common';
@@ -100,8 +100,8 @@ export default function StockAdjustment() {
           <Select searchable value={list.filters.product_id || ''} onChange={(e) => list.setFilter('product_id', e.target.value)} options={[{ value: '', label: t('all_products', lang) }, ...products.map((p) => ({ value: p.id, label: p.name }))]} />
           <Select value={list.filters.adjustment_type || ''} onChange={(e) => list.setFilter('adjustment_type', e.target.value)} options={[{ value: '', label: t('all', lang) }, { value: 'add', label: t('stock_add', lang) }, { value: 'subtract', label: t('stock_subtract', lang) }]} />
           <Select value={list.filters.reason || ''} onChange={(e) => list.setFilter('reason', e.target.value)} options={[{ value: '', label: t('all_reasons', lang) }, ...REASONS.map((r) => ({ value: r, label: t(r, lang) }))]} />
-          <Input type="date" value={list.filters.startDate || ''} onChange={(e) => list.setFilter('startDate', e.target.value)} aria-label={t('start_date', lang)} />
-          <Input type="date" value={list.filters.endDate || ''} onChange={(e) => list.setFilter('endDate', e.target.value)} aria-label={t('end_date', lang)} />
+          <DatePicker value={list.filters.startDate || ''} onChange={(e) => list.setFilter('startDate', e.target.value)} placeholder={t('start_date', lang)} />
+          <DatePicker align="right" value={list.filters.endDate || ''} onChange={(e) => list.setFilter('endDate', e.target.value)} placeholder={t('end_date', lang)} />
         </div>
         <DataTable columns={columns} data={list.rows} loading={list.loading} emptyMessage={list.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={list.pagination} onPageChange={list.setPage}
           renderActions={(a) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(a) }]} />} />

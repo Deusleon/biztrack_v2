@@ -57,7 +57,7 @@ export default function OrderPreview() {
 
   return (
     <MainLayout>
-      <div className="space-y-4 max-w-5xl">
+      <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('order_details', lang)} {order?.order_number ? `#${order.order_number}` : ''}</h1>
             {head.customer_name && <p className="text-sm text-gray-500 mt-0.5">{head.customer_name}{head.customer_phone ? ` · ${head.customer_phone}` : ''} · {dateOnly(head.created_at)}</p>}</div>

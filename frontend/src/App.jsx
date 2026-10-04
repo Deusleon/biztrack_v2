@@ -134,7 +134,7 @@ const READY = {
   '/settings/bulk-operations': <ImportExportPage bulk />,
 };
 
-const EXTRA_ROUTES = ['/sales/pending/preview', '/sales/receipt', '/reports/day-report', '/profile', '/biztrack-ai', '/support/admin'];
+const EXTRA_ROUTES = ['/sales/pending/preview', '/sales/receipt', '/profile', '/biztrack-ai', '/support/admin'];
 
 const Loading = () => <div className="min-h-screen flex items-center justify-center bg-gray-100"><div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
 

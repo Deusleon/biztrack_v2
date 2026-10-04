@@ -9,7 +9,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { stockTransferService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, Select, Textarea } from '../../components/ui';
+import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { toPaging, dateOnly } from '../sales/common';
 import { PStatus, useAllProducts, Dl } from '../purchases/common';
@@ -31,7 +31,7 @@ export default function StockTransfer() {
   const { showSuccess, showError } = useToast();
   const { lang } = useLanguage();
   const { stores, currentStore } = useStore();
-  const { settings } = useStoreSettings();
+  const { settings, loading: settingsLoading } = useStoreSettings();
   const products = useAllProducts();
   const list = useServerList({ fetcher: fetchTransfers, initialFilters: { search: '', direction: 'all', status: '', startDate: '', endDate: '' } });
   useLiveRefresh(['stockTransferCreated', 'stockTransferUpdated'], list.reload);
@@ -73,6 +73,24 @@ export default function StockTransfer() {
   ];
   const d = detail; const pending = (x) => ['pending_approval', 'pending'].includes(x?.status);
   const toReceive = (x) => incoming(x) && ['approved', 'in_transit'].includes(x.status) && can('create_stock_transfer');
+  const transfersOff = !settingsLoading && settings && Object.keys(settings).length > 0 && !settings.interStoreTransfer;
+
+  if (transfersOff) {
+    return (
+      <MainLayout>
+        <div className="space-y-4">
+          <div className="page-header text-left">
+            <h1 className="text-xl font-bold text-gray-900">{t('stock_transfer', lang)}</h1>
+            <p className="text-sm text-gray-500 mt-0.5">{t('manage_stock_transfers', lang)}</p>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded p-8 text-center">
+            <h2 className="text-base font-semibold text-amber-800">{t('inter_store_transfer_disabled', lang)}</h2>
+            <p className="text-sm text-amber-700 mt-1">{t('inter_store_transfer_disabled_description', lang)}</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -85,8 +103,8 @@ export default function StockTransfer() {
           <Input value={list.searchText} onChange={(e) => list.setFilter('search', e.target.value)} placeholder={t('ui_search_placeholder', lang)} />
           <Select value={list.filters.direction || 'all'} onChange={(e) => list.setFilter('direction', e.target.value)} options={DIRECTIONS.map((x) => ({ value: x, label: t(x, lang) }))} />
           <Select value={list.filters.status || ''} onChange={(e) => list.setFilter('status', e.target.value)} options={[{ value: '', label: t('all', lang) }, ...STATUSES.map((x) => ({ value: x, label: t(x, lang) }))]} />
-          <Input type="date" value={list.filters.startDate || ''} onChange={(e) => list.setFilter('startDate', e.target.value)} aria-label={t('start_date', lang)} />
-          <Input type="date" value={list.filters.endDate || ''} onChange={(e) => list.setFilter('endDate', e.target.value)} aria-label={t('end_date', lang)} />
+          <DatePicker value={list.filters.startDate || ''} onChange={(e) => list.setFilter('startDate', e.target.value)} placeholder={t('start_date', lang)} />
+          <DatePicker align="right" value={list.filters.endDate || ''} onChange={(e) => list.setFilter('endDate', e.target.value)} placeholder={t('end_date', lang)} />
         </div>
         <DataTable columns={columns} data={list.rows} loading={list.loading} emptyMessage={list.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={list.pagination} onPageChange={list.setPage}
           renderActions={(x) => <RowActions actions={[
@@ -143,7 +161,7 @@ export default function StockTransfer() {
                   <td className="px-2 py-1.5"><input className={`${cell} text-left`} value={l.batch_number} onChange={(e) => up({ batch_number: e.target.value })} /></td>
                   <td className="px-2 py-1.5"><input className={cell} inputMode="decimal" value={l.cost_price} onChange={(e) => up({ cost_price: e.target.value })} /></td>
                   <td className="px-2 py-1.5"><input className={cell} inputMode="decimal" value={l.selling_price} onChange={(e) => up({ selling_price: e.target.value })} /></td>
-                  {showExpiry && <td className="px-2 py-1.5"><input type="date" className={`${cell} text-left`} value={l.expiry_date} onChange={(e) => up({ expiry_date: e.target.value })} /></td>}</tr>); })}</tbody></table></div>
+                  {showExpiry && <td className="px-2 py-1.5"><DatePicker value={l.expiry_date} onChange={(e) => up({ expiry_date: e.target.value })} placeholder={t('exp_date', lang)} /></td>}</tr>); })}</tbody></table></div>
             <div className="flex justify-end gap-3"><Button loading={busy} onClick={saveReceive}>{t('receive', lang)}</Button><Button variant="secondary" onClick={() => setReceive(null)}>{t('ui_cancel', lang)}</Button></div>
           </div>
         )}

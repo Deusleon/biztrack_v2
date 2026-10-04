@@ -65,7 +65,7 @@ export default function Subscription() {
 
   return (
     <MainLayout>
-      <div className="space-y-4 max-w-5xl">
+      <div className="space-y-4">
         <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('subscription', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{currentStore?.name}</p></div>
         {loading && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}
         {!loading && (

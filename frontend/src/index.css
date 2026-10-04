@@ -254,7 +254,7 @@ input[type="checkbox"]:disabled {
     border-color: var(--color-primary);
   }
   
-  /* Custom Scrollbar Styles */
+  /* Scrollbar stays hidden until the pointer is over the scroller (sidebar). */
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
   }
@@ -264,26 +264,31 @@ input[type="checkbox"]:disabled {
   }
   
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: transparent;
     border-radius: 3px;
   }
   
   .scrollbar-thin:hover::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: rgba(255, 255, 255, 0.35);
   }
   
   .scrollbar-thumb-primary-dark::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: transparent;
   }
   
-  .scrollbar-thumb-primary:hover::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.3);
+  .scrollbar-thin:hover.scrollbar-thumb-primary::-webkit-scrollbar-thumb,
+  .scrollbar-thin:hover.scrollbar-thumb-primary-dark::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.45);
   }
   
-  /* Firefox scrollbar */
+  /* Firefox: no bar until hover */
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    scrollbar-color: transparent transparent;
+  }
+
+  .scrollbar-thin:hover {
+    scrollbar-color: rgba(255, 255, 255, 0.45) transparent;
   }
   
   /* Prevent scroll jump on navigation */

@@ -50,7 +50,7 @@ export default function Integrations() {
 
   return (
     <MainLayout>
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4">
         <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('integration', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('google_drive_backup_desc', lang)}</p></div>
         <div className="bg-white rounded shadow p-5 text-left space-y-3">
           <div className="flex items-center justify-between gap-3 flex-wrap"><h2 className="text-sm font-semibold text-gray-800">{t('google_drive_backup', lang)}</h2><span className={`px-2 py-0.5 rounded text-xs font-medium ${status?.configured ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{t(status?.configured ? 'configured' : 'not_configured', lang)}</span></div>

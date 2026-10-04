@@ -20,7 +20,7 @@ export default function Appearance() {
 
   return (
     <MainLayout>
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4">
         <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('appearance', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('appearance_desc', lang)}</p></div>
         <div className="flex gap-2">{[['all', 'all_themes'], ['light', 'light_themes'], ['dark', 'dark_themes']].map(([k, label]) => <button key={k} type="button" onClick={() => setFilter(k)} className={`px-3 py-1.5 text-sm rounded border ${filter === k ? 'border-primary bg-primary-10 text-primary font-medium' : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'}`}>{t(label, lang)}</button>)}</div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

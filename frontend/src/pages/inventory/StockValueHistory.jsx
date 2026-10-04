@@ -9,7 +9,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { inventoryService, priceCategoryService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, Select, Textarea } from '../../components/ui';
+import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { toPaging, dateOnly } from '../sales/common';
 import { formatCurrency, formatNumberWithCommas } from '../../utils/numberUtils';
@@ -66,8 +66,8 @@ export default function StockValueHistory() {
         <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Input value={list.searchText} onChange={(e) => list.setFilter('search', e.target.value)} placeholder={t('ui_search_placeholder', lang)} />
           <Select value={list.filters.priceCategoryId || ''} onChange={(e) => list.setFilter('priceCategoryId', e.target.value)} options={[{ value: '', label: t('all', lang) }, ...cats.map((c) => ({ value: c.id, label: c.name }))]} />
-          <Input type="date" value={list.filters.startDate || ''} onChange={(e) => list.setFilter('startDate', e.target.value)} aria-label={t('start_date', lang)} />
-          <Input type="date" value={list.filters.endDate || ''} onChange={(e) => list.setFilter('endDate', e.target.value)} aria-label={t('end_date', lang)} />
+          <DatePicker value={list.filters.startDate || ''} onChange={(e) => list.setFilter('startDate', e.target.value)} placeholder={t('start_date', lang)} />
+          <DatePicker align="right" value={list.filters.endDate || ''} onChange={(e) => list.setFilter('endDate', e.target.value)} placeholder={t('end_date', lang)} />
         </div>
         <DataTable columns={columns} data={list.rows} loading={list.loading} emptyMessage={list.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={list.pagination} onPageChange={list.setPage}
           renderActions={(h) => <RowActions actions={[

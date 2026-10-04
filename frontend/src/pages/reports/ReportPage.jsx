@@ -11,7 +11,7 @@ import { useStore } from '../../contexts/StoreContext';
 import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { usePersistedState } from '../../hooks/usePersistedState';
 import { reportService, categoryService } from '../../services/api';
-import { DataTable, Input, Select } from '../../components/ui';
+import { DataTable, Input, Select, DatePicker } from '../../components/ui';
 import { useAllProducts } from '../purchases/common';
 import { REPORT_GROUPS, FILTER_OPTIONS } from './catalog';
 import { kindOf, columnsFor, formatValue, labelOf } from './format';
@@ -99,7 +99,7 @@ export default function ReportPage({ group }) {
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {report.dates && <><Input type="date" label={t('start_date', lang)} value={filters.startDate || ''} onChange={(e) => setF('startDate', e.target.value)} /><Input type="date" label={t('end_date', lang)} value={filters.endDate || ''} onChange={(e) => setF('endDate', e.target.value)} /></>}
+            {report.dates && <><DatePicker label={t('start_date', lang)} value={filters.startDate || ''} onChange={(e) => setF('startDate', e.target.value)} /><DatePicker label={t('end_date', lang)} align="right" value={filters.endDate || ''} onChange={(e) => setF('endDate', e.target.value)} /></>}
             {report.filters.map((f) => {
               if (f === 'categoryId') return <Select key={f} searchable label={t('category', lang)} value={filters.categoryId || ''} onChange={(e) => setF('categoryId', e.target.value)} options={[{ value: '', label: t('all_categories', lang) }, ...cats.map((c) => ({ value: c.id, label: c.name }))]} />;
               if (f === 'productId') return <Select key={f} searchable label={t('product_name', lang)} value={filters.productId || ''} onChange={(e) => setF('productId', e.target.value)} options={[{ value: '', label: t('all_products', lang) }, ...products.map((p) => ({ value: p.id, label: p.name }))]} />;

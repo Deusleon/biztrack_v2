@@ -43,7 +43,7 @@ export default function Tools() {
 
   return (
     <MainLayout>
-      <div className="space-y-4 max-w-5xl">
+      <div className="space-y-4">
         <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('system_tools', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('system_tools_desc', lang)}</p></div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {card(t('export_data', lang), t('export_data_desc', lang), <Button variant="secondary" loading={busy === 'export'} onClick={() => run('export', async () => saveBlob(await toolsService.exportStoreData(), `${currentStore?.name || 'store'}-data-${today}.sql`), 'export_success_msg')}>{t('export_data', lang)}</Button>)}

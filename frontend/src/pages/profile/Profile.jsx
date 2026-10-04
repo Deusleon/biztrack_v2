@@ -97,7 +97,7 @@ export default function Profile() {
 
   return (
     <MainLayout>
-      <div className="space-y-4 max-w-3xl">
+      <div className="space-y-4">
         <div className="page-header text-left">
           <h1 className="text-xl font-bold text-gray-900">{t('my_profile', lang)}</h1>
           <p className="text-sm text-gray-500 mt-0.5">{t('manage_your_personal_info', lang)}</p>

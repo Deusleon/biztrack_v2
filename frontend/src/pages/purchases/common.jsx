@@ -1,6 +1,6 @@
 // FILE PATH: frontend/src/pages/purchases/common.jsx
 import { useState, useEffect } from 'react';
-import { Input, Select } from '../../components/ui';
+import { Input, Select, DatePicker } from '../../components/ui';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { supplierService, productService } from '../../services/api';
@@ -45,8 +45,8 @@ export function PFilters({ list, statusOptions, statusKey = 'status', suppliers 
       <Input value={list.searchText} onChange={(e) => list.setFilter('search', e.target.value)} placeholder={t('ui_search_placeholder', lang)} aria-label={t('search', lang)} />
       {statusOptions && <Select value={f[statusKey] || ''} onChange={(e) => list.setFilter(statusKey, e.target.value)} options={[{ value: '', label: t('all', lang) }, ...statusOptions.map((o) => ({ value: o, label: t(o, lang) }))]} />}
       {suppliers && <Select searchable value={f.supplier_id || ''} onChange={(e) => list.setFilter('supplier_id', e.target.value)} options={[{ value: '', label: t('all_suppliers', lang) }, ...suppliers.map((s) => ({ value: s.id, label: s.name }))]} />}
-      <Input type="date" value={f.from_date || ''} onChange={(e) => list.setFilter('from_date', e.target.value)} aria-label={t('start_date', lang)} />
-      <Input type="date" value={f.to_date || ''} onChange={(e) => list.setFilter('to_date', e.target.value)} aria-label={t('end_date', lang)} />
+      <DatePicker value={f.from_date || ''} onChange={(e) => list.setFilter('from_date', e.target.value)} placeholder={t('start_date', lang)} />
+      <DatePicker align="right" value={f.to_date || ''} onChange={(e) => list.setFilter('to_date', e.target.value)} placeholder={t('end_date', lang)} />
     </div>
   );
 }

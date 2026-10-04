@@ -7,7 +7,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { stockCountService, categoryService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
-import { DataTable, Button, RowActions, ACTION_ICONS, Input, Select, Textarea } from '../../components/ui';
+import { DataTable, Button, RowActions, ACTION_ICONS, Input, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { toPaging, dateOnly } from '../sales/common';
 import { formatNumberWithCommas } from '../../utils/numberUtils';
@@ -89,12 +89,12 @@ export default function StockCount() {
           <DataTable columns={pcols} data={products.rows} loading={products.loading} rowId="product_id" emptyMessage={t('ui_nothing_yet', lang)} pagination={products.pagination} onPageChange={products.setPage} />
         </>)}
         {tab === 'movements' && canHistory && (<>
-          <div className="grid grid-cols-2 gap-3 max-w-md">{[['total_movements', moves.summary?.total_movements], ['total_quantity', formatNumberWithCommas(moves.summary?.total_quantity)]].map(([k, v]) => <div key={k} className="bg-white p-4 rounded shadow text-left"><p className="text-xs uppercase tracking-wide text-gray-400">{t(k, lang)}</p><p className="text-lg font-bold text-gray-900 mt-1">{v ?? 0}</p></div>)}</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{[['total_movements', moves.summary?.total_movements], ['total_quantity', formatNumberWithCommas(moves.summary?.total_quantity)]].map(([k, v]) => <div key={k} className="bg-white p-4 rounded shadow text-left"><p className="text-xs uppercase tracking-wide text-gray-400">{t(k, lang)}</p><p className="text-lg font-bold text-gray-900 mt-1">{v ?? 0}</p></div>)}</div>
           <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-4 gap-3">
             <Select value={moves.filters.movement_type || 'IN'} onChange={(e) => moves.setFilter('movement_type', e.target.value)} options={[{ value: 'IN', label: t('incoming_stock', lang) }, { value: 'OUT', label: t('outgoing_stock', lang) }]} />
             <Input value={moves.searchText} onChange={(e) => moves.setFilter('search', e.target.value)} placeholder={t('ui_search_placeholder', lang)} />
-            <Input type="date" value={moves.filters.startDate || ''} onChange={(e) => moves.setFilter('startDate', e.target.value)} aria-label={t('start_date', lang)} />
-            <Input type="date" value={moves.filters.endDate || ''} onChange={(e) => moves.setFilter('endDate', e.target.value)} aria-label={t('end_date', lang)} />
+            <DatePicker value={moves.filters.startDate || ''} onChange={(e) => moves.setFilter('startDate', e.target.value)} placeholder={t('start_date', lang)} />
+            <DatePicker align="right" value={moves.filters.endDate || ''} onChange={(e) => moves.setFilter('endDate', e.target.value)} placeholder={t('end_date', lang)} />
           </div>
           <DataTable columns={[
             { key: 'created_at', label: t('date', lang), render: (m) => dateOnly(m.created_at) },
@@ -107,7 +107,7 @@ export default function StockCount() {
           ]} data={moves.rows} loading={moves.loading} emptyMessage={moves.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={moves.pagination} onPageChange={moves.setPage} />
         </>)}
         {tab === 'history' && canHistory && (<>
-          <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 gap-3"><Input type="date" value={history.filters.startDate || ''} onChange={(e) => history.setFilter('startDate', e.target.value)} aria-label={t('start_date', lang)} /><Input type="date" value={history.filters.endDate || ''} onChange={(e) => history.setFilter('endDate', e.target.value)} aria-label={t('end_date', lang)} /></div>
+          <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"><DatePicker value={history.filters.startDate || ''} onChange={(e) => history.setFilter('startDate', e.target.value)} placeholder={t('start_date', lang)} /><DatePicker align="right" value={history.filters.endDate || ''} onChange={(e) => history.setFilter('endDate', e.target.value)} placeholder={t('end_date', lang)} /></div>
           <DataTable columns={hcols} data={history.rows} loading={history.loading} emptyMessage={history.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={history.pagination} onPageChange={history.setPage} renderActions={(h) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(h) }]} />} />
         </>)}
       </div>

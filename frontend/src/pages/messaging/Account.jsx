@@ -50,7 +50,7 @@ export default function Account() {
   const card = (label, value) => <div className="bg-white p-4 rounded shadow text-left"><p className="text-xs uppercase tracking-wide text-gray-400">{label}</p><p className="text-lg font-bold text-gray-900 mt-1">{value}</p></div>;
   return (
     <MainLayout>
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3"><div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('account_and_topup', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('account_and_topup_description', lang)}</p></div><Button variant="secondary" onClick={load} loading={loading}>{t('refresh_balance', lang)}</Button></div>
         {notSetUp && <div className="bg-amber-50 border border-amber-200 rounded p-4 text-sm text-amber-800 text-left">{t('sms_not_configured_generic', lang)}</div>}
         {info?.isDeveloper && info.gatewayLabel && <p className="text-xs text-gray-500 text-left">{t('current_sms_gateway', lang)}: <b>{info.gatewayLabel}</b></p>}

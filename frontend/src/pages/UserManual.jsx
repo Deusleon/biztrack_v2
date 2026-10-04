@@ -29,10 +29,12 @@ export default function UserManual() {
   const mine = String(user?.preferred_language || lang || 'en').toLowerCase().startsWith('sw') ? 'sw' : 'en';
   return (
     <MainLayout>
-      <div className="max-w-3xl space-y-5">
+      <div className="space-y-5">
         <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('user_manual', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('user_manual_description', lang)}</p></div>
-        <ManualCard code={mine} highlighted lang={lang} />
-        <ManualCard code={mine === 'sw' ? 'en' : 'sw'} lang={lang} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <ManualCard code={mine} highlighted lang={lang} />
+          <ManualCard code={mine === 'sw' ? 'en' : 'sw'} lang={lang} />
+        </div>
         <p className="text-xs text-gray-400 text-left">{t('manual_formats_hint', lang)}</p>
       </div>
     </MainLayout>

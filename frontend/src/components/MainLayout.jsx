@@ -1,5 +1,5 @@
 // FILE PATH: frontend/src/components/MainLayout.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
@@ -35,6 +35,7 @@ export default function MainLayout({ children }) {
   const menuRef = useRef(null);
 
   const toggleCollapse = () => { const next = !collapsed; setCollapsed(next); localStorage.setItem('sidebarCollapsed', String(next)); };
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   useEffect(() => {
     const close = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
@@ -55,7 +56,7 @@ export default function MainLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen((o) => !o)} isCollapsed={collapsed} />
+      <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen((o) => !o)} closeSidebar={closeSidebar} isCollapsed={collapsed} />
 
       <div className={`transition-all duration-300 min-h-screen flex flex-col ${collapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <header className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200 print:hidden safe-top">

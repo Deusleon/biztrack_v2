@@ -8,6 +8,7 @@ import { NAV_SECTIONS, canOpen, ICON_PATHS } from '../utils/navigation';
 import { t } from '../utils/i18n';
 import { useLanguage } from '../contexts/LanguageContext';
 import BrandMark from './BrandMark';
+import useDeveloperAccess from '../hooks/useDeveloperAccess';
 
 const NavIcon = ({ name }) => (
   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -15,13 +16,17 @@ const NavIcon = ({ name }) => (
   </svg>
 );
 
-const Sidebar = ({ isOpen, toggleSidebar, isCollapsed }) => {
+const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed }) => {
   const location = useLocation();
   const { user, can } = useAuth();
   const { locked } = useSubscription();
   const { currentStore } = useStore();
   const { lang } = useLanguage();            // re-render the labels when the language changes
+  const { isDeveloper } = useDeveloperAccess();
   const navRef = useRef(null);
+
+  // Phones: the drawer covers the page. Choosing a page (or landing on one) puts it away.
+  useEffect(() => { closeSidebar?.(); }, [location.pathname, closeSidebar]);
 
   const allPaths = NAV_SECTIONS.flatMap((s) => s.items.map((i) => i.to));
   const isActive = (path) => {
@@ -43,7 +48,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed }) => {
 
   // A store with a lapsed subscription sees the Subscription page (and the manual), nothing else.
   const visible = NAV_SECTIONS
-    .map((s) => ({ ...s, items: s.items.filter((i) => (locked ? ['/subscription', '/user-manual'].includes(i.to) : canOpen(i, can))) }))
+    .map((s) => ({ ...s, items: s.items.filter((i) => (locked ? ['/subscription', '/user-manual'].includes(i.to) : canOpen(i, can, { developer: isDeveloper }))) }))
     .filter((s) => s.items.length > 0);
 
   const initials = (user?.name || '?').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
@@ -66,7 +71,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed }) => {
             </button>
           </div>
 
-          <nav ref={navRef} className="flex-1 overflow-y-auto py-6 px-3 space-y-6">
+          <nav ref={navRef} className="flex-1 overflow-y-auto py-6 px-3 space-y-6 scrollbar-thin scrollbar-thumb-primary-dark scrollbar-track-transparent">
             {visible.map((section) => (
               <div key={section.key}>
                 {section.title && (

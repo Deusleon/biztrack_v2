@@ -1,5 +1,5 @@
 // FILE PATH: frontend/src/pages/sales/common.jsx
-import { Input, Select } from '../../components/ui';
+import { Input, Select, DatePicker } from '../../components/ui';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { t } from '../../utils/i18n';
 
@@ -21,8 +21,8 @@ export function FilterBar({ list, statusOptions, statusKey = 'status', dates = t
     <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <Input value={list.searchText} onChange={(e) => list.setFilter('search', e.target.value)} placeholder={t('ui_search_placeholder', lang)} aria-label={t('search', lang)} />
       {statusOptions && <Select value={f[statusKey] || ''} onChange={(e) => list.setFilter(statusKey, e.target.value)} options={[{ value: '', label: t('all', lang) }, ...statusOptions.map((o) => ({ value: o, label: t(o, lang) }))]} />}
-      {dates && <Input type="date" value={f.startDate || ''} onChange={(e) => list.setFilter('startDate', e.target.value)} aria-label={t('start_date', lang)} />}
-      {dates && <Input type="date" value={f.endDate || ''} onChange={(e) => list.setFilter('endDate', e.target.value)} aria-label={t('end_date', lang)} />}
+      {dates && <DatePicker value={f.startDate || ''} onChange={(e) => list.setFilter('startDate', e.target.value)} placeholder={t('start_date', lang)} />}
+      {dates && <DatePicker align="right" value={f.endDate || ''} onChange={(e) => list.setFilter('endDate', e.target.value)} placeholder={t('end_date', lang)} />}
     </div>
   );
 }

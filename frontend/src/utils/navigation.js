@@ -47,6 +47,7 @@ export const NAV_SECTIONS = [
   ] },
   { key: 'reports', title: 'reports', items: [
     { label: 'sales_reports', to: '/reports/sales', icon: 'chart', permission: 'view_sales_reports' },
+    { label: 'day_report', to: '/reports/day-report', icon: 'chart', permission: 'view_sales_reports' },
     { label: 'purchases_reports', to: '/reports/purchases', icon: 'chart', permission: 'view_purchase_reports' },
     { label: 'expenses_reports', to: '/reports/expenses', icon: 'chart', permission: 'view_supplier_payments' },
     { label: 'profit_reports', to: '/reports/profit', icon: 'chart', permission: 'view_profit_reports' },
@@ -70,7 +71,7 @@ export const NAV_SECTIONS = [
     { label: 'configurations', to: '/settings/configurations', icon: 'cog', permission: 'view_configurations' },
     { label: 'uploads', to: '/settings/uploads', icon: 'upload', permission: 'view_uploads' },
     { label: 'bulk_operations', to: '/settings/bulk-operations', icon: 'layers', permission: 'view_bulk_operations' },
-    { label: 'integration', to: '/settings/integration', icon: 'link', permission: 'view_integration' },
+    { label: 'integration', to: '/settings/integration', icon: 'link', permission: 'view_integration', developerOnly: true },
     { label: 'security', to: '/settings/security', icon: 'shield', permission: 'view_security' },
     { label: 'tools', to: '/settings/tools', icon: 'cog', permission: 'view_tools' },
     { label: 'notifications', to: '/settings/notifications', icon: 'bell', permission: 'view_notifications' },
@@ -83,7 +84,8 @@ export const NAV_SECTIONS = [
   ] },
 ];
 
-export const canOpen = (item, can) => {
+export const canOpen = (item, can, extras = {}) => {
+  if (item.developerOnly && !extras.developer) return false;
   if (item.anyPermissions) return item.anyPermissions.some(can);
   if (item.permission) return can(item.permission);
   return true;

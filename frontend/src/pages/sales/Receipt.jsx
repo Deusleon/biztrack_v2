@@ -32,7 +32,7 @@ export default function Receipt() {
 
   return (
     <MainLayout>
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left">
             <h1 className="text-xl font-bold text-gray-900">{t('receipt', lang)}</h1>

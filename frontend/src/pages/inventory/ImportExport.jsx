@@ -69,7 +69,7 @@ export default function ImportExport({ bulk = false }) {
 
   return (
     <MainLayout>
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4">
         <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t(bulk ? 'bulk_operations' : 'import_export', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t(bulk ? 'bulk_operations_desc' : 'import_export_desc', lang)}</p></div>
 
         <div className="bg-white p-5 rounded shadow space-y-4 text-left">

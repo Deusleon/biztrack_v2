@@ -33,6 +33,7 @@ function Kpi({ title, value, sub, change, to }) {
 
 const QUICK = [
   { label: 'invoice_sale', to: '/sales/invoice', permission: 'create_invoice' },
+  { label: 'day_report', to: '/reports/day-report', permission: 'view_sales_reports' },
   { label: 'products', to: '/inventory/products', permission: 'view_products' },
   { label: 'customers', to: '/sales/customers', permission: 'view_customers' },
   { label: 'purchase_orders', to: '/purchases/orders', permission: 'view_purchase_orders' },

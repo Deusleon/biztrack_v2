@@ -7,7 +7,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { reportService } from '../../services/api';
-import { Button, DataTable, Input } from '../../components/ui';
+import { Button, DataTable, DatePicker } from '../../components/ui';
 import { formatValue, labelOf, kindOf } from './format';
 import { t } from '../../utils/i18n';
 
@@ -37,7 +37,7 @@ export default function DayReport() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('day_report', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('day_report_description', lang)}</p></div>
-          <div className="flex items-end gap-2"><Input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} /><Button variant="secondary" onClick={() => setDate(today())}>{t('today', lang)}</Button><ExportMenu rows={exportRows} columns={[{ key: '__no', title: 'no.', width: '45px' }, ...txCols.map((k) => ({ key: k, title: k }))]} title="day_report" orientation="landscape" fromDate={date} toDate={date} disabled={state.loading || exportRows.length === 0} /></div>
+          <div className="flex items-end gap-2"><DatePicker value={date} onChange={(e) => e.target.value && setDate(e.target.value)} placeholder={t('date', lang)} /><Button variant="secondary" onClick={() => setDate(today())}>{t('today', lang)}</Button><ExportMenu rows={exportRows} columns={[{ key: '__no', title: 'no.', width: '45px' }, ...txCols.map((k) => ({ key: k, title: k }))]} title="day_report" orientation="landscape" fromDate={date} toDate={date} disabled={state.loading || exportRows.length === 0} /></div>
         </div>
         {r?.summary && <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">{Object.entries(r.summary).map(([k, v]) => <div key={k} className="bg-white p-4 rounded shadow text-left"><p className="text-xs uppercase tracking-wide text-gray-400">{labelOf(k, lang)}</p><p className="text-lg font-bold text-gray-900 mt-1">{fmt(k, v)}</p></div>)}</div>}
         {pay.length > 0 && <div className="bg-white p-4 rounded shadow text-left"><h2 className="text-sm font-semibold text-gray-700 mb-2">{t('payment_method_breakdown', lang)}</h2><ul className="divide-y divide-gray-100 text-sm">{pay.map((p) => <li key={p.payment_method} className="py-1.5 flex justify-between"><span>{fmt('payment_method', p.payment_method)} <span className="text-gray-400">({p.transaction_count})</span></span><b>{fmt('total_amount', p.total_amount)}</b></li>)}</ul></div>}

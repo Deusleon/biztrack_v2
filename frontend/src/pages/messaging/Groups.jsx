@@ -61,7 +61,7 @@ export default function Groups() {
   );
   return (
     <MainLayout>
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3"><div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('groups', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('groups_description', lang)}</p></div>{manage && <Button onClick={() => setEdit({ name: '' })} mobileLabel={t('new_group', lang)}>{t('new_group', lang)}</Button>}</div>
         {loading && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}
         {!loading && tree.length === 0 && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('no_groups_yet', lang)}</div>}

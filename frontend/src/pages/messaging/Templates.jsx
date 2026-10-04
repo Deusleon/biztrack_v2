@@ -34,7 +34,7 @@ export default function Templates() {
   const remove = async () => { try { const r = await messagingService.deleteTemplate(confirm.id); showSuccess(r.message); load(); } catch (err) { showError(err.message); } setConfirm(null); };
   return (
     <MainLayout>
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3"><div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('templates', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('templates_description', lang)}</p></div>{manage && <Button onClick={() => { setForm({ name: '', content: '' }); setModal({}); }} mobileLabel={t('new_template', lang)}>{t('new_template', lang)}</Button>}</div>
         {loading && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}
         {!loading && rows.length === 0 && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('ui_nothing_yet', lang)}</div>}

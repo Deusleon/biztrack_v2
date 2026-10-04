@@ -30,7 +30,7 @@ export default function Notifications() {
 
   return (
     <MainLayout>
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3"><div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('notification_settings', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('notification_settings_desc', lang)}</p></div>{canManage && <Button onClick={save} loading={saving} disabled={!n}>{t('save_changes', lang)}</Button>}</div>
         {!canManage && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 text-left">{t('view_only_mode', lang)}</p>}
         {!n && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}

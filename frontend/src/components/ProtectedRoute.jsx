@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { itemForPath, canOpen } from '../utils/navigation';
+import useDeveloperAccess from '../hooks/useDeveloperAccess';
 import PasswordExpired from '../pages/PasswordExpired';
 import NoAccess from '../pages/NoAccess';
 import SubscriptionLocked from '../pages/SubscriptionLocked';
@@ -20,6 +21,7 @@ const LOCKED_OK = ['/subscription', '/profile', '/user-manual'];
 export default function ProtectedRoute() {
   const { isAuthenticated, user, can, permissions, loading } = useAuth();
   const { locked } = useSubscription();
+  const { isDeveloper, loading: developerLoading } = useDeveloperAccess();
   const { pathname } = useLocation();
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-100"><div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
@@ -32,7 +34,8 @@ export default function ProtectedRoute() {
   }
 
   const item = itemForPath(pathname);
+  if (item?.developerOnly && developerLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-100"><div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   // Wait until the server has said what this person may do (cached from last time or just fetched).
-  if (item && permissions.length > 0 && !canOpen(item, can)) return <NoAccess />;
+  if (item && permissions.length > 0 && !canOpen(item, can, { developer: isDeveloper })) return <NoAccess />;
   return <Outlet />;
 }

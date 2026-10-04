@@ -91,6 +91,8 @@ export default function DatePicker({
   const [yearPickerOpen, setYearPickerOpen] = useState(false);
 
   const wrapperRef = useRef(null);
+  const triggerRef = useRef(null);
+  const [popup, setPopup] = useState(null);
 
   // Close on outside click
   useEffect(() => {
@@ -103,6 +105,29 @@ export default function DatePicker({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // The calendar is position:fixed so a table or card with overflow does not clip it.
+  useEffect(() => {
+    if (!open) { setPopup(null); return undefined; }
+    const place = () => {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const width = 288;
+      let left = align === "right" ? r.right - width : r.left;
+      left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+      const height = 340;
+      const top = window.innerHeight - r.bottom < height && r.top > height ? r.top - height - 4 : r.bottom + 4;
+      setPopup({ top, left });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, align]);
 
   // Sync view when value changes externally
   useEffect(() => {
@@ -174,6 +199,7 @@ export default function DatePicker({
 
       {/* Input trigger */}
       <div
+        ref={triggerRef}
         role="button"
         tabIndex={disabled ? -1 : 0}
         aria-haspopup="true"
@@ -228,8 +254,8 @@ export default function DatePicker({
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
 
       {/* Calendar dropdown */}
-      {open && (
-        <div className={`absolute z-50 mt-1 bg-white border border-gray-200 rounded shadow-lg p-3 w-72 ${align === "right" ? "right-0" : "left-0"}`}>
+      {open && popup && (
+        <div className="fixed z-50 bg-white border border-gray-200 rounded shadow-lg p-3 w-72" style={{ top: popup.top, left: popup.left }}>
           {/* ── Month / Year header ── */}
           <div className="flex items-center justify-between mb-3">
             <button

@@ -11,7 +11,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { inventoryService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { DataTable, Button, RowActions, ACTION_ICONS, Input, Select } from '../../components/ui';
+import { DataTable, Button, RowActions, ACTION_ICONS, Input, Select, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { toPaging, dateOnly } from '../sales/common';
 import { formatCurrency, formatNumberWithCommas } from '../../utils/numberUtils';
@@ -97,7 +97,7 @@ export default function CurrentStock() {
         )}
       </FormModal>
       <FormModal isOpen={!!edit} onClose={() => !saving && setEdit(null)} size="sm" title={t('edit_batch', lang)}>
-        {edit && <form onSubmit={(e) => { e.preventDefault(); saveBatch(); }} className="space-y-4"><Input label={t('batch_number', lang)} value={edit.batch_number} onChange={(e) => setEdit((x) => ({ ...x, batch_number: e.target.value }))} /><Input label={t('cost_price', lang)} value={edit.cost_price} onChange={(e) => setEdit((x) => ({ ...x, cost_price: e.target.value }))} />{showExpiry && <Input type="date" label={t('exp_date', lang)} value={edit.expiry_date} onChange={(e) => setEdit((x) => ({ ...x, expiry_date: e.target.value }))} />}<div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{t('ui_update', lang)}</Button><Button type="button" variant="secondary" onClick={() => setEdit(null)}>{t('ui_cancel', lang)}</Button></div></form>}
+        {edit && <form onSubmit={(e) => { e.preventDefault(); saveBatch(); }} className="space-y-4"><Input label={t('batch_number', lang)} value={edit.batch_number} onChange={(e) => setEdit((x) => ({ ...x, batch_number: e.target.value }))} /><Input label={t('cost_price', lang)} value={edit.cost_price} onChange={(e) => setEdit((x) => ({ ...x, cost_price: e.target.value }))} />{showExpiry && <DatePicker label={t('exp_date', lang)} value={edit.expiry_date} onChange={(e) => setEdit((x) => ({ ...x, expiry_date: e.target.value }))} />}<div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{t('ui_update', lang)}</Button><Button type="button" variant="secondary" onClick={() => setEdit(null)}>{t('ui_cancel', lang)}</Button></div></form>}
       </FormModal>
     </MainLayout>
   );
