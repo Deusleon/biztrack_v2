@@ -6,7 +6,7 @@
 | `dev/load-test-db.sh` | Builds a throw-away test database from the user's backup (migrate → empty seeds → load → set test password → extend subscription). |
 | `dev/with-server.sh` | Starts the backend on a free port (never a fixed one), runs ONE command, stops the backend (needed in the Claude sandbox: background processes die when the tool call ends). |
 | `tests/harness.mjs` | Runs the real `frontend/src/services/api.js` in Node against a live backend. Env: `API_URL`, `TEST_EMAIL`, `TEST_PASSWORD`, `TEST_STORE`. |
-| `tests/*.mjs` | One suite per module (categories-customers, price-categories, products, profile, sales, purchases, inventory, transfers, import-export, reports) plus `receipt-pdf.mjs` (PDF engine smoke test, no server). Copy one for every new module. |
+| `tests/*.mjs` | One suite per module (categories-customers, price-categories, products, profile, sales, purchases, inventory, transfers, import-export, reports, admin, settings, tools, messaging, subscription, ai, authz, authz-all-routes) plus `receipt-pdf.mjs` (PDF engine smoke test, no server). Copy one for every new module. |
 | `dev/check-keys.py` | Lists translation keys used in `frontend/src` but missing from `lang/en.json`/`sw.json`; `add 'key=English|Kiswahili' …` adds them to both. |
 | `run-all-tests.sh` | `DATABASE_URL=<test db> bash tools/run-all-tests.sh` |
 
