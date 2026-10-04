@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import MainLayout from '../../components/MainLayout';
 import ExportMenu from '../../components/ExportMenu';
+import ExplainReportPanel from '../../components/ExplainReportPanel';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -82,7 +83,10 @@ export default function ReportPage({ group }) {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t(g.title, lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t(g.desc, lang)}</p></div>
-          <ExportMenu rows={exportRows} columns={exportCols} title={report.label} orientation={cols.length > 6 ? 'landscape' : 'portrait'} fromDate={report.dates ? filters.startDate : null} toDate={report.dates ? filters.endDate : null} disabled={state.loading || exportRows.length === 0} />
+          <div className="flex items-center gap-2">
+            {['sales', 'profit', 'inventory'].includes(group) && can('ai_explain_reports') && <ExplainReportPanel reportType={group} reportKey={report.id} filters={{ ...(report.dates ? { startDate: filters.startDate, endDate: filters.endDate } : {}), ...Object.fromEntries(report.filters.filter((f) => filters[f]).map((f) => [FILTER_OPTIONS[f]?.param || f, filters[f]])) }} />}
+            <ExportMenu rows={exportRows} columns={exportCols} title={report.label} orientation={cols.length > 6 ? 'landscape' : 'portrait'} fromDate={report.dates ? filters.startDate : null} toDate={report.dates ? filters.endDate : null} disabled={state.loading || exportRows.length === 0} />
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">{allowed.map((r) => <button key={r.id} type="button" onClick={() => { setReportId(r.id); setSearch(''); setPage(1); }} className={`px-3 py-1.5 text-sm rounded border ${r.id === report.id ? 'border-primary bg-primary-10 text-primary font-medium' : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'}`}>{t(r.label, lang)}</button>)}</div>

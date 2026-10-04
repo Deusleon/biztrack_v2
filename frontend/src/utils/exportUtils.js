@@ -9,6 +9,8 @@ import { getStoreSettings } from "@/services/SettingsService";
 
 let cachedPdfSettings = null;
 let cachedPdfSettingsPromise = null;
+/** After the store's settings change, the next PDF must read the new ones (currency, decimals, business name…). */
+export const clearPdfSettingsCache = () => { cachedPdfSettings = null; cachedPdfSettingsPromise = null; };
 
 const hasReadyPdfSettings = (settings) =>
   !!settings &&

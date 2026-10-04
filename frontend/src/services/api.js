@@ -249,6 +249,146 @@ export const reportService = {
   get: (path, params = {}) => api.get(`/reports${path}`, { params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null)) }),
 };
 
+// ─── administration: roles, people, permissions ─────────────────────────────────────────────────────
+export const roleService = {
+  getAll: async () => { const r = await api.get('/roles'); return { success: true, data: r.roles || [], raw: r }; },
+  create: async (data) => asOne(await api.post('/roles', data), 'role'),
+  update: async (id, data) => asOne(await api.put(`/roles/${id}`, data), 'role'),
+  remove: async (id) => asDone(await api.delete(`/roles/${id}`)),
+};
+export const userAdminService = {
+  list: async (params = {}) => asList(await api.get(`/store-users/${params.storeId || currentStoreId()}/users`, { params: { page: params.page, limit: params.limit, search: params.search } }), 'users'),
+  /** role = the role's id */
+  create: async (data) => asOne(await api.post('/store-users/create-user', data), 'user'),
+  /** id = the person's USER id; { role, status } */
+  update: async (userId, data) => asOne(await api.put(`/store-users/${userId}`, data), 'user'),
+  remove: async (userId) => asDone(await api.delete(`/store-users/${userId}`)),
+};
+export const permissionService = {
+  /** → { modules: { Module: { Submodule: [{ id, name, description, is_allowed }] } } } */
+  get: async (roleId) => { const r = await api.get('/permissions', { params: { roleId } }); return { success: true, data: r.permissions || {} }; },
+  set: async ({ roleId, permissionId, isAllowed }) => asDone(await api.post('/permissions', { roleId, permissionId, isAllowed })),
+  /** switch a whole module (or one submodule of it) on or off */
+  setMany: async ({ roleId, module, submodule, isAllowed }) => asDone(await api.post('/permissions/bulk', { roleId, module, submodule, isAllowed })),
+};
+
+// ─── store settings (configuration, security, notifications, branding) ──────────────────────────────
+export const settingsAdminService = {
+  /** → { systemSettings: { businessInfo, systemDefaults, systemOptions }, storeSettings: { operations, systemOptions, … } } */
+  getAll: () => api.get('/settings'),
+  /** Saves { operations, systemDefaults, businessInfo } — business info and system defaults are only kept when operations.isPrimaryStore is true. */
+  update: (storeId, payload) => api.put(`/settings/${storeId}`, payload),
+  getNotifications: async () => (await api.get('/settings/notifications')).notifications || {},
+  updateNotifications: (notifications) => api.put('/settings/notifications', { notifications }),
+  testRunNotifications: (force = false) => api.post('/settings/notifications/test-run', { force }),
+  getBranding: async () => (await api.get('/settings/branding')).branding || {},
+  uploadBranding: (assetType, file) => { const fd = new FormData(); fd.append('asset_type', assetType); fd.append('file', file); return api.post('/settings/branding/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } }); },
+  removeBranding: (assetType) => api.delete(`/settings/branding/${assetType}`),
+};
+
+// ─── system tools and backups ───────────────────────────────────────────────────────────────────────
+export const toolsService = {
+  /** SQL text of THIS store's data (a download) */
+  exportStoreData: (responseType = 'blob') => api.get('/tools/export', { responseType }),
+  backupStoreDatabase: (responseType = 'blob') => api.get('/tools/backup', { responseType }),
+  dbHealth: () => api.get('/tools/db-health'),
+  clearCache: () => api.post('/tools/clear-cache', {}),
+  /** → { logs: [{ id, action, description, ip_address, created_at, user_name, user_email }], total, page, … } */
+  logs: (params = {}) => api.get('/tools/logs', { params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null)) }),
+};
+export const backupService = {
+  status: () => api.get('/backups/status'),
+  list: (limit = 10) => api.get('/backups', { params: { limit } }),
+  testConnection: () => api.post('/backups/test', {}),
+  runNow: () => api.post('/backups/run', {}),
+  /** replaces the WHOLE database: the developer account only */
+  restoreFromDrive: (driveFileId) => api.post(`/backups/restore/drive/${driveFileId}`, {}),
+  restoreFromUpload: (file) => { const fd = new FormData(); fd.append('backup_file', file); return api.post('/backups/restore/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 300000 }); },
+};
+export const integrationService = {
+  /** developer account only (403 for everybody else) */
+  access: () => api.get('/integrations/access'),
+  list: async () => (await api.get('/integrations')).integrations || [],
+  save: (provider, config) => api.put(`/integrations/${provider}`, { config }),
+  verify: (provider) => api.post(`/integrations/${provider}/verify`, {}),
+};
+
+// ─── messaging (SMS: contacts, groups, templates, sending, account) ─────────────────────────────────
+export const messagingService = {
+  history: async () => (await api.get('/messaging/history')).messages || [],
+  /** → { batch_id, message, created_at, group_name, sent_by, recipients: [{ recipient, recipient_name, status, error }] } */
+  batch: (batchId) => api.get(`/messaging/history/${batchId}`),
+  /** contacts = list of phone numbers (international format) */
+  send: ({ contacts, message }) => api.post('/messaging/send', { contacts, message }),
+  sendToGroup: (groupId, { message, includeSubgroups }) => api.post(`/messaging/groups/${groupId}/send`, { message, includeSubgroups: !!includeSubgroups }),
+  groups: async () => (await api.get('/messaging/groups')).groups || [],
+  createGroup: ({ name, parentGroupId }) => api.post('/messaging/groups', { name, parentGroupId: parentGroupId || undefined }),
+  updateGroup: (id, { name }) => api.put(`/messaging/groups/${id}`, { name }),
+  deleteGroup: (id) => api.delete(`/messaging/groups/${id}`),
+  contacts: async () => (await api.get('/messaging/contacts')).contacts || [],
+  groupContacts: async (groupId) => (await api.get(`/messaging/groups/${groupId}/contacts`)).contacts || [],
+  createContact: ({ name, phone, groupId }) => api.post('/messaging/contacts', { name, phone, groupId: groupId || undefined }),
+  updateContact: (id, { name, phone }) => api.put(`/messaging/contacts/${id}`, { name, phone }),
+  setContactGroups: (id, groupIds) => api.put(`/messaging/contacts/${id}/groups`, { groupIds }),
+  deleteContact: (id) => api.delete(`/messaging/contacts/${id}`),
+  assignContacts: (groupId, contactIds) => api.post(`/messaging/groups/${groupId}/assign`, { contactIds }),
+  removeFromGroup: (groupId, contactId) => api.delete(`/messaging/groups/${groupId}/contacts/${contactId}`),
+  templates: async () => (await api.get('/messaging/templates')).templates || [],
+  createTemplate: ({ name, content }) => api.post('/messaging/templates', { name, content }),
+  updateTemplate: (id, { name, content }) => api.put(`/messaging/templates/${id}`, { name, content }),
+  deleteTemplate: (id) => api.delete(`/messaging/templates/${id}`),
+  // account (400 { code: 'no_default_sms_gateway' } until the developer account sets a gateway)
+  gatewayInfo: () => api.get('/messaging/gateway-info'),
+  accountStats: () => api.get('/messaging/account-stats'),
+  topupRequest: () => api.post('/messaging/topup/request', {}),
+  topupUssd: ({ amountTzs, phone }) => api.post('/messaging/topup/ussd', { amountTzs, phone }),
+  zenoCreate: ({ amount, buyerName, buyerPhone }) => api.post('/messaging/topup/zenopay', { amount, buyerName, buyerPhone }),
+  zenoStatus: (orderId) => api.get('/messaging/topup/zenopay/status', { params: { orderId } }),
+  senderIds: async () => (await api.get('/messaging/sender-ids')).senderIds || [],
+  requestSenderId: ({ name, description, sampleMessage }) => api.post('/messaging/sender-ids', { name, description, sampleMessage }),
+};
+
+// ─── subscription (plans, payment, history) ─────────────────────────────────────────────────────────
+export const subscriptionService = {
+  plans: async () => (await api.get('/subscriptions/plans')).plans || [],
+  /** → { id, status, current_cycle, starts_at, ends_at, grace_ends_at, plan_code, plan_name, monthly_amount, annual_amount, … } or null */
+  me: async () => (await api.get('/subscriptions/me')).subscription || null,
+  history: async () => (await api.get('/subscriptions/history')).transactions || [],
+  /** → { transactionId, requestId, amount, currency, billingCycle, plan, providerResponse } (the person confirms on their phone) */
+  checkout: async (data) => (await api.post('/subscriptions/checkout', data)).checkout,
+  /** asks ClickPesa for the real status of the payment and applies it → { status, … } */
+  verify: async (transactionId) => (await api.post(`/subscriptions/verify/${transactionId}`, {})).result,
+};
+
+// ─── support tickets ────────────────────────────────────────────────────────────────────────────────
+export const supportService = {
+  createTicket: (data) => api.post('/support/tickets', data),
+  myTickets: async () => (await api.get('/support/tickets/my')).tickets || [],
+  /** support staff only (SUPPORT_ADMIN_EMAILS / DEVELOPER_EMAIL) */
+  adminAccess: () => api.get('/support/admin/access'),
+  adminStats: async () => (await api.get('/support/admin/stats')).stats,
+  adminList: (params = {}) => api.get('/support/admin/tickets', { params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null)) }),
+  adminGet: async (id) => { const r = await api.get(`/support/admin/tickets/${id}`); return { ...r.ticket, replies: r.replies || [] }; },
+  adminSetStatus: (id, status) => api.patch(`/support/admin/tickets/${id}/status`, { status }),
+  adminReply: (id, message, isInternal = false) => api.post(`/support/admin/tickets/${id}/reply`, { message, is_internal: isInternal }),
+};
+
+// ─── BizTrack AI (chat, business summary, report explanations) ──────────────────────────────────────
+// Without a provider key the server still answers from VERIFIED data (source: "fallback"); with one (AI_PROVIDER + its key) the same
+// data is explained by the model. Every call is limited by the person's ai_* permissions on the server.
+export const aiService = {
+  /** → { conversationId, answer, source, provider, toolsUsed, toolsDenied, toolSelectionStrategy, confidence, … } */
+  ask: async ({ message, conversationId }) => (await api.post('/ai/chat', { message, conversationId: conversationId || undefined })).data,
+  conversations: async () => (await api.get('/ai/conversations')).data || [],
+  conversation: async (id) => (await api.get(`/ai/conversations/${id}`)).data,
+  deleteConversation: (id) => api.delete(`/ai/conversations/${id}`),
+  capabilities: async () => (await api.get('/ai/capabilities')).data,
+  providerStatus: async () => (await api.get('/ai/provider-status')).data,
+  businessSummary: async (refresh = false) => (await api.get('/ai/business-summary', { params: refresh ? { refresh: 'true' } : undefined })).data,
+  /** reportType: sales | profit | inventory */
+  explainReport: async ({ reportType, reportKey, filters }) => (await api.post('/ai/explain', { reportType, reportKey, filters })).data,
+};
+
 // ─── dashboard ────────────────────────────────────────────────────────────────────────────────────
 export const dashboardService = {
   getStats: async () => { const res = await api.get('/dashboard/stats'); return { success: true, data: res.data ?? res, raw: res }; },

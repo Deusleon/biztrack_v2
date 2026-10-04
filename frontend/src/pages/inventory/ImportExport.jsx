@@ -15,17 +15,19 @@ const TYPES = [
   { key: 'products', label: 'import_products_only', can: ['import_products', 'manage_products', 'edit_products'] },
   { key: 'stock', label: 'import_stock_only', can: ['import_stock', 'manage_inventory', 'manage_stock'] },
   { key: 'prices', label: 'import_prices_only', can: ['import_prices', 'manage_products', 'manage_prices'] },
+  { key: 'contacts', label: 'import_contacts', can: ['manage_contacts', 'manage_integration', 'view_bulk_operations'] },
 ];
 const EXPORTS = [['full', 'export_full'], ['products', 'export_products_only'], ['stock', 'export_stock_only'], ['prices', 'export_prices_only']];
 const MAX_MB = 10;
 
 const saveBlob = (blob, name) => { const url = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob])); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
 
-export default function ImportExport() {
+/** bulk = the "Bulk operations" settings screen: imports only (products, stock, prices and SMS contacts); otherwise the Import / Export screen. */
+export default function ImportExport({ bulk = false }) {
   const { can, canAny } = useAuth();
   const { showSuccess, showError, showWarning } = useToast();
   const { lang } = useLanguage();
-  const allowed = TYPES.filter((x) => canAny(x.can));
+  const allowed = TYPES.filter((x) => (bulk ? x.key !== 'full' : x.key !== 'contacts') && canAny(x.can));
   const [type, setType] = useState(allowed[0]?.key || 'full');
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(null);
@@ -62,13 +64,13 @@ export default function ImportExport() {
     } catch (err) { showError(err.message || t('import_failed', lang)); } finally { setBusy(null); }
   };
 
-  const canExport = can('view_imports_exports') || canAny(['export_products', 'export_stock', 'export_prices']);
+  const canExport = !bulk && (can('view_imports_exports') || canAny(['export_products', 'export_stock', 'export_prices']));
   const errs = (r) => (r?.errors || []).slice(0, 200);
 
   return (
     <MainLayout>
       <div className="space-y-4 max-w-4xl">
-        <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('import_export', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('import_export_desc', lang)}</p></div>
+        <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t(bulk ? 'bulk_operations' : 'import_export', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t(bulk ? 'bulk_operations_desc' : 'import_export_desc', lang)}</p></div>
 
         <div className="bg-white p-5 rounded shadow space-y-4 text-left">
           <h2 className="text-base font-semibold text-gray-900">{t('import', lang)}</h2>

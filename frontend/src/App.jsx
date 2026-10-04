@@ -8,6 +8,8 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { StoreSettingsProvider } from './contexts/StoreSettingsContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { IdleLockProvider } from './contexts/IdleLockContext';
 import Login from './pages/auth/Login';
 const Register = lazy(() => import('./pages/auth/Register'));
 const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
@@ -45,6 +47,28 @@ const Expenses = lazy(() => import('./pages/expenses/Expenses'));
 const ReportPage = lazy(() => import('./pages/reports/ReportPage'));
 const DayReport = lazy(() => import('./pages/reports/DayReport'));
 const NetProfit = lazy(() => import('./pages/reports/NetProfit'));
+const Roles = lazy(() => import('./pages/users/Roles'));
+const Users = lazy(() => import('./pages/users/Users'));
+const Permissions = lazy(() => import('./pages/users/Permissions'));
+const Stores = lazy(() => import('./pages/stores/Stores'));
+const Configuration = lazy(() => import('./pages/settings/Configuration'));
+const Security = lazy(() => import('./pages/settings/Security'));
+const Appearance = lazy(() => import('./pages/settings/Appearance'));
+const Uploads = lazy(() => import('./pages/settings/Uploads'));
+const Notifications = lazy(() => import('./pages/settings/Notifications'));
+const LockScreen = lazy(() => import('./pages/LockScreen'));
+const MsgRecent = lazy(() => import('./pages/messaging/Recent'));
+const MsgContacts = lazy(() => import('./pages/messaging/Contacts'));
+const MsgGroups = lazy(() => import('./pages/messaging/Groups'));
+const MsgTemplates = lazy(() => import('./pages/messaging/Templates'));
+const MsgAccount = lazy(() => import('./pages/messaging/Account'));
+const SubscriptionPage = lazy(() => import('./pages/subscription/Subscription'));
+const SupportAdmin = lazy(() => import('./pages/support/SupportAdmin'));
+const UserManual = lazy(() => import('./pages/UserManual'));
+const BizTrackAI = lazy(() => import('./pages/ai/BizTrackAI'));
+const Tools = lazy(() => import('./pages/settings/Tools'));
+const Integrations = lazy(() => import('./pages/settings/Integrations'));
+const ImportExportPage = lazy(() => import('./pages/inventory/ImportExport'));
 import NotFound from './pages/NotFound';
 import { NAV_SECTIONS } from './utils/navigation';
 
@@ -87,6 +111,27 @@ const READY = {
   '/reports/expenses': <ReportPage group="expenses" />,
   '/reports/net-profit': <NetProfit />,
   '/reports/day-report': <DayReport />,
+  '/users/all': <Users />,
+  '/users/roles': <Roles />,
+  '/users/permissions': <Permissions />,
+  '/stores': <Stores />,
+  '/settings/configurations': <Configuration />,
+  '/settings/security': <Security />,
+  '/settings/appearance': <Appearance />,
+  '/settings/uploads': <Uploads />,
+  '/settings/notifications': <Notifications />,
+  '/settings/tools': <Tools />,
+  '/subscription': <SubscriptionPage />,
+  '/support/admin': <SupportAdmin />,
+  '/user-manual': <UserManual />,
+  '/biztrack-ai': <BizTrackAI />,
+  '/messaging/recent': <MsgRecent />,
+  '/messaging/contacts': <MsgContacts />,
+  '/messaging/groups': <MsgGroups />,
+  '/messaging/templates': <MsgTemplates />,
+  '/messaging/account': <MsgAccount />,
+  '/settings/integration': <Integrations />,
+  '/settings/bulk-operations': <ImportExportPage bulk />,
 };
 
 const EXTRA_ROUTES = ['/sales/pending/preview', '/sales/receipt', '/reports/day-report', '/profile', '/biztrack-ai', '/support/admin'];
@@ -104,6 +149,8 @@ function App() {
             <ThemeProvider>
               <StoreSettingsProvider>
               <PreferencesProvider>
+              <NotificationProvider>
+              <IdleLockProvider>
                 <Suspense fallback={<Loading />}>
                 <Routes>
                   <Route path="/login" element={<Login />} />
@@ -114,6 +161,7 @@ function App() {
 
                   <Route element={<ProtectedRoute />}>
                     <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/lock" element={<LockScreen />} />
                     {paths.map((p) => <Route key={p} path={p} element={READY[p] || <ComingSoon />} />)}
                     <Route path="/messaging" element={<Navigate to="/messaging/recent" replace />} />
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -121,6 +169,8 @@ function App() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 </Suspense>
+              </IdleLockProvider>
+              </NotificationProvider>
               </PreferencesProvider>
               </StoreSettingsProvider>
             </ThemeProvider>

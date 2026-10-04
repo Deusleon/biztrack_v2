@@ -10,6 +10,9 @@ import { isStandalone } from '../utils/pwa';
 import { attachPullToRefresh } from '../utils/pullToRefresh';
 import { ICON_PATHS } from '../utils/navigation';
 import Sidebar from './Sidebar';
+import NotificationBell from './NotificationBell';
+import SupportWidget from './SupportWidget';
+import { useIdleLock } from '../contexts/IdleLockContext';
 import InstallBanner from './InstallBanner';
 
 const Svg = ({ d, className = 'w-6 h-6' }) => (
@@ -22,6 +25,8 @@ export default function MainLayout({ children }) {
   const { user, logout } = useAuth();
   const { stores, currentStore, setCurrentStore, canSwitchStore, switching } = useStore();
   const { lang, setLang } = useLanguage();
+  const { forceLock } = useIdleLock();
+  const [helpOpen, setHelpOpen] = useState(false);
   const { showError } = useToast();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -77,6 +82,8 @@ export default function MainLayout({ children }) {
             </div>
 
             <div className="flex items-center gap-2">
+              <NotificationBell />
+              <button type="button" onClick={forceLock} className="p-2 rounded text-gray-600 hover:bg-gray-100" title={t('lock_screen', lang)} aria-label={t('lock_screen', lang)}><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 11V8a4 4 0 10-8 0v3m-1 0h10a1 1 0 011 1v7a1 1 0 01-1 1H7a1 1 0 01-1-1v-7a1 1 0 011-1z" /></svg></button>
               <button
                 onClick={() => setLang(lang === 'sw' ? 'en' : 'sw')}
                 className="text-xs font-semibold border border-gray-300 rounded px-2 py-1.5 text-gray-700 hover:bg-gray-50"
@@ -97,6 +104,7 @@ export default function MainLayout({ children }) {
                       <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                     </div>
                     <Link to="/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" role="menuitem"><Svg d={ICON_PATHS.user} className="w-4 h-4" />{t('profile', lang)}</Link>
+                    <button onClick={() => { setMenuOpen(false); setHelpOpen(true); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left" role="menuitem">{t('help_and_support', lang)}</button>
                     <button onClick={signOut} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left" role="menuitem"><Svg d={ICON_PATHS.logout} className="w-4 h-4" />{t('sign_out', lang)}</button>
                   </div>
                 )}
@@ -108,6 +116,7 @@ export default function MainLayout({ children }) {
         <InstallBanner />
         <main className="flex-1 px-4 py-3 print:p-0">{children}</main>
       </div>
-    </div>
+          <SupportWidget isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
+</div>
   );
 }
