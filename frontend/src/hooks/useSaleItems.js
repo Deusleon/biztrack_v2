@@ -45,8 +45,8 @@ export const useSaleItems = ({ discountEnabled = false, vatEnabled = false, vatR
 
   // Recalculate a single row's totals
   const recalculateRow = useCallback((item, _currentVolumeDiscount = volumeDiscount) => {
-    const qty = removeNumberFormatting(item.rawQuantity) || 1;
-    const price = removeNumberFormatting(item.rawPrice) || 0;
+    const qty = removeNumberFormatting(item.rawQuantity) ?? 0;
+    const price = removeNumberFormatting(item.rawPrice) ?? 0;
     
     // Calculate line subtotal (qty * price)
     const _lineSubtotal = qty * price;
@@ -123,24 +123,24 @@ export const useSaleItems = ({ discountEnabled = false, vatEnabled = false, vatR
         const updated = { ...item, [field]: value };
 
         // Handle raw value updates
-        if (field === "quantity") {
-          updated.rawQuantity = removeNumberFormatting(value) || 1;
-        } else if (field === "rawQuantity") {
-          updated.quantity = String(value);
-        } else if (field === "price") {
-          // Keep formatted value in price, raw in rawPrice
-        } else if (field === "rawPrice") {
-          updated.rawPrice = removeNumberFormatting(value) || 0;
-        } else if (field === "discount") {
-          // Keep formatted value
-        } else if (field === "rawDiscount") {
-          updated.rawDiscount = removeNumberFormatting(value) || 0;
+        if (field === "quantity" || field === "rawQuantity") {
+          const n = removeNumberFormatting(value);
+          updated.rawQuantity = n == null ? 0 : n;
+          if (field === "rawQuantity") updated.quantity = String(value);
+        } else if (field === "price" || field === "rawPrice") {
+          const n = removeNumberFormatting(value);
+          updated.rawPrice = n == null ? 0 : n;
+          if (field === "rawPrice") updated.price = formatNumberWithCommas(updated.rawPrice, decimalPlaces);
+        } else if (field === "discount" || field === "rawDiscount") {
+          const n = removeNumberFormatting(value);
+          updated.rawDiscount = n == null ? 0 : n;
+          if (field === "rawDiscount") updated.discount = String(value);
         }
 
         return recalculateRow(updated);
       })
     );
-  }, [recalculateRow]);
+  }, [recalculateRow, decimalPlaces]);
 
   // Set product data for a row (from autocomplete selection)
   const setProductForRow = useCallback((rowId, product) => {

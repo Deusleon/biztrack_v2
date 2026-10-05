@@ -12,25 +12,29 @@ import Input from "./Input";
  * display text. Supports decimals (e.g. "1,250.50") since amounts aren't
  * always whole numbers.
  */
-export default function NumberInput({ value, onChange, name, allowDecimals = true, ...props }) {
-  const raw = value === null || value === undefined ? "" : String(value);
+export default function NumberInput({ value, onChange, name, allowDecimals = true, decimals, onBlur, ...props }) {
+  const raw = value === null || value === undefined ? "" : String(value).replace(/,/g, "");
+  const maxDecimals = decimals === 0 || decimals === "0" ? 0 : (decimals == null || decimals === "" ? null : Number(decimals));
+  const allowDec = allowDecimals && maxDecimals !== 0;
 
   // Strip everything except digits and (optionally) a single decimal point,
   // so pasted or typed junk (letters, extra dots, spaces) never sneaks in.
   const sanitize = (v) => {
-    let cleaned = v.replace(allowDecimals ? /[^\d.]/g : /[^\d]/g, "");
-    if (allowDecimals) {
-      const parts = cleaned.split(".");
-      if (parts.length > 2) cleaned = parts[0] + "." + parts.slice(1).join("");
-    }
-    return cleaned;
+    const cleaned = String(v).replace(allowDec ? /[^\d.]/g : /[^\d]/g, "");
+    if (!allowDec) return cleaned;
+    const dot = cleaned.indexOf(".");
+    if (dot === -1) return cleaned;
+    const intPart = cleaned.slice(0, dot);
+    let decPart = cleaned.slice(dot + 1).replace(/\./g, "");
+    if (maxDecimals != null) decPart = decPart.slice(0, maxDecimals);
+    return `${intPart}.${decPart}`;
   };
 
   const formatDisplay = (v) => {
     if (v === "") return "";
     const [intPart, decPart] = v.split(".");
-    const withCommas = intPart === "" ? "" : Number(intPart).toLocaleString();
-    return decPart !== undefined ? `${withCommas}.${decPart}` : withCommas;
+    const withCommas = intPart === "" ? "" : Number(intPart).toLocaleString("en-US");
+    return decPart !== undefined ? `${withCommas || "0"}.${decPart}` : withCommas;
   };
 
   const handleChange = (e) => {
@@ -38,14 +42,24 @@ export default function NumberInput({ value, onChange, name, allowDecimals = tru
     onChange?.({ ...e, target: { ...e.target, name, value: rawValue } });
   };
 
+  const handleBlur = (e) => {
+    const current = sanitize(e.target.value);
+    if (maxDecimals != null && current !== "" && current !== ".") {
+      const n = Number(current);
+      if (Number.isFinite(n)) onChange?.({ ...e, target: { ...e.target, name, value: n.toFixed(maxDecimals) } });
+    }
+    onBlur?.(e);
+  };
+
   return (
     <Input
       {...props}
       name={name}
       type="text"
-      inputMode="decimal"
+      inputMode={allowDec ? "decimal" : "numeric"}
       value={formatDisplay(raw)}
       onChange={handleChange}
+      onBlur={handleBlur}
     />
   );
 }

@@ -71,7 +71,7 @@ export const NAV_SECTIONS = [
     { label: 'configurations', to: '/settings/configurations', icon: 'cog', permission: 'view_configurations' },
     { label: 'uploads', to: '/settings/uploads', icon: 'upload', permission: 'view_uploads' },
     { label: 'bulk_operations', to: '/settings/bulk-operations', icon: 'layers', permission: 'view_bulk_operations' },
-    { label: 'integration', to: '/settings/integration', icon: 'link', permission: 'view_integration', developerOnly: true },
+    { label: 'integration', to: '/settings/integration', icon: 'link', permission: 'view_integration' },
     { label: 'security', to: '/settings/security', icon: 'shield', permission: 'view_security' },
     { label: 'tools', to: '/settings/tools', icon: 'cog', permission: 'view_tools' },
     { label: 'notifications', to: '/settings/notifications', icon: 'bell', permission: 'view_notifications' },

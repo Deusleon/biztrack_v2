@@ -310,7 +310,7 @@ export const integrationService = {
   access: () => api.get('/integrations/access'),
   list: async () => (await api.get('/integrations')).integrations || [],
   save: (provider, config) => api.put(`/integrations/${provider}`, { config }),
-  verify: (provider) => api.post(`/integrations/${provider}/verify`, {}),
+  verify: (provider, config) => api.post(`/integrations/${provider}/verify`, config ? { config } : {}),
 };
 
 // ─── messaging (SMS: contacts, groups, templates, sending, account) ─────────────────────────────────

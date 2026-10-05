@@ -1,5 +1,6 @@
 // FILE PATH: frontend/src/pages/settings/Integrations.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import MainLayout from '../../components/MainLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -13,6 +14,76 @@ import { t } from '../../utils/i18n';
 const size = (b) => (b == null ? '—' : b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 const when = (v) => (v ? new Date(v).toLocaleString() : '—');
 
+/** API key, password and sender ID for each SMS provider. Sender ID requests to the network stay on Messaging → Account. */
+const GATEWAYS = [
+  { provider: 'beem_africa', name: 'Beem Africa', desc: 'send_sms_notifications_via_beem_africa_desc', fields: [
+    { key: 'api_key', label: 'api_key', placeholder: 'enter_api_key', secret: true },
+    { key: 'secret_key', label: 'secret_key', placeholder: 'enter_secret_key', secret: true },
+    { key: 'sender_name', label: 'sender_name', placeholder: 'enter_sender_name' },
+  ] },
+  { provider: 'next_sms', name: 'NextSMS', desc: 'send_sms_notifications_via_next_sms_desc', fields: [
+    { key: 'username', label: 'username', placeholder: 'enter_username' },
+    { key: 'password', label: 'password', placeholder: 'enter_password', secret: true },
+    { key: 'sender_name', label: 'sender_name', placeholder: 'enter_sender_name' },
+  ] },
+  { provider: 'meseji', name: 'Meseji', desc: 'send_sms_notifications_via_meseji_desc', fields: [
+    { key: 'api_key', label: 'api_key', placeholder: 'enter_api_key', secret: true },
+    { key: 'sender_id', label: 'sender_id', placeholder: 'enter_sender_id' },
+  ] },
+];
+
+function GatewayCard({ meta, saved, canEdit, lang, onSaved }) {
+  const { showSuccess, showError } = useToast();
+  const [form, setForm] = useState({});
+  const [busy, setBusy] = useState(null);
+  useEffect(() => {
+    const next = {};
+    meta.fields.forEach((f) => { next[f.key] = saved?.[f.key] || ''; });
+    setForm(next);
+  }, [saved, meta]);
+  const configured = meta.fields.every((f) => saved?.[f.key]);
+  const save = async () => {
+    if (meta.fields.some((f) => !String(form[f.key] || '').trim())) { showError(t('required_field', lang)); return; }
+    try {
+      setBusy('save');
+      const r = await integrationService.save(meta.provider, form);
+      showSuccess(r?.message || t('integration_saved', lang));
+      onSaved();
+    } catch (err) { showError(err.message); } finally { setBusy(null); }
+  };
+  const test = async () => {
+    try {
+      setBusy('test');
+      const r = await integrationService.verify(meta.provider, form);
+      const balance = r?.data?.balance;
+      const base = r?.message || t('test_connection', lang);
+      showSuccess(balance != null && balance !== '' ? `${base} (${t('balance', lang)}: ${balance})` : base);
+    } catch (err) { showError(err.message); } finally { setBusy(null); }
+  };
+  return (
+    <div className="bg-white rounded shadow p-5 text-left space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-800">{meta.name}</h2>
+          <p className="text-xs text-gray-500 mt-0.5">{t(meta.desc, lang)}</p>
+        </div>
+        <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${configured ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{t(configured ? 'configured' : 'not_configured', lang)}</span>
+      </div>
+      {meta.fields.map((f) => (
+        <Input key={f.key} label={t(f.label, lang)} type={f.secret ? 'password' : 'text'} value={form[f.key] || ''} autoComplete="off" disabled={!canEdit}
+          placeholder={t(f.placeholder, lang)} onChange={(e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value }))} />
+      ))}
+      {canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <Button loading={busy === 'save'} onClick={save}>{t('save_gateway', lang)}</Button>
+          <Button variant="secondary" loading={busy === 'test'} onClick={test}>{busy === 'test' ? t('testing', lang) : t('test_connection', lang)}</Button>
+        </div>
+      )}
+      <p className="text-xs text-gray-400">{t('test_connection_desc', lang)}</p>
+    </div>
+  );
+}
+
 /** Google Drive backup: status, history, run now; the developer account also sets the credentials and may restore. */
 export default function Integrations() {
   const { can } = useAuth();
@@ -21,6 +92,7 @@ export default function Integrations() {
   const { lang } = useLanguage();
   const [status, setStatus] = useState(null);
   const [history, setHistory] = useState([]);
+  const [configs, setConfigs] = useState({});
   const [dev, setDev] = useState(false);
   const [form, setForm] = useState({ client_id: '', client_secret: '', refresh_token: '', folder_id: '' });
   const [configured, setConfigured] = useState(false);
@@ -32,7 +104,15 @@ export default function Integrations() {
   const load = useCallback(async () => {
     try { const [s, h] = await Promise.all([backupService.status(), backupService.list(10)]); setStatus(s); setHistory(h.backups || []); } catch (err) { showError(err.message); }
   }, [currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); integrationService.access().then(() => { setDev(true); return integrationService.list(); }).then((list) => { const c = list.find((i) => i.provider === 'google_drive' || i.provider === 'cloud_backup'); setConfigured(!!(c?.config?.client_id || c?.is_active)); if (c?.config) setForm((f) => ({ ...f, client_id: c.config.client_id || '', folder_id: c.config.folder_id || '' })); }).catch(() => setDev(false)); }, [load]);
+  const loadIntegrations = useCallback(() => integrationService.list().then((list) => {
+    const map = {};
+    (list || []).forEach((row) => { map[row.provider] = row.config || {}; });
+    setConfigs(map);
+    const c = (list || []).find((i) => i.provider === 'google_drive' || i.provider === 'cloud_backup');
+    setConfigured(!!(c?.config?.client_id || c?.is_active));
+    if (c?.config) setForm((f) => ({ ...f, client_id: c.config.client_id || '', folder_id: c.config.folder_id || '' }));
+  }).catch(() => {}), []);
+  useEffect(() => { load(); loadIntegrations(); integrationService.access().then(() => setDev(true)).catch(() => setDev(false)); }, [load, loadIntegrations]);
 
   // a backup runs in the background: look again every few seconds while the server says it is running
   useEffect(() => { if (!status?.running) return undefined; const id = setInterval(load, 4000); return () => clearInterval(id); }, [status?.running, load]);
@@ -51,7 +131,20 @@ export default function Integrations() {
   return (
     <MainLayout>
       <div className="space-y-4">
-        <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('integration', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('google_drive_backup_desc', lang)}</p></div>
+        <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('integration', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('sms_integrations_desc', lang)}</p></div>
+
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-gray-800 text-left">{t('sms_integrations', lang)}</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {GATEWAYS.map((meta) => <GatewayCard key={meta.provider} meta={meta} saved={configs[meta.provider]} canEdit={canManage} lang={lang} onSaved={loadIntegrations} />)}
+          </div>
+          <p className="text-xs text-gray-500 text-left">
+            {t('default_sms_gateway', lang)}: <Link to="/settings/configuration" className="text-primary hover:underline">{t('configuration', lang)}</Link>
+            {' · '}
+            {t('sender_ids', lang)}: <Link to="/messaging/account" className="text-primary hover:underline">{t('account_and_topup', lang)}</Link>
+          </p>
+        </div>
+
         <div className="bg-white rounded shadow p-5 text-left space-y-3">
           <div className="flex items-center justify-between gap-3 flex-wrap"><h2 className="text-sm font-semibold text-gray-800">{t('google_drive_backup', lang)}</h2><span className={`px-2 py-0.5 rounded text-xs font-medium ${status?.configured ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{t(status?.configured ? 'configured' : 'not_configured', lang)}</span></div>
           {status && <ul className="text-sm divide-y divide-gray-100"><li className="py-1.5 flex justify-between"><span className="text-gray-500">{t('backup_schedule_info', lang)}</span><span>{status.schedule_time} · {status.timezone}</span></li><li className="py-1.5 flex justify-between"><span className="text-gray-500">{t('backup_retention_info', lang)}</span><span>{status.retention_days} {t('days', lang)}</span></li><li className="py-1.5 flex justify-between"><span className="text-gray-500">{t('last_backup', lang)}</span><span>{status.last_backup ? `${when(status.last_backup.completed_at || status.last_backup.created_at)} · ${size(Number(status.last_backup.size_bytes))}` : '—'}</span></li>{status.running && <li className="py-1.5 text-amber-700">{t('backup_started_msg', lang)}…</li>}</ul>}
