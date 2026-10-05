@@ -9,7 +9,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { purchaseService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, Select, Textarea } from '../../components/ui';
+import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { PStatus, PFilters, useSuppliers, listFetcher, dateOnly, num, INITIAL, Dl } from './common';
 import { formatCurrency } from '../../utils/numberUtils';
@@ -122,8 +122,8 @@ export default function GoodsReceived() {
                     <td className="px-2 py-1.5"><input className={cell} inputMode="decimal" value={l.unit_cost} onChange={(e) => setLine(i, { unit_cost: e.target.value })} /></td>
                     <td className="px-2 py-1.5"><input className={cell} inputMode="decimal" value={l.selling_price} onChange={(e) => setLine(i, { selling_price: e.target.value })} /></td>
                     <td className="px-2 py-1.5"><input className={`${cell} text-left`} value={l.batch_number} onChange={(e) => setLine(i, { batch_number: e.target.value })} /></td>
-                    <td className="px-2 py-1.5"><input type="date" className={`${cell} text-left`} value={l.manufacturing_date} onChange={(e) => setLine(i, { manufacturing_date: e.target.value })} /></td>
-                    {showExpiry && <td className="px-2 py-1.5"><input type="date" className={`${cell} text-left`} value={l.expiry_date} onChange={(e) => setLine(i, { expiry_date: e.target.value })} /></td>}
+                    <td className="px-2 py-1.5 min-w-[11rem]"><DatePicker value={l.manufacturing_date} onChange={(e) => setLine(i, { manufacturing_date: e.target.value })} placeholder={t('mfg_date', lang)} /></td>
+                    {showExpiry && <td className="px-2 py-1.5 min-w-[11rem]"><DatePicker value={l.expiry_date} onChange={(e) => setLine(i, { expiry_date: e.target.value })} placeholder={t('exp_date', lang)} /></td>}
                   </tr>))}</tbody></table></div>
               <Textarea rows={2} label={t('notes', lang)} value={create.notes} onChange={(e) => setCreate((c) => ({ ...c, notes: e.target.value }))} />
             </>}

@@ -1,4 +1,5 @@
 import { forwardRef } from 'react';
+import DatePicker from './DatePicker';
 
 const Input = forwardRef(({ 
   label, 
@@ -8,8 +9,27 @@ const Input = forwardRef(({
   leftIcon,
   rightIcon,
   required = false,
+  type,
   ...props 
 }, ref) => {
+  if (type === 'date') {
+    return (
+      <DatePicker
+        label={label}
+        error={error}
+        required={required}
+        className={className}
+        name={props.name}
+        value={props.value ?? ''}
+        onChange={props.onChange}
+        min={props.min}
+        max={props.max}
+        disabled={props.disabled}
+        align={props.align}
+        placeholder={props.placeholder || props['aria-label']}
+      />
+    );
+  }
   return (
     <div className={`${className}`}>
       {label && (
@@ -27,6 +47,7 @@ const Input = forwardRef(({
         
         <input
           ref={ref}
+          type={type}
           className={`
             w-full px-4 py-2.5
             ${leftIcon ? 'pl-10' : ''}

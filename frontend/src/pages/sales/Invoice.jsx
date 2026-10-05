@@ -9,7 +9,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { useSaleItems } from '../../hooks/useSaleItems';
 import { salesService, productService, customerService, priceCategoryService } from '../../services/api';
-import { Input, NumberInput, Select, Textarea, Button, ConfirmModal } from '../../components/ui';
+import { Input, NumberInput, Select, Textarea, Button, ConfirmModal, DatePicker } from '../../components/ui';
 import { formatCurrency, removeNumberFormatting } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
@@ -287,7 +287,7 @@ export default function Invoice() {
               )}
               {customer && settings?.customerCreditLimit && <p className="text-xs text-gray-500">{t('available_credit', lang)}: {money(Number(customer.credit_limit) - Number(customer.current_balance))}</p>}
               {priceCategories.length > 0 && <Select value={priceCategory} onChange={(e) => setPriceCategory(e.target.value)} placeholder={t('select_price_category', lang)} options={[{ value: '', label: t('default_price_category', lang) }, ...priceCategories.map((c) => ({ value: c.id, label: c.name }))]} />}
-              <Input type="datetime-local" label={t('sales_date', lang)} value={saleDate} onChange={(e) => setSaleDate(e.target.value)} />
+              <DatePicker label={t('sales_date', lang)} value={saleDate.slice(0, 10)} onChange={(e) => setSaleDate(e.target.value ? `${e.target.value}T${(saleDate.split('T')[1] || '00:00').slice(0, 5)}` : saleDate)} />
             </div>
 
             <div className="bg-white p-4 rounded shadow space-y-2 text-sm">

@@ -1,6 +1,5 @@
 // FILE PATH: frontend/src/pages/settings/Configuration.jsx
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import MainLayout from '../../components/MainLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -85,7 +84,6 @@ export default function Configuration() {
     if (f.type === 'checkbox') return <label key={f.key} className="flex items-center justify-between gap-3 py-2 border-b border-gray-100 text-sm text-left cursor-pointer"><span className="text-gray-700">{label}</span><input type="checkbox" className="h-4 w-4 accent-[var(--color-primary)]" checked={!!v} disabled={disabled} onChange={(e) => write(group, f.key, e.target.checked)} /></label>;
     if (f.type === 'select') return <Select key={f.key} label={label} value={v ?? ''} disabled={disabled} onChange={(e) => write(group, f.key, e.target.value)} options={optionsOf(f)} placeholder={t('select', lang)} />;
     if (f.type === 'number' || f.type === 'percentage') return <Input key={f.key} type="number" label={`${label}${f.type === 'percentage' ? ' (%)' : ''}`} min={f.min} max={f.max} value={v ?? ''} disabled={disabled} onChange={(e) => write(group, f.key, e.target.value === '' ? '' : Number(e.target.value))} />;
-    if (f.type === 'image') return <div key={f.key} className="text-left"><p className="text-sm font-medium text-gray-700 mb-1">{label}</p>{v ? <img src={typeof v === 'string' ? v : v.url || v.preview} alt="" className="h-14 rounded border border-gray-200" /> : <p className="text-xs text-gray-400">{t('no_image', lang)}</p>}<Link to="/settings/uploads" className="text-xs text-primary hover:underline">{t('change_in_uploads', lang)}</Link></div>;
     return <Input key={f.key} label={label} required={!!f.required} placeholder={f.placeholder ? t(f.placeholder, lang) : undefined} value={v ?? ''} disabled={disabled} onChange={(e) => write(group, f.key, e.target.value)} />;
   };
 
@@ -100,7 +98,9 @@ export default function Configuration() {
         {!data && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}
         {sections.map((sec) => {
           const isBiz = sec.group === 'business'; const disabled = !canEdit || (isBiz && !primary);
-          const checks = sec.fields.filter((f) => f.type === 'checkbox'); const others = sec.fields.filter((f) => f.type !== 'checkbox');
+          const visible = sec.fields.filter((f) => f.type !== 'image' && f.key !== 'logo' && f.key !== 'businessLogo');
+          if (visible.length === 0) return null;
+          const checks = visible.filter((f) => f.type === 'checkbox'); const others = visible.filter((f) => f.type !== 'checkbox');
           return (
             <div key={sec.id} className="bg-white rounded shadow">
               <div className="px-5 py-3 border-b border-gray-100 text-left"><h2 className="text-sm font-semibold text-gray-800">{t(sec.title, lang) === sec.title ? sec.title : t(sec.title, lang)}</h2>{isBiz && !primary && <p className="text-xs text-gray-500 mt-0.5">{t('business_info_primary_only', lang)}</p>}</div>
