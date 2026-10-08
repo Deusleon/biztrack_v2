@@ -2,7 +2,7 @@ import pool from '../config/db.js';
 import { t } from '../utils/translate.js';
 import { getLang } from '../utils/getLang.js';
 import { respondWithError } from '../utils/response.js';
-import { getIO } from '../utils/socket.js';
+import { getIO, emitToStore } from '../utils/socket.js';
 import { notifyStore } from '../services/notification.service.js';
 import * as smsService from '../utils/smsService.js';
 import getStoreSettings from '../utils/getStoreSettings.js';
@@ -112,8 +112,8 @@ async function generateReturnNumber(store_id) {
     if (rows.length === 0) {
       newReturnNumber = 1;
       await client.query(
-        `INSERT INTO store_invoice_counters (store_id, last_sales_return_number) VALUES ($1, $2)
-                 ON CONFLICT (store_id) DO UPDATE SET last_sales_return_number = $2`,
+        `INSERT INTO store_invoice_counters (store_id, last_sales_return_number) VALUES ($1::uuid, $2::integer)
+                 ON CONFLICT (store_id) DO UPDATE SET last_sales_return_number = $2::integer`,
         [store_id, newReturnNumber],
       );
     } else {
@@ -1651,7 +1651,15 @@ export const getCreditSales = async (req, res) => {
       FROM credit_sales cs
       LEFT JOIN customers c ON cs.customer_id = c.id
       LEFT JOIN users u    ON cs.user_id    = u.id
-      WHERE cs.store_id = $1`;
+      WHERE cs.store_id = $1 AND cs.status <> 'cancelled'
+        AND NOT (
+          cs.amount_due <= 0 AND EXISTS (
+            SELECT 1 FROM sales_returns sr
+            WHERE sr.original_invoice_number = cs.invoice_number
+              AND sr.store_id = cs.store_id
+              AND sr.status IN ('completed', 'approved')
+          )
+        )`;
 
     if (customerId) {
       innerParams.push(customerId);
@@ -1827,9 +1835,11 @@ export const getCreditSaleDetails = async (req, res) => {
                 WHEN cs.status = 'overdue'  THEN 'not_paid'
                 ELSE cs.status
               END AS status,
-              c.name as customer_name, c.phone as customer_phone
+              c.name as customer_name, c.phone as customer_phone,
+              u.name as created_by_name
              FROM credit_sales cs
              LEFT JOIN customers c ON cs.customer_id = c.id
+             LEFT JOIN users u ON u.id = cs.user_id
              WHERE cs.id = $1 AND cs.store_id = $2`,
       [creditSaleId, storeId],
     );
@@ -2045,7 +2055,13 @@ export const getSalesHistory = async (req, res) => {
       SELECT DISTINCT ON (p.invoice_number) 
           p.*, c.status as cart_status, c.sale_type,
           cust.name as customer_name, cust.phone as customer_phone,
-          u.name as cashier_name
+          u.name as cashier_name,
+          EXISTS (
+            SELECT 1 FROM sales_returns sr
+            WHERE sr.original_invoice_number = p.invoice_number
+              AND sr.store_id = p.store_id
+              AND sr.status IN ('completed', 'approved')
+          ) AS was_returned
       FROM payments p
       LEFT JOIN cart c ON p.cart_code = c.cart_code
       LEFT JOIN customers cust ON c.customer_id = cust.id
@@ -2119,11 +2135,22 @@ export const getSaleDetails = async (req, res) => {
       [invoiceNumber, storeId],
     );
 
+    const returns = await pool.query(
+      `SELECT sr.return_number, sr.status, sr.total_amount, sr.refund_amount, sr.refund_method,
+              sr.reason, sr.created_at, sr.completed_at, u.name AS returned_by
+       FROM sales_returns sr
+       LEFT JOIN users u ON u.id = sr.user_id
+       WHERE sr.original_invoice_number = $1 AND sr.store_id = $2
+       ORDER BY sr.created_at`,
+      [invoiceNumber, storeId],
+    );
+
     res.json({
       success: true,
       payment: paymentResult.rows[0],
       items: cartItems.rows,
       salesRecord: salesRecord.rows[0] || null,
+      returns: returns.rows,
     });
   } catch (err) {
     console.error(err);
@@ -2210,7 +2237,7 @@ export const createSalesReturn = async (req, res) => {
                 return_number, original_invoice_number, original_cart_code,
                 store_id, customer_id, user_id, total_amount, refund_amount,
                 refund_method, status, reason, notes
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10, $11)
+            ) VALUES ($1, $2, $3, $4::uuid, $5::uuid, $6::uuid, $7::numeric, $8::numeric, $9, 'pending', $10, $11)
             RETURNING *`,
       [
         returnNumber,
@@ -2235,7 +2262,7 @@ export const createSalesReturn = async (req, res) => {
         `INSERT INTO sales_return_items (
                     sales_return_id, product_id, batch_id, quantity, price,
                     return_reason, condition, restock
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                ) VALUES ($1, $2, $3::uuid, $4::numeric, $5::numeric, $6, $7, $8)`,
         [
           salesReturnId,
           item.product_id,
@@ -2392,9 +2419,10 @@ export const getSalesReturnDetails = async (req, res) => {
   try {
     // Get return
     const returnResult = await pool.query(
-      `SELECT sr.*, c.name as customer_name, c.phone as customer_phone
+      `SELECT sr.*, c.name as customer_name, c.phone as customer_phone, u.name as created_by_name
              FROM sales_returns sr
              LEFT JOIN customers c ON sr.customer_id = c.id
+             LEFT JOIN users u ON u.id = sr.user_id
              WHERE sr.id = $1 AND sr.store_id = $2`,
       [returnId, storeId],
     );
@@ -2486,13 +2514,13 @@ export const approveSalesReturn = async (req, res) => {
          ib.cost_price AS original_cost_price
        FROM sales_return_items sri
        LEFT JOIN cart c
-         ON c.store_id = $2
+         ON c.store_id = $2::uuid
         AND c.invoice_number = $3
         AND c.product_id = sri.product_id
         AND c.status = 'Sold'
        LEFT JOIN inventory_batches ib
          ON ib.id = sri.batch_id
-        AND ib.store_id = $2
+        AND ib.store_id = $2::uuid
         AND ib.product_id = sri.product_id
        WHERE sri.sales_return_id = $1`,
       [
@@ -2561,7 +2589,7 @@ export const approveSalesReturn = async (req, res) => {
              created_by,
              transaction_date
            )
-           VALUES ($1, $2, $3, $4, 'IN', $5, $6, NOW())`,
+           VALUES ($1::uuid, $2::uuid, $3::uuid, $4::numeric, 'IN', $5, $6::uuid, NOW())`,
           [
             storeId,
             item.product_id,
@@ -2578,12 +2606,12 @@ export const approveSalesReturn = async (req, res) => {
       // ───────────────────────────────────────────────────────────
       const cartUpdateResult = await client.query(
         `UPDATE cart
-         SET quantity = quantity - $1
-         WHERE store_id = $2
+         SET quantity = quantity - $1::numeric
+         WHERE store_id = $2::uuid
            AND invoice_number = $3
-           AND product_id = $4
+           AND product_id = $4::uuid
            AND status = 'Sold'
-           AND quantity >= $1
+           AND quantity >= $1::numeric
          RETURNING id, quantity`,
         [
           quantity,
@@ -2686,7 +2714,10 @@ export const approveSalesReturn = async (req, res) => {
          subtotal,
          total_discount,
          total_vat,
-         total_amount
+         total_amount,
+         amount_paid,
+         amount_due,
+         sale_type
        FROM payments
        WHERE invoice_number = $1
          AND store_id = $2
@@ -2733,6 +2764,62 @@ export const approveSalesReturn = async (req, res) => {
 
     const newVat = newAfterDiscount * vatRate;
     const newTotal = newAfterDiscount + newVat;
+    const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+
+    // A credit invoice keeps its own debit. The returned goods come off that
+    // debit first. Money the customer already paid stays, and only what is
+    // left above the new invoice total is handed back.
+    const originalPay = originalPaymentResult.rows[0] || {};
+    let nextPaid = round2(Math.min(toNumber(originalPay.amount_paid), newTotal));
+    let nextDue = 0;
+
+    const creditResult = await client.query(
+      `SELECT * FROM credit_sales
+       WHERE invoice_number = $1 AND store_id = $2 AND status <> 'cancelled'
+       FOR UPDATE`,
+      [salesReturn.original_invoice_number, storeId],
+    );
+
+    if (creditResult.rows.length > 0) {
+      const credit = creditResult.rows[0];
+      const alreadyPaid = toNumber(credit.amount_paid);
+      const appliedPaid = round2(Math.min(alreadyPaid, newTotal));
+      const newDue = round2(Math.max(0, newTotal - appliedPaid));
+      const cashBack = round2(Math.max(0, alreadyPaid - appliedPaid));
+      const dueReduction = round2(Math.max(0, toNumber(credit.amount_due) - newDue));
+      const creditNote = String(salesReturn.refund_method || '').toLowerCase() === 'credit_note';
+      const balanceDrop = round2(dueReduction + (creditNote ? cashBack : 0));
+      const stillOwed = newDue > 0.005;
+      const pastDue = credit.due_date && new Date(credit.due_date).getTime() < Date.now();
+      let creditStatus = 'not_paid';
+      if (newTotal <= 0.005) creditStatus = 'cancelled';
+      else if (!stillOwed) creditStatus = 'paid';
+      else if (credit.status === 'overdue' || pastDue) creditStatus = 'overdue';
+      else if (appliedPaid > 0.005) creditStatus = 'partial_paid';
+
+      await client.query(
+        `UPDATE credit_sales
+         SET total_amount = $1, amount_paid = $2, amount_due = $3, status = $4::varchar,
+             paid_at = CASE WHEN $4::varchar = 'paid' THEN COALESCE(paid_at, NOW()) ELSE NULL END,
+             notes = CONCAT_WS(E'\n', NULLIF(notes, ''), $5),
+             updated_at = NOW()
+         WHERE id = $6`,
+        [round2(newTotal), appliedPaid, newDue, creditStatus, `Return ${salesReturn.return_number}`, credit.id],
+      );
+
+      if (balanceDrop > 0.005 && credit.customer_id) {
+        await client.query(
+          `UPDATE customers
+           SET current_balance = ${creditNote ? 'current_balance - $1' : 'GREATEST(current_balance - $1, 0)'}
+           WHERE id = $2`,
+          [balanceDrop, credit.customer_id],
+        );
+      }
+      nextPaid = appliedPaid;
+      nextDue = newDue;
+    } else if (String(originalPay.sale_type) === 'credit') {
+      nextDue = round2(Math.max(0, newTotal - nextPaid));
+    }
 
     // ─────────────────────────────────────────────────────────────
     // 7. Update payment totals
@@ -2743,14 +2830,18 @@ export const approveSalesReturn = async (req, res) => {
          subtotal = $1,
          total_discount = $2,
          total_vat = $3,
-         total_amount = $4
-       WHERE invoice_number = $5
-         AND store_id = $6`,
+         total_amount = $4,
+         amount_paid = $5,
+         amount_due = $6
+       WHERE invoice_number = $7
+         AND store_id = $8`,
       [
         newSubtotal,
         newDiscount,
         newVat,
         newTotal,
+        nextPaid,
+        nextDue,
         salesReturn.original_invoice_number,
         storeId,
       ],
@@ -2780,6 +2871,8 @@ export const approveSalesReturn = async (req, res) => {
     });
     
     await client.query("COMMIT");
+
+    emitToStore(storeId, 'sales_return', { return_number: salesReturn.return_number });
 
     notifyStore({
       storeId,

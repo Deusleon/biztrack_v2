@@ -29,6 +29,13 @@ export const getStoreSettings = async (req, res) => {
     );
 
     const storeSettings = storeSettingsResult.rows[0].settings;
+    for (const section of storeSettings?.systemOptions || []) {
+      for (const field of section.fields || []) {
+        if (field.key === 'defaultReceiptSize' && Array.isArray(field.options) && !field.options.some((o) => o.value === 'A4')) {
+          field.options.push({ label: 'size_a4', value: 'A4' });
+        }
+      }
+    }
 
     return res
       .status(200)
