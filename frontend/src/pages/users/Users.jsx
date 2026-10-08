@@ -11,7 +11,7 @@ import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { Input, Select, DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
-import { dateOnly } from '../sales/common';
+import { dateOnly, DetailGrid } from '../sales/common';
 import { t } from '../../utils/i18n';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -29,6 +29,7 @@ export default function Users() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [view, setView] = useState(null);
   const canEdit = can('edit_users'); const canDelete = can('delete_users') || canEdit;
   useEffect(() => { roleService.getAll().then((r) => setRoles(r.data)).catch(() => showError(t('failed_to_fetch_roles', lang))); }, [currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = (k) => (e) => { setForm((f) => ({ ...f, [k]: e.target.value })); setErrors((x) => ({ ...x, [k]: undefined })); };
@@ -60,7 +61,6 @@ export default function Users() {
     { key: 'created_at', label: t('date', lang), render: (u) => dateOnly(u.created_at) },
   ];
   const exportRows = useMemo(() => list.rows.map((u, i) => ({ index: `${i + 1}.`, name: u.name, email: u.email, role: u.storeInfo?.role_name || '', status: t(u.status ? 'enabled' : 'disabled', lang) })), [list.rows, lang]); // eslint-disable-line react-hooks/exhaustive-deps
-  const hasActions = canEdit || canDelete;
 
   return (
     <MainLayout>
@@ -71,12 +71,29 @@ export default function Users() {
         </div>
         <div className="bg-white p-4 rounded shadow"><Input value={list.searchText} onChange={(e) => list.setFilter('search', e.target.value)} placeholder={t('ui_search_placeholder', lang)} /></div>
         <DataTable columns={columns} data={list.rows} loading={list.loading} emptyMessage={list.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={list.pagination} onPageChange={list.setPage}
-          renderActions={hasActions ? (u) => <RowActions actions={[
+          renderActions={(u) => <RowActions actions={[
+            { label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => setView(u) },
             { label: t('edit', lang), icon: ACTION_ICONS.edit, onClick: () => openEdit(u), hidden: !canEdit || u.id === me?.id },
             { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ id: u.id, name: u.name }), hidden: !canDelete || u.id === me?.id },
-          ]} /> : undefined} />
+          ]} />} />
       </div>
-      <FormModal isOpen={!!modal} onClose={() => !saving && setModal(null)} size="md" title={modal?.id ? t('edit_user', lang) : t('add_user', lang)}>
+      <FormModal isOpen={!!view} onClose={() => setView(null)} size="xl" title={view?.name || t('user', lang)}>
+        {view && (
+          <div className="space-y-4">
+            <DetailGrid items={[
+              [t('full_name', lang), view.name],
+              [t('email', lang), view.email],
+              [t('role', lang), view.storeInfo?.role_name],
+              [t('store', lang), view.storeInfo?.store_name],
+              [t('account_status', lang), t(view.status ? 'enabled' : 'disabled', lang)],
+              [t('default_language', lang), view.preferred_language],
+              [t('date', lang), dateOnly(view.created_at)],
+            ]} />
+            <div className="flex justify-end"><Button variant="secondary" onClick={() => setView(null)}>{t('close', lang)}</Button></div>
+          </div>
+        )}
+      </FormModal>
+      <FormModal isOpen={!!modal} onClose={() => !saving && setModal(null)} size="lg" title={modal?.id ? t('edit_user', lang) : t('add_user', lang)}>
         {modal && (
           <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>
             {!modal.id && <><Input label={t('full_name', lang)} required autoFocus value={form.full_name} onChange={set('full_name')} error={errors.full_name} /><Input type="email" label={t('email', lang)} required value={form.email} onChange={set('email')} error={errors.email} /><Input type="password" label={t('password', lang)} required autoComplete="new-password" value={form.password} onChange={set('password')} error={errors.password} helperText={t('min_8_characters', lang)} /></>}

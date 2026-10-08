@@ -33,7 +33,8 @@ export const buildReceiptData = ({ sale = {}, settings = {}, cashierName }) => {
 };
 
 export const RECEIPT_SIZE_OPTIONS = [
-  { value: '58mm', label: 'Thermal 58mm' },
-  { value: '80mm', label: 'Thermal 80mm' },
-  { value: 'A5', label: 'A5 / Half Letter' },
+  { value: '58mm', label: 'size_58mm' },
+  { value: '80mm', label: 'size_80mm' },
+  { value: 'A5', label: 'size_a5' },
+  { value: 'A4', label: 'size_a4' },
 ];

@@ -30,15 +30,19 @@ export const connectQZ = async () => {
 export const printReceipt = async ({ pdfBase64, printerName, receiptSize = '80mm' }) => {
   await connectQZ();
   const printer = printerName ? await qz.printers.find(printerName) : await qz.printers.getDefault();
+  const documents = { A4: { width: 210, height: 297 }, A5: { width: 148, height: 210 } };
   const paperWidths = { '58mm': { width: '48mm' }, '80mm': { width: '72mm' } };
+  const page = documents[receiptSize];
   const paper = paperWidths[receiptSize] || paperWidths['80mm'];
-  const config = qz.configs.create(printer, {
-    size: { width: paper.width, height: null },
-    margins: { top: 0, right: 0, bottom: 0, left: 0 },
-    units: 'mm',
-    scaleContent: true,
-    rasterize: true,
-  });
+  const config = qz.configs.create(printer, page
+    ? { size: page, units: 'mm', margins: 0, scaleContent: true, rasterize: true }
+    : {
+      size: { width: paper.width, height: null },
+      margins: { top: 0, right: 0, bottom: 0, left: 0 },
+      units: 'mm',
+      scaleContent: true,
+      rasterize: true,
+    });
   await qz.print(config, [{ type: 'pixel', format: 'pdf', flavor: 'base64', data: pdfBase64 }]);
 };
 

@@ -60,7 +60,12 @@ export const num = (v) => Number(v) || 0;
 export const INITIAL = { search: '', status: '', supplier_id: '', from_date: '', to_date: '' };
 
 export const Dl = ({ items }) => (
-  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm text-left">
-    {items.map(([k, v]) => <div key={k}><p className="text-[11px] uppercase tracking-wide text-gray-400">{k}</p><div className="text-gray-800 break-words">{v || '—'}</div></div>)}
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    {items.filter((row) => row).map(([k, v]) => (
+      <div key={k} className="rounded-md bg-gray-50 px-3 py-2.5 text-left min-w-0">
+        <p className="text-[11px] uppercase tracking-wide text-gray-400">{k}</p>
+        <div className="text-sm font-medium text-gray-900 mt-0.5 break-words">{v || '—'}</div>
+      </div>
+    ))}
   </div>
 );

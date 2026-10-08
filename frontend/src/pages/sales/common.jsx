@@ -4,7 +4,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { t } from '../../utils/i18n';
 
 const TONES = { green: 'bg-green-50 text-green-700', red: 'bg-red-50 text-red-700', amber: 'bg-amber-50 text-amber-700', gray: 'bg-gray-100 text-gray-600', blue: 'bg-blue-50 text-blue-700' };
-const STATUS_TONE = { paid: 'green', completed: 'green', approved: 'green', active: 'green', sold: 'green', cash: 'green', partial_paid: 'amber', partial: 'amber', pending: 'amber', saved: 'amber', onprocess: 'amber', credit: 'blue', overdue: 'red', unpaid: 'red', rejected: 'red', cancelled: 'red', canceled: 'red' };
+const STATUS_TONE = { paid: 'green', completed: 'green', approved: 'green', active: 'green', sold: 'green', cash: 'green', partial_paid: 'amber', partial: 'amber', pending: 'amber', saved: 'amber', onprocess: 'amber', credit: 'blue', partly_returned: 'amber', returned: 'red', overdue: 'red', unpaid: 'red', not_paid: 'red', rejected: 'red', cancelled: 'red', canceled: 'red' };
 export const StatusBadge = ({ value }) => {
   const { lang } = useLanguage();
   if (!value) return <span className="text-gray-400">—</span>;
@@ -44,3 +44,17 @@ export const readableNote = (note, lang) => {
 /** Edit used to insert a fake payment whose method was "mod_by_<user id>". That is not a payment. */
 export const isSystemPayment = (method) => /^mod_by_/i.test(String(method || ''));
 export const readableMethod = (method, lang) => (isSystemPayment(method) ? t('order_update', lang) : t(method, lang));
+
+/** Labelled facts across the top of a view dialog. */
+export function DetailGrid({ items }) {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {items.filter(Boolean).map(([label, value]) => (
+        <div key={label} className="rounded-md bg-gray-50 px-3 py-2.5 text-left min-w-0">
+          <p className="text-[11px] uppercase tracking-wide text-gray-400">{label}</p>
+          <div className="text-sm font-medium text-gray-900 mt-0.5 break-words">{value || '—'}</div>
+        </div>
+      ))}
+    </div>
+  );
+}

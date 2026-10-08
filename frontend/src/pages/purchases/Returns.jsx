@@ -8,7 +8,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { purchaseService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, Select, Textarea } from '../../components/ui';
+import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, DatePicker, Input, Select, Textarea } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { PStatus, PFilters, useSuppliers, listFetcher, dateOnly, num, INITIAL, Dl } from './common';
 import { formatCurrency } from '../../utils/numberUtils';
@@ -66,6 +66,7 @@ export default function Returns() {
     { key: 'return_reason', label: t('reason', lang), render: (r) => t(r.return_reason, lang) },
     { key: 'total_value', label: t('total', lang), align: 'right', render: (r) => money(r.total_value) },
     { key: 'status', label: t('status', lang), render: (r) => <PStatus value={r.status} /> },
+    { key: 'created_by_name', label: t('created_by', lang), render: (r) => r.created_by_name || '—' },
   ];
   const d = detail;
 
@@ -94,7 +95,7 @@ export default function Returns() {
                   <td className="px-2 py-1.5"><input className="w-full px-2 py-1.5 text-sm text-right border border-gray-300 rounded" inputMode="decimal" value={l.qty} onChange={(e) => setLine(k, { qty: e.target.value })} /></td>
                   <td className="px-2 py-1.5"><select className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded" value={l.condition} onChange={(e) => setLine(k, { condition: e.target.value })}>{CONDITIONS.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}</select></td>
                   <td className="px-3 py-2 text-right">{money(l.item.unit_cost)}</td></tr>)}</tbody></table></div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4"><Input type="date" label={t('return_date', lang)} value={create.return_date} onChange={(e) => setCreate((c) => ({ ...c, return_date: e.target.value }))} /><Select label={t('return_reason', lang)} value={create.return_reason} onChange={(e) => setCreate((c) => ({ ...c, return_reason: e.target.value }))} options={REASONS.map((r) => ({ value: r, label: t(r, lang) }))} /><Select label={t('refund_method', lang)} value={create.refund_method} onChange={(e) => setCreate((c) => ({ ...c, refund_method: e.target.value }))} options={REFUNDS.map((r) => ({ value: r, label: t(r, lang) }))} /></div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4"><DatePicker label={t('return_date', lang)} value={create.return_date} onChange={(e) => setCreate((c) => ({ ...c, return_date: e.target.value }))} /><Select label={t('return_reason', lang)} value={create.return_reason} onChange={(e) => setCreate((c) => ({ ...c, return_reason: e.target.value }))} options={REASONS.map((r) => ({ value: r, label: t(r, lang) }))} /><Select label={t('refund_method', lang)} value={create.refund_method} onChange={(e) => setCreate((c) => ({ ...c, refund_method: e.target.value }))} options={REFUNDS.map((r) => ({ value: r, label: t(r, lang) }))} /></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><Input label={t('reason_details', lang)} value={create.reason_details} onChange={(e) => setCreate((c) => ({ ...c, reason_details: e.target.value }))} /><Textarea rows={2} label={t('notes', lang)} value={create.notes} onChange={(e) => setCreate((c) => ({ ...c, notes: e.target.value }))} /></div>
             </>}
             <div className="flex items-center justify-between"><span className="text-sm">{t('total', lang)}: <b>{money(value)}</b></span><div className="flex gap-3"><Button type="submit" loading={busy} disabled={!create.grn}>{t('save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setCreate(null)}>{t('ui_cancel', lang)}</Button></div></div>
@@ -102,12 +103,13 @@ export default function Returns() {
         )}
       </FormModal>
 
-      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="lg" title={`${t('supplier_return', lang)} #${d?.return_number || ''}`}>
+      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="xl" title={`${t('supplier_return', lang)} #${d?.return_number || ''}`}>
         {d && (
           <div className="space-y-4">
-            <Dl items={[[t('supplier', lang), d.supplier_name], [t('grn', lang), d.grn_number && `#${d.grn_number}`], [t('return_date', lang), dateOnly(d.return_date)], [t('status', lang), <PStatus key="s" value={d.status} />], [t('return_reason', lang), t(d.return_reason, lang)], [t('refund_method', lang), t(d.refund_method, lang)], [t('total', lang), money(d.total_value)], [t('created_by', lang), d.created_by_name]]} />
-            <ul className="divide-y divide-gray-100 text-sm">{(d.items || []).map((i) => <li key={i.id} className="py-1.5 flex justify-between"><span>{i.product_name} × {num(i.quantity)} <span className="text-gray-400">({t(i.condition, lang)}{i.batch_number ? ` · ${i.batch_number}` : ''})</span></span><span>{money(i.line_total)}</span></li>)}</ul>
-            {(d.reason_details || d.notes) && <p className="text-sm text-gray-600 text-left">{[d.reason_details, d.notes].filter(Boolean).join(' · ')}</p>}
+            <Dl items={[[t('supplier', lang), d.supplier_name], [t('grn', lang), d.grn_number && `#${d.grn_number}`], [t('return_date', lang), dateOnly(d.return_date)], [t('status', lang), <PStatus key="s" value={d.status} />], [t('return_reason', lang), t(d.return_reason, lang)], [t('refund_method', lang), t(d.refund_method, lang)], [t('total', lang), money(d.total_value)], [t('created_by', lang), d.created_by_name], [t('approved_by', lang), d.approved_by_name]]} />
+            <div className="overflow-x-auto border border-gray-200 rounded-md"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('quantity', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('condition', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('batch_number', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('total', lang)}</th></tr></thead>
+              <tbody>{(d.items || []).map((i) => <tr key={i.id} className="border-t border-gray-100"><td className="px-3 py-2.5 text-left">{i.product_name}</td><td className="px-3 py-2.5 text-right">{num(i.quantity)}</td><td className="px-3 py-2.5 text-left">{t(i.condition, lang)}</td><td className="px-3 py-2.5 text-left">{i.batch_number || '—'}</td><td className="px-3 py-2.5 text-right font-medium">{money(i.line_total)}</td></tr>)}</tbody></table></div>
+            <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-600"><p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{t('notes', lang)}</p>{[d.reason_details, d.notes].filter(Boolean).join(' · ') || '—'}</div>
             <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-gray-100">
               {can('approve_supplier_returns') && ['draft', 'pending_approval'].includes(d.status) && <Button loading={busy} onClick={() => run(() => purchaseService.returns.approve(d.id))}>{t('approve', lang)}</Button>}
               <Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button>

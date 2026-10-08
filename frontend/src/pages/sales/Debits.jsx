@@ -10,7 +10,7 @@ import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { DataTable, Button, RowActions, ACTION_ICONS, NumberInput, Select, Input, Textarea } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
-import { FilterBar, StatusBadge, toPaging, dateOnly } from './common';
+import { FilterBar, StatusBadge, DetailGrid, toPaging, dateOnly } from './common';
 import { formatCurrency, removeNumberFormatting } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
@@ -25,7 +25,7 @@ export default function Debits() {
   const { lang } = useLanguage();
   const { settings } = useStoreSettings();
   const list = useServerList({ fetcher: fetchCredit, initialFilters: { search: '', status: '', startDate: '', endDate: '' } });
-  useLiveRefresh(['newSale', 'creditPayment'], list.reload);
+  useLiveRefresh(['newSale', 'creditPayment', 'sales_return'], list.reload);
   const [detail, setDetail] = useState(null);
   const [panel, setPanel] = useState(null);          // { kind: 'pay' | 'notify', sale }
   const [form, setForm] = useState({ amount: '', method: 'cash', reference: '', notes: '', message: '' });
@@ -65,6 +65,7 @@ export default function Debits() {
     { key: 'amount_due', label: t('amount_due', lang), align: 'right', render: (c) => <span className="text-red-600 font-medium">{money(c.amount_due)}</span> },
     { key: 'due_date', label: t('due_date', lang), render: (c) => dateOnly(c.due_date) || '—' },
     { key: 'status', label: t('status', lang), render: (c) => <StatusBadge value={c.status} /> },
+    { key: 'created_by_name', label: t('created_by', lang), render: (c) => c.created_by_name || '—' },
   ];
   const cs = detail?.credit_sale;
 
@@ -82,7 +83,7 @@ export default function Debits() {
             ))}
           </div>
         )}
-        <FilterBar list={list} statusKey="status" statusOptions={['pending', 'partial', 'overdue', 'paid']} />
+        <FilterBar list={list} statusKey="status" statusOptions={['not_paid', 'partial_paid', 'overdue', 'paid']} />
         <DataTable columns={columns} data={list.rows} loading={list.loading} emptyMessage={list.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={list.pagination} onPageChange={list.setPage}
           renderActions={(c) => <RowActions actions={[
             { label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => view(c) },
@@ -91,12 +92,34 @@ export default function Debits() {
           ]} />} />
       </div>
 
-      <FormModal isOpen={!!detail} onClose={() => setDetail(null)} size="lg" title={`${t('invoice', lang)} #${cs?.invoice_number || ''}`}>
+      <FormModal isOpen={!!detail} onClose={() => setDetail(null)} size="xl" title={`${t('invoice', lang)} #${cs?.invoice_number || ''}`}>
         {detail && cs && (
-          <div className="space-y-4 text-left text-sm">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{[['customer', cs.customer_name], ['phone', cs.customer_phone], ['total', money(cs.total_amount)], ['amount_due', money(cs.amount_due)]].map(([k, v]) => <div key={k}><p className="text-[11px] uppercase tracking-wide text-gray-400">{t(k, lang)}</p><p>{v || '—'}</p></div>)}</div>
-            <div><h4 className="font-semibold text-gray-700 mb-1">{t('items', lang)}</h4><ul className="divide-y divide-gray-100">{(detail.items || []).map((i) => <li key={i.id} className="py-1 flex justify-between"><span>{i.name} × {Number(i.quantity)}</span><span>{money(Number(i.price) * Number(i.quantity))}</span></li>)}</ul></div>
-            <div><h4 className="font-semibold text-gray-700 mb-1">{t('payments', lang)}</h4>{(detail.payments || []).length === 0 && <p className="text-gray-400">{t('ui_nothing_yet', lang)}</p>}<ul className="divide-y divide-gray-100">{(detail.payments || []).map((p, i) => <li key={p.id || i} className="py-1 flex justify-between"><span>{dateOnly(p.created_at || p.payment_date)} · {t(p.payment_method, lang)}</span><span>{money(p.amount)}</span></li>)}</ul></div>
+          <div className="space-y-5 text-left">
+            <DetailGrid items={[
+              [t('customer', lang), cs.customer_name],
+              [t('phone', lang), cs.customer_phone],
+              [t('date', lang), dateOnly(cs.created_at)],
+              [t('due_date', lang), dateOnly(cs.due_date)],
+              [t('created_by', lang), cs.created_by_name],
+              [t('status', lang), <StatusBadge value={cs.status} />],
+              [t('total', lang), money(cs.total_amount)],
+              [t('amount_paid', lang), money(cs.amount_paid)],
+              [t('amount_due', lang), <span className={Number(cs.amount_due) > 0 ? 'text-red-600' : 'text-green-700'}>{money(cs.amount_due)}</span>],
+            ]} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="overflow-x-auto border border-gray-200 rounded-md">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('quantity', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('total', lang)}</th></tr></thead>
+                  <tbody>{(detail.items || []).map((i) => <tr key={i.id} className="border-t border-gray-100"><td className="px-3 py-2.5">{i.name}</td><td className="px-3 py-2.5 text-right">{Number(i.quantity)}</td><td className="px-3 py-2.5 text-right font-medium">{money(Number(i.price) * Number(i.quantity))}</td></tr>)}</tbody>
+                </table>
+              </div>
+              <div className="border border-gray-200 rounded-md">
+                <h4 className="px-3 py-2.5 text-sm font-medium text-gray-500 bg-gray-50 border-b border-gray-100">{t('payments', lang)}</h4>
+                {(detail.payments || []).length === 0 && <p className="px-3 py-4 text-sm text-gray-400">{t('ui_nothing_yet', lang)}</p>}
+                <ul className="divide-y divide-gray-100 text-sm">{(detail.payments || []).map((p, i) => <li key={p.id || i} className="px-3 py-2.5 flex justify-between gap-3"><span className="text-gray-600">{dateOnly(p.created_at || p.payment_date)} · {t(p.payment_method, lang)}{p.received_by ? ` · ${t('recorded_by', lang)}: ${p.received_by}` : ''}</span><span className="font-medium">{money(p.amount)}</span></li>)}</ul>
+              </div>
+            </div>
+            <div className="flex justify-end"><Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button></div>
           </div>
         )}
       </FormModal>

@@ -11,7 +11,7 @@ import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { DataTable, Button, RowActions, ACTION_ICONS, Input, Select, Textarea, ConfirmModal } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
-import { FilterBar, StatusBadge, toPaging, dateOnly } from './common';
+import { FilterBar, StatusBadge, DetailGrid, toPaging, dateOnly } from './common';
 import { formatCurrency } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
@@ -75,6 +75,7 @@ export default function Returns() {
     { key: 'customer_name', label: t('customer', lang), render: (r) => r.customer_name || t('walk_in', lang) },
     { key: 'total_refund', label: t('refund_amount', lang), align: 'right', render: (r) => money(r.total_refund ?? r.refund_amount ?? r.total_amount) },
     { key: 'status', label: t('status', lang), render: (r) => <StatusBadge value={r.status} /> },
+    { key: 'created_by_name', label: t('created_by', lang), render: (r) => r.created_by_name || '—' },
   ];
   const summary = list.summary || {};
   const d = detail?.return || detail?.sales_return || detail; const dItems = detail?.items || d?.items || [];
@@ -115,13 +116,43 @@ export default function Returns() {
         )}
       </FormModal>
 
-      <FormModal isOpen={!!detail} onClose={() => setDetail(null)} size="lg" title={`${t('sales_return', lang)} ${d?.return_number || ''}`}>
+      <FormModal isOpen={!!detail} onClose={() => setDetail(null)} size="xl" title={`${t('sales_return', lang)} ${d?.return_number || ''}`}>
         {d && (
-          <div className="space-y-4 text-left text-sm">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{[['invoice_number', (d.original_invoice_number || d.invoice_number) && `#${d.original_invoice_number || d.invoice_number}`], ['date', dateOnly(d.created_at)], ['refund_method', t(d.refund_method, lang)], ['refund_amount', money(d.total_refund ?? d.refund_amount ?? d.total_amount)]].map(([k, v]) => <div key={k}><p className="text-[11px] uppercase tracking-wide text-gray-400">{t(k, lang)}</p><p>{v || '—'}</p></div>)}<div><p className="text-[11px] uppercase tracking-wide text-gray-400">{t('status', lang)}</p><StatusBadge value={d.status} /></div></div>
-            {(d.reason || d.notes) && <p className="text-gray-600">{[d.reason, d.notes].filter(Boolean).join(' · ')}</p>}
-            <ul className="divide-y divide-gray-100">{dItems.map((i, k) => <li key={i.id || k} className="py-1.5 flex justify-between"><span>{i.name || i.product_name} × {Number(i.quantity)} <span className="text-gray-400">({t(i.condition, lang)}{i.restock ? `, ${t('restock', lang)}` : ''})</span></span><span>{money(Number(i.price) * Number(i.quantity))}</span></li>)}</ul>
-            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+          <div className="space-y-5 text-left">
+            <DetailGrid items={[
+              [t('invoice_number', lang), (d.original_invoice_number || d.invoice_number) && `#${d.original_invoice_number || d.invoice_number}`],
+              [t('customer', lang), d.customer_name || t('walk_in', lang)],
+              [t('date', lang), dateOnly(d.created_at)],
+              [t('status', lang), <StatusBadge value={d.status} />],
+              [t('created_by', lang), d.created_by_name],
+              [t('refund_method', lang), t(d.refund_method, lang)],
+              [t('refund_amount', lang), money(d.total_refund ?? d.refund_amount ?? d.total_amount)],
+            ]} />
+            <div className="overflow-x-auto border border-gray-200 rounded-md">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-500"><tr>
+                  <th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th>
+                  <th className="px-3 py-2.5 text-right font-medium">{t('quantity', lang)}</th>
+                  <th className="px-3 py-2.5 text-left font-medium">{t('condition', lang)}</th>
+                  <th className="px-3 py-2.5 text-left font-medium">{t('restock', lang)}</th>
+                  <th className="px-3 py-2.5 text-right font-medium">{t('total', lang)}</th>
+                </tr></thead>
+                <tbody>{dItems.map((i, k) => (
+                  <tr key={i.id || k} className="border-t border-gray-100">
+                    <td className="px-3 py-2.5">{i.name || i.product_name}</td>
+                    <td className="px-3 py-2.5 text-right">{Number(i.quantity)}</td>
+                    <td className="px-3 py-2.5">{t(i.condition, lang)}</td>
+                    <td className="px-3 py-2.5">{i.restock ? t('restock', lang) : '—'}</td>
+                    <td className="px-3 py-2.5 text-right font-medium">{money(Number(i.price) * Number(i.quantity))}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+            <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-600">
+              <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{t('reason', lang)}</p>
+              {[d.reason, d.notes].filter(Boolean).join(' · ') || '—'}
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 pt-1 border-t border-gray-100">
               {canCreate && String(d.status).toLowerCase() === 'pending' && <><Button loading={busy} onClick={() => act(() => salesService.approveReturn(d.id), 'return_approved')}>{t('approve', lang)}</Button><Button variant="danger" onClick={() => setReject(d)}>{t('reject', lang)}</Button></>}
               <Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button>
             </div>

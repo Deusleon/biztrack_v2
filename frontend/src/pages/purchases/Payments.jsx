@@ -45,6 +45,7 @@ export default function Payments() {
     { key: 'payment_method', label: t('payment_method', lang), render: (p) => t(p.payment_method, lang) },
     { key: 'amount', label: t('amount', lang), align: 'right', render: (p) => money(p.amount) },
     { key: 'status', label: t('status', lang), render: (p) => <PStatus value={p.status} /> },
+    { key: 'created_by_name', label: t('created_by', lang), render: (p) => p.created_by_name || '—' },
   ];
   const exportCols = [{ key: 'index', title: 'no.', width: '45px' }, { key: 'payment_number', title: 'payment_number' }, { key: 'supplier_name', title: 'supplier' }, { key: 'bill_number', title: 'invoice' }, { key: 'payment_date', title: 'payment_date' }, { key: 'payment_method', title: 'payment_method' }, { key: 'amount', title: 'amount' }];
   const exportRows = useMemo(() => list.rows.map((p, k) => ({ index: `${(list.pagination.currentPage - 1) * list.pagination.limit + k + 1}.`, payment_number: p.payment_number, supplier_name: p.supplier_name, bill_number: p.bill_number || '', payment_date: dateOnly(p.payment_date), payment_method: t(p.payment_method, lang), amount: money(p.amount) })), [list.rows, settings, lang]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -65,7 +66,7 @@ export default function Payments() {
           ]} />} />
       </div>
       <PaymentModal isOpen={open} invoices={outstanding} onClose={() => setOpen(false)} onSaved={list.reload} />
-      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="md" title={`${t('payment', lang)} #${d?.payment_number || ''}`}>
+      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="xl" title={`${t('payment', lang)} #${d?.payment_number || ''}`}>
         {d && <div className="space-y-3"><Dl items={[[t('supplier', lang), d.supplier_name], [t('invoice', lang), d.bill_number && `#${d.bill_number}`], [t('payment_date', lang), dateOnly(d.payment_date)], [t('amount', lang), money(d.amount)], [t('payment_method', lang), t(d.payment_method, lang)], [t('reference_number', lang), d.reference_number], [t('bank_name', lang), d.bank_name], [t('account_number', lang), d.account_number], [t('status', lang), <PStatus key="s" value={d.status} />], [t('created_by', lang), d.created_by_name]]} />{d.notes && <p className="text-sm text-gray-600 text-left">{d.notes}</p>}</div>}
       </FormModal>
       <ConfirmModal isOpen={!!confirm} variant="danger" title={t('cancel_payment', lang)} confirmText={t('confirm', lang)} cancelText={t('ui_cancel', lang)} message={t('confirm_cancel_payment', lang, { name: confirm?.name })} onClose={() => setConfirm(null)} onConfirm={remove} loading={busy} />

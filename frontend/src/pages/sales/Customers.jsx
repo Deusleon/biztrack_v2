@@ -12,6 +12,7 @@ import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { Input, PhoneInput, NumberInput, Textarea, Select, DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
+import { DetailGrid } from './common';
 import { formatCurrency } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
@@ -162,13 +163,23 @@ export default function Customers() {
         </form>
       </FormModal>
 
-      <FormModal isOpen={!!view} onClose={() => setView(null)} size="md" title={view?.name}>
+      <FormModal isOpen={!!view} onClose={() => setView(null)} size="xl" title={view?.name}>
         {view && (
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm text-left">
-            {[['phone', view.phone], ['email', view.email], ['customer_type', typeName(view.customer_type)], ['credit_limit', money(view.credit_limit)], ['current_balance', money(view.current_balance)], ['credit_due_days', view.credit_due_days], ['address', view.address]].map(([k, v]) => (
-              <div key={k} className={k === 'address' ? 'col-span-2' : ''}><dt className="text-[11px] uppercase tracking-wide text-gray-400">{t(k, lang)}</dt><dd className="text-gray-800 break-words">{v || '—'}</dd></div>
-            ))}
-          </dl>
+          <div className="space-y-4">
+            <DetailGrid items={[
+              [t('phone', lang), view.phone],
+              [t('email', lang), view.email],
+              [t('customer_type', lang), typeName(view.customer_type)],
+              [t('credit_due_days', lang), view.credit_due_days],
+              [t('credit_limit', lang), money(view.credit_limit)],
+              [t('current_balance', lang), money(view.current_balance)],
+            ]} />
+            <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-left">
+              <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{t('address', lang)}</p>
+              <p className="text-gray-800">{view.address || '—'}</p>
+            </div>
+            <div className="flex justify-end"><Button variant="secondary" onClick={() => setView(null)}>{t('close', lang)}</Button></div>
+          </div>
         )}
       </FormModal>
 

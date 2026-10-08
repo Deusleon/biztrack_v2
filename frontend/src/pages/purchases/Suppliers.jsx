@@ -97,7 +97,7 @@ export default function Suppliers() {
         </form>
       </FormModal>
 
-      <FormModal isOpen={!!view} onClose={() => setView(null)} size="md" title={view?.name}>
+      <FormModal isOpen={!!view} onClose={() => setView(null)} size="xl" title={view?.name}>
         {view && <div className="space-y-3"><Dl items={[[t('contact_person', lang), view.contact_person], [t('phone', lang), view.phone], [t('email', lang), view.email], [t('city', lang), [view.city, view.country].filter(Boolean).join(', ')], [t('tin_number', lang), view.tin_number], [t('vat_number', lang), view.vat_number], [t('payment_terms', lang), view.payment_terms], [t('address', lang), view.address]]} />{view.notes && <p className="text-sm text-gray-600 text-left">{view.notes}</p>}</div>}
       </FormModal>
       <ConfirmModal isOpen={confirm.isOpen} variant="danger" title={t('delete', lang)} confirmText={t('delete', lang)} cancelText={t('ui_cancel', lang)} message={t('ui_confirm_delete', lang, { name: confirm.name })} onClose={() => setConfirm({ isOpen: false })} onConfirm={remove} />

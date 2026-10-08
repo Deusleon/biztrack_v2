@@ -12,7 +12,7 @@ import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { DataTable, Button, RowActions, ACTION_ICONS } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
-import { FilterBar, StatusBadge, toPaging, dateOnly } from './common';
+import { FilterBar, StatusBadge, DetailGrid, toPaging, dateOnly } from './common';
 import { formatCurrency } from '../../utils/numberUtils';
 import { generateDeliveryNotePDF } from '../../utils/deliveryNotePdf';
 import { t } from '../../utils/i18n';
@@ -29,7 +29,7 @@ export default function History() {
   const { settings } = useStoreSettings();
   const navigate = useNavigate();
   const list = useServerList({ fetcher: fetchSales, initialFilters: { search: '', saleType: '', startDate: '', endDate: '' } });
-  useLiveRefresh(['newSale', 'saleCreated'], list.reload);
+  useLiveRefresh(['newSale', 'saleCreated', 'sales_return'], list.reload);
   const [detail, setDetail] = useState(null);
   const money = (v) => formatCurrency(Number(v) || 0, settings);
 
@@ -54,7 +54,7 @@ export default function History() {
   });
 
   const columns = [
-    { key: 'invoice_number', label: t('invoice_number', lang), render: (s) => <span className="font-medium text-gray-900">#{s.invoice_number}</span> },
+    { key: 'invoice_number', label: t('invoice_number', lang), render: (s) => <span className="inline-flex items-center gap-2"><span className="font-medium text-gray-900">#{s.invoice_number}</span>{s.was_returned && <StatusBadge value={Number(s.total_amount) <= 0.005 ? 'returned' : 'partly_returned'} />}</span> },
     { key: 'sales_date', label: t('date', lang), render: (s) => dateOnly(s.sales_date || s.created_at) },
     { key: 'customer_name', label: t('customer', lang), render: (s) => s.customer_name || t('walk_in', lang) },
     { key: 'sale_type', label: t('type', lang), render: (s) => <StatusBadge value={s.sale_type} /> },
@@ -71,6 +71,8 @@ export default function History() {
   const loadAllRows = async () => { const all = []; let page = 1; let pages = 1; do { const r = await fetchSales({ ...list.filters, page, limit: 100 }); all.push(...r.data); pages = r.pagination.totalPages; page += 1; } while (page <= pages && page <= 200); return toRows(all); };
 
   const d = detail; const pay = d?.payment || {};
+  const doneReturns = (d?.returns || []).filter((r) => ['completed', 'approved'].includes(String(r.status).toLowerCase()));
+  const fullyReturned = doneReturns.length > 0 && Number(pay.total_amount) <= 0.005;
   return (
     <MainLayout>
       <div className="space-y-4">
@@ -89,19 +91,60 @@ export default function History() {
           ]} />} />
       </div>
 
-      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="lg" title={`${t('invoice', lang)} #${pay.invoice_number || ''}`}>
+      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="xl" title={`${t('invoice', lang)} #${pay.invoice_number || ''}`}>
         {d && (
-          <div className="space-y-4 text-left">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-              {[['customer', pay.customer_name || t('walk_in', lang)], ['date', dateOnly(pay.sales_date || pay.created_at)], ['type', t(pay.sale_type, lang)], ['payment_method', t(pay.payment_method, lang)]].map(([k, v]) => <div key={k}><p className="text-[11px] uppercase tracking-wide text-gray-400">{t(k, lang)}</p><p className="text-gray-800 break-words">{v || '—'}</p></div>)}
+          <div className="space-y-5 text-left">
+            {doneReturns.length > 0 && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-sm font-semibold text-amber-900">{t(fullyReturned ? 'invoice_returned' : 'invoice_partly_returned', lang)}</p>
+                <ul className="mt-2 space-y-1 text-sm text-amber-800">
+                  {doneReturns.map((r) => <li key={r.return_number}>{r.return_number} · {dateOnly(r.completed_at || r.created_at)} · {t('returned_by', lang)}: {r.returned_by || '—'} · {money(r.refund_amount || r.total_amount)}</li>)}
+                </ul>
+              </div>
+            )}
+            <DetailGrid items={[
+              [t('customer', lang), pay.customer_name || t('walk_in', lang)],
+              [t('phone', lang), pay.customer_phone],
+              [t('date', lang), dateOnly(pay.sales_date || pay.created_at)],
+              [t('cashier', lang), pay.cashier_name],
+              [t('type', lang), <StatusBadge value={pay.sale_type} />],
+              [t('payment_method', lang), t(pay.payment_method, lang)],
+              [t('amount_paid', lang), money(pay.amount_paid)],
+              [t('amount_due', lang), <span className={Number(pay.amount_due) > 0 ? 'text-red-600' : 'text-green-700'}>{money(pay.amount_due)}</span>],
+            ]} />
+            <div className="overflow-x-auto border border-gray-200 rounded-md">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-500"><tr>
+                  <th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th>
+                  <th className="px-3 py-2.5 text-right font-medium">{t('quantity', lang)}</th>
+                  <th className="px-3 py-2.5 text-right font-medium">{t('price', lang)}</th>
+                  <th className="px-3 py-2.5 text-right font-medium">{t('discount', lang)}</th>
+                  <th className="px-3 py-2.5 text-right font-medium">{t('total', lang)}</th>
+                </tr></thead>
+                <tbody>{(d.items || []).map((i) => (
+                  <tr key={i.id} className="border-t border-gray-100">
+                    <td className="px-3 py-2.5">{i.name}</td>
+                    <td className="px-3 py-2.5 text-right">{Number(i.quantity)}</td>
+                    <td className="px-3 py-2.5 text-right">{money(i.price)}</td>
+                    <td className="px-3 py-2.5 text-right">{money(i.discount)}</td>
+                    <td className="px-3 py-2.5 text-right font-medium">{money(Number(i.price) * Number(i.quantity) - Number(i.discount || 0) * Number(i.quantity))}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
             </div>
-            <div className="overflow-x-auto border border-gray-100 rounded"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-3 py-2 text-right">{t('quantity', lang)}</th><th className="px-3 py-2 text-right">{t('price', lang)}</th><th className="px-3 py-2 text-right">{t('discount', lang)}</th><th className="px-3 py-2 text-right">{t('total', lang)}</th></tr></thead>
-              <tbody>{(d.items || []).map((i) => <tr key={i.id} className="border-t border-gray-100"><td className="px-3 py-2">{i.name}</td><td className="px-3 py-2 text-right">{Number(i.quantity)}</td><td className="px-3 py-2 text-right">{money(i.price)}</td><td className="px-3 py-2 text-right">{money(i.discount)}</td><td className="px-3 py-2 text-right font-medium">{money(Number(i.price) * Number(i.quantity) - Number(i.discount || 0) * Number(i.quantity))}</td></tr>)}</tbody></table></div>
-            <div className="ml-auto max-w-xs space-y-1 text-sm">
-              {[['subtotal', pay.subtotal], ['discount', pay.total_discount], ['tax', pay.total_vat], ['total', pay.total_amount], ['amount_paid', pay.amount_paid], ['amount_due', pay.amount_due]].map(([k, v]) => <div key={k} className={`flex justify-between ${k === 'total' ? 'font-bold border-t border-gray-100 pt-1' : ''}`}><span className="text-gray-500">{t(k, lang)}</span><span>{money(v)}</span></div>)}
-              {pay.notes && <p className="text-gray-500 pt-1">{pay.notes}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+              <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-600 min-h-[4.5rem]">
+                <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{t('notes', lang)}</p>
+                {pay.notes || '—'}
+              </div>
+              <div className="rounded-md border border-gray-200 px-4 py-3 space-y-1.5 text-sm">
+                {[['subtotal', pay.subtotal], ['discount', pay.total_discount], ['tax', pay.total_vat]].map(([k, v]) => <div key={k} className="flex justify-between"><span className="text-gray-500">{t(k, lang)}</span><span>{money(v)}</span></div>)}
+                <div className="flex justify-between font-bold text-base border-t border-gray-100 pt-2"><span>{t('total', lang)}</span><span>{money(pay.total_amount)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">{t('amount_paid', lang)}</span><span>{money(pay.amount_paid)}</span></div>
+                <div className={`flex justify-between font-semibold ${Number(pay.amount_due) > 0 ? 'text-red-600' : 'text-green-700'}`}><span>{t('amount_due', lang)}</span><span>{money(pay.amount_due)}</span></div>
+              </div>
             </div>
-            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+            <div className="flex flex-wrap justify-end gap-2 pt-1 border-t border-gray-100">
               <Button variant="secondary" onClick={() => { const s = { invoice_number: pay.invoice_number, customer_name: pay.customer_name, customer_phone: pay.customer_phone }; setDetail(null); navigate('/sales/receipt', { state: { saleData: { ...d, invoice_number: s.invoice_number, items: d.items, paymentInfo: d.payment, customerInfo: { name: s.customer_name, phone: s.customer_phone } } } }); }}>{t('receipt', lang)}</Button>
               <Button variant="secondary" onClick={() => deliveryNote({ invoice_number: pay.invoice_number, customer_name: pay.customer_name, customer_phone: pay.customer_phone, cashier_name: pay.cashier_name })}>{t('delivery_note', lang)}</Button>
               <Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button>

@@ -1,7 +1,7 @@
 // FILE PATH: frontend/src/components/ui/FormModal.jsx
 import { useEffect } from 'react';
 
-const SIZES = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-2xl', xl: 'max-w-4xl' };
+const SIZES = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-3xl', xl: 'max-w-5xl' };
 
 /**
  * The standard dialog for adding / editing a record — the same markup every EduTrack page writes by hand

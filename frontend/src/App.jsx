@@ -30,6 +30,7 @@ const Receipt = lazy(() => import('./pages/sales/Receipt'));
 const Returns = lazy(() => import('./pages/sales/Returns'));
 const Debits = lazy(() => import('./pages/sales/Debits'));
 const PurchaseOrders = lazy(() => import('./pages/purchases/Orders'));
+const PurchaseOrderForm = lazy(() => import('./pages/purchases/OrderForm'));
 const GoodsReceived = lazy(() => import('./pages/purchases/GoodsReceived'));
 const Suppliers = lazy(() => import('./pages/purchases/Suppliers'));
 const SupplierInvoices = lazy(() => import('./pages/purchases/Invoices'));
@@ -163,6 +164,8 @@ function App() {
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/lock" element={<LockScreen />} />
                     {paths.map((p) => <Route key={p} path={p} element={READY[p] || <ComingSoon />} />)}
+                    <Route path="/purchases/orders/new" element={<PurchaseOrderForm />} />
+                    <Route path="/purchases/orders/:id/edit" element={<PurchaseOrderForm />} />
                     <Route path="/messaging" element={<Navigate to="/messaging/recent" replace />} />
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   </Route>

@@ -39,7 +39,7 @@ export default function Receipt() {
             {saleData?.invoice_number && <p className="text-sm text-gray-500 mt-0.5">#{saleData.invoice_number}</p>}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Select size="sm" value={size} onChange={(e) => setSize(e.target.value)} options={RECEIPT_SIZE_OPTIONS} className="w-44" />
+            <Select size="sm" value={size} onChange={(e) => setSize(e.target.value)} options={RECEIPT_SIZE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label, lang) }))} className="w-48" />
             <Button variant="secondary" onClick={print} disabled={!url}>{t('print', lang)}</Button>
             {url && <a href={url} download={`receipt-${saleData?.invoice_number || 'sale'}.pdf`} className="px-4 py-2 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50">{t('download', lang)}</a>}
             <Button onClick={() => navigate('/sales/invoice')}>{t('new_sale', lang)}</Button>
