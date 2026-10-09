@@ -4,14 +4,17 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import MainLayout from '../../components/MainLayout';
 import BarcodeScanner from '../../components/BarcodeScanner';
 import { useStore } from '../../contexts/StoreContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { useSaleItems } from '../../hooks/useSaleItems';
 import { salesService, productService, customerService, priceCategoryService } from '../../services/api';
-import { Input, NumberInput, Select, Textarea, Button, ConfirmModal, DatePicker } from '../../components/ui';
+import { Input, NumberInput, Select, Textarea, Button, ConfirmModal, FormModal, DatePicker } from '../../components/ui';
 import { formatCurrency, formatNumberWithCommas, removeNumberFormatting } from '../../utils/numberUtils';
 import { getMoneyDecimals } from '../../utils/money';
+import { buildReceiptData } from '../../utils/receiptData';
+import { printReceiptDirect } from '../../utils/qzPrint';
 import { t } from '../../utils/i18n';
 
 const newCode = () => `S-ID-${Date.now()}`;
@@ -43,6 +46,7 @@ const loadAll = async (fetchPage, max = 60) => {
 
 export default function Invoice() {
   const { currentStore } = useStore();
+  const { user } = useAuth();
   const { showSuccess, showError, showWarning } = useToast();
   const { lang } = useLanguage();
   const { settings } = useStoreSettings();
@@ -78,7 +82,13 @@ export default function Invoice() {
   const [cartCode, setCartCode] = useState(editCode || newCode());
   const [orderNumber, setOrderNumber] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [hasPayments, setHasPayments] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [editReady, setEditReady] = useState(false);
   const restored = useRef(false);
+  const baseline = useRef(null);
   const syncTimer = useRef(null);
 
   const customer = customers.find((c) => c.id === customerId) || null;
@@ -92,6 +102,13 @@ export default function Invoice() {
   };
   const total = grandTotal;
   const paidNum = removeNumberFormatting(paid) || 0;
+  const fullyPaid = rows.length > 0 && paidNum + 0.0001 >= total;
+  const orderKey = () => JSON.stringify({
+    lines: rows.map((i) => [i.productId, Math.round((Number(i.rawQuantity) || 0) * 1000), Math.round((Number(i.rawPrice) || 0) * 100), Math.round((Number(i.rawDiscount) || 0) * 100)]),
+    customerId: customerId || '',
+    notes: notes.trim(),
+  });
+  const dirty = !!editCode && baseline.current != null && orderKey() !== baseline.current;
 
   // ── data ─────────────────────────────────────────────────────────────────────────────────────────
   useEffect(() => { categoryPicked.current = false; }, [currentStore?.id]);
@@ -117,6 +134,11 @@ export default function Invoice() {
   }, [priceCategory, currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { loadProducts(); }, [loadProducts]);
 
+  useEffect(() => {
+    if (!editCode || !editReady || baseline.current) return;
+    baseline.current = orderKey();
+  }, [editReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Restore what was in the cart (another device, or a refresh) — or load the pending order being edited.
   useEffect(() => {
     if (restored.current || products.length === 0) return;
@@ -130,8 +152,10 @@ export default function Invoice() {
           const first = r.cartDatas?.[0];
           setOrderNumber(r.order_number || null);
           if (first?.customer_id) setCustomerId(first.customer_id);
-          if (first?.note) setNotes(first.note);
+          if (first?.note && !/^order_modified_on_/i.test(first.note)) setNotes(first.note);
+          setHasPayments((r.paymentDatas || []).some((p) => Number(p.amount_paid) > 0 && !/^mod_by_/i.test(p.payment_method || '')));
           sale.loadItems((r.cartDatas || []).map((c) => ({ ...c, productName: c.product_name || nameOf(c.product_id), currentStock: stockOf(c.product_id) })));
+          setEditReady(true);
         } else {
           const r = await salesService.getActiveCart();
           if (r.cart_code) setCartCode(r.cart_code);
@@ -203,6 +227,16 @@ export default function Invoice() {
     setSaleDate(nowLocal()); setCartCode(newCode()); setOrderNumber(null);
   };
 
+  /** Sends the receipt to the printer through QZ Tray. No browser print window. */
+  const printSilently = async (saleData) => {
+    try {
+      await printReceiptDirect({
+        receiptData: buildReceiptData({ sale: saleData, settings, cashierName: user?.name }),
+        receiptSize: settings?.defaultReceiptSize || '80mm',
+      });
+    } catch (err) { showError(err.message || t('print_failed', lang)); }
+  };
+
   const submit = async (type) => {
     if (busy || !validate(type)) return;
     try {
@@ -216,8 +250,10 @@ export default function Invoice() {
       showSuccess(res.message || 'sale_processed_successfully');
       reset(); loadProducts();
       if (type === 'pending') { if (editCode) navigate('/sales/pending'); return; }
-      if (settings?.enableReceiptPrinting) navigate('/sales/receipt', { state: { saleData: res } });
-      else if (editCode) navigate('/sales/pending');
+      if (settings?.enableReceiptPrinting) {
+        if (settings.receiptPreview === false) await printSilently(res);
+        else navigate('/sales/receipt', { state: { saleData: res } });
+      } else if (editCode) navigate('/sales/pending');
     } catch (err) { showError(err.message || t('something_went_wrong', lang)); }
     finally { setBusy(null); }
   };
@@ -234,6 +270,17 @@ export default function Invoice() {
   };
 
   const cancelEdit = () => navigate('/sales/pending');
+
+  const cancelThisOrder = async () => {
+    if (hasPayments && cancelReason.trim().length < 3) { showError(t('cancel_reason_required', lang)); return; }
+    try {
+      setBusy('cancel');
+      await salesService.cancelOrder(editCode, hasPayments ? cancelReason.trim() : undefined);
+      showSuccess('order_cancelled');
+      navigate('/sales/pending');
+    } catch (err) { showError(err.message); }
+    finally { setBusy(null); setConfirmCancel(false); setCancelOpen(false); }
+  };
   const clearAll = () => { reset(); salesService.syncActiveCart({ cart_code: cartCode, items: [] }).catch(() => {}); setConfirmClear(false); };
 
   const cell = 'w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-20 text-right';
@@ -247,32 +294,73 @@ export default function Invoice() {
             <p className="text-sm text-gray-500 mt-0.5">{currentStore?.name}</p>
           </div>
           <div className="flex gap-2">
-            {editCode ? <Button variant="secondary" onClick={cancelEdit}>{t('ui_cancel', lang)}</Button> : rows.length > 0 && <Button variant="secondary" onClick={() => setConfirmClear(true)}>{t('clear', lang)}</Button>}
+            {editCode ? <Button variant="secondary" onClick={cancelEdit}>{t('back', lang)}</Button> : rows.length > 0 && <Button variant="secondary" onClick={() => setConfirmClear(true)}>{t('clear', lang)}</Button>}
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded shadow space-y-3 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <Select label={t('customer', lang)} searchable value={customerId} onChange={(e) => { setCustomerId(e.target.value); }} placeholder={t('select_customer', lang)} options={[{ value: '', label: t('walk_in', lang) }, ...customers.map((c) => ({ value: c.id, label: `${c.name}${c.phone ? ` · ${c.phone}` : ''}` }))]} />
+              {!customerId && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder={t('customer_name', lang)} />
+                  <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, ''))} placeholder={t('phone', lang)} inputMode="numeric" />
+                </div>
+              )}
+              {customer && settings?.customerCreditLimit && <p className="text-xs text-gray-500">{t('available_credit', lang)}: {money(Number(customer.credit_limit) - Number(customer.current_balance))}</p>}
+            </div>
+            {priceCategories.length > 0 && (
+              <Select label={t('price_category', lang)} value={priceCategory} disabled={rows.length > 0} onChange={(e) => { categoryPicked.current = true; setPriceCategory(e.target.value); }} placeholder={t('select_price_category', lang)} options={priceCategories.map((c) => ({ value: String(c.id), label: c.name }))} />
+            )}
+            <DatePicker label={t('sales_date', lang)} value={saleDate.slice(0, 10)} onChange={(e) => setSaleDate(e.target.value ? `${e.target.value}T${(saleDate.split('T')[1] || '00:00').slice(0, 5)}` : saleDate)} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
           <div className="xl:col-span-2 space-y-4">
             <div className="bg-white p-4 rounded shadow relative">
-              <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
-                <div className="flex-1">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 min-w-0">
                   <Select
                     searchable
                     value=""
                     placeholder={t('select_product', lang)}
-                    options={products.map((p) => ({ value: String(p.id), label: `${p.name}${p.barcode ? ` · ${p.barcode}` : ''} · ${money(p.price)} (${p.currentStock})` }))}
+                    options={products.map((p) => ({ value: String(p.id), label: `${p.name} · ${t('price', lang)}: ${money(p.price)} · ${t('qty', lang)}: ${formatNumberWithCommas(p.currentStock)}` }))}
                     onChange={(e) => { const p = products.find((x) => String(x.id) === String(e.target.value)); if (p) addProduct(p); }}
                   />
                 </div>
-                <div className="sm:w-56">
+                <div className="hidden md:block w-56 shrink-0">
                   <Input value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder={t('barcode', lang)} autoComplete="off"
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addByCode(barcode); } }} />
                 </div>
-                <Button variant="secondary" onClick={() => setScanning(true)} mobileLabel={t('scan_barcode', lang)}>{t('scan_barcode', lang)}</Button>
+                <Button className="md:hidden shrink-0" variant="secondary" mobileIcon={false} onClick={() => setScanning(true)}>{t('scan_barcode', lang)}</Button>
               </div>
             </div>
 
-            <div className="bg-white rounded shadow overflow-x-auto">
+            <div className="md:hidden space-y-3">
+              {rows.length === 0 && <div className="bg-white rounded shadow px-3 py-10 text-center text-sm text-gray-400">{t('add_at_least_one_item', lang)}</div>}
+              {rows.map((r) => (
+                <div key={r.id} className="bg-white rounded shadow p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-left min-w-0">
+                      <div className="font-medium text-gray-900 truncate">{r.productName}</div>
+                      <div className="text-xs text-gray-400">{t(r.unit, lang)} · {t('available', lang)}: {formatNumberWithCommas(r.quantityLeft)}</div>
+                    </div>
+                    <button type="button" className="p-1 text-gray-400 hover:text-red-600" onClick={() => sale.clearProductFromRow(r.id)} aria-label={t('delete', lang)}>✕</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block text-left"><span className="block text-xs text-gray-500 mb-1">{t('quantity', lang)}</span><input className={cell} inputMode="decimal" value={r.quantity} onChange={(e) => sale.updateItem(r.id, 'quantity', shapeNumber(e.target.value, QTY_DECIMALS))} onBlur={() => { if (!r.quantity) sale.updateItem(r.id, 'quantity', '1'); }} /></label>
+                    <label className="block text-left"><span className="block text-xs text-gray-500 mb-1">{t('price', lang)}</span><input className={cell} inputMode="decimal" value={r.price} onChange={(e) => sale.updateItem(r.id, 'price', shapeNumber(e.target.value, moneyDecimals))} onBlur={() => sale.updateItem(r.id, 'price', formatNumberWithCommas(r.rawPrice || 0, moneyDecimals))} /></label>
+                    {discountEnabled && <label className="block text-left"><span className="block text-xs text-gray-500 mb-1">{t('discount', lang)}</span><input className={cell} inputMode="decimal" value={r.discount} onChange={(e) => sale.updateItem(r.id, 'discount', shapeNumber(e.target.value, sale.discountType === 'percentage' ? 2 : moneyDecimals))} onBlur={() => { if (sale.discountType !== 'percentage') sale.updateItem(r.id, 'discount', formatNumberWithCommas(r.rawDiscount || 0, moneyDecimals)); }} /></label>}
+                    {vatEnabled && <div className="text-left"><span className="block text-xs text-gray-500 mb-1">{t('tax', lang)}</span><div className="py-1.5 text-sm text-right text-gray-600">{r.vat}</div></div>}
+                  </div>
+                  <div className="flex justify-between text-sm font-semibold border-t border-gray-100 pt-2"><span>{t('total', lang)}</span><span>{r.total}</span></div>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden md:block bg-white rounded shadow overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-gray-600"><tr>
                   <th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('quantity', lang)}</th>
@@ -285,7 +373,7 @@ export default function Invoice() {
                   {rows.length === 0 && <tr><td colSpan={7} className="px-3 py-10 text-center text-gray-400">{t('add_at_least_one_item', lang)}</td></tr>}
                   {rows.map((r) => (
                     <tr key={r.id} className="border-t border-gray-100 align-middle">
-                      <td className="px-3 py-2 text-left"><div className="font-medium text-gray-900">{r.productName}</div><div className="text-xs text-gray-400">{t(r.unit, lang)} · {t('available', lang)}: {r.quantityLeft}</div></td>
+                      <td className="px-3 py-2 text-left"><div className="font-medium text-gray-900">{r.productName}</div><div className="text-xs text-gray-400">{t(r.unit, lang)} · {t('available', lang)}: {formatNumberWithCommas(r.quantityLeft)}</div></td>
                       <td className="px-2 py-2"><input className={cell} inputMode="decimal" value={r.quantity} onChange={(e) => sale.updateItem(r.id, 'quantity', shapeNumber(e.target.value, QTY_DECIMALS))} onBlur={() => { if (!r.quantity) sale.updateItem(r.id, 'quantity', '1'); }} /></td>
                       <td className="px-2 py-2"><input className={cell} inputMode="decimal" value={r.price} onChange={(e) => sale.updateItem(r.id, 'price', shapeNumber(e.target.value, moneyDecimals))} onBlur={() => sale.updateItem(r.id, 'price', formatNumberWithCommas(r.rawPrice || 0, moneyDecimals))} /></td>
                       {discountEnabled && <td className="px-2 py-2"><input className={cell} inputMode="decimal" value={r.discount} onChange={(e) => sale.updateItem(r.id, 'discount', shapeNumber(e.target.value, sale.discountType === 'percentage' ? 2 : moneyDecimals))} onBlur={() => { if (sale.discountType !== 'percentage') sale.updateItem(r.id, 'discount', formatNumberWithCommas(r.rawDiscount || 0, moneyDecimals)); }} /></td>}
@@ -300,20 +388,6 @@ export default function Invoice() {
           </div>
 
           <div className="space-y-4">
-            <div className="bg-white p-4 rounded shadow space-y-3 text-left">
-              <h2 className="text-sm font-semibold text-gray-700">{t('customer', lang)}</h2>
-              <Select searchable value={customerId} onChange={(e) => { setCustomerId(e.target.value); }} placeholder={t('select_customer', lang)} options={[{ value: '', label: t('walk_in', lang) }, ...customers.map((c) => ({ value: c.id, label: `${c.name}${c.phone ? ` · ${c.phone}` : ''}` }))]} />
-              {!customerId && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder={t('customer_name', lang)} />
-                  <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, ''))} placeholder={t('phone', lang)} inputMode="numeric" />
-                </div>
-              )}
-              {customer && settings?.customerCreditLimit && <p className="text-xs text-gray-500">{t('available_credit', lang)}: {money(Number(customer.credit_limit) - Number(customer.current_balance))}</p>}
-              {priceCategories.length > 0 && <Select label={t('price_category', lang)} value={priceCategory} onChange={(e) => { categoryPicked.current = true; setPriceCategory(e.target.value); }} placeholder={t('select_price_category', lang)} options={priceCategories.map((c) => ({ value: String(c.id), label: c.name }))} />}
-              <DatePicker label={t('sales_date', lang)} value={saleDate.slice(0, 10)} onChange={(e) => setSaleDate(e.target.value ? `${e.target.value}T${(saleDate.split('T')[1] || '00:00').slice(0, 5)}` : saleDate)} />
-            </div>
-
             <div className="bg-white p-4 rounded shadow space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-gray-500">{t('subtotal', lang)}</span><span>{money(subtotal)}</span></div>
               {discountEnabled && <div className="flex justify-between"><span className="text-gray-500">{t('discount', lang)}</span><span>- {money(totalDiscount)}</span></div>}
@@ -322,18 +396,25 @@ export default function Invoice() {
             </div>
 
             <div className="bg-white p-4 rounded shadow space-y-3 text-left">
-              <Select label={t('payment_method', lang)} value={method} onChange={(e) => setMethod(e.target.value)} options={PAYMENT_METHODS.map((m) => ({ value: m, label: t(m, lang) }))} />
-              {method === 'bank_transfer' && <Input label={t('reference_number', lang)} value={reference} onChange={(e) => setReference(e.target.value)} />}
-              <NumberInput label={t('amount_paid', lang)} value={paid} decimals={moneyDecimals} onChange={(e) => setPaid(e.target.value)} />
-              <div className="flex justify-between text-sm"><button type="button" className="text-primary hover:underline" onClick={() => setPaid(total.toFixed(moneyDecimals))}>{t('full_payment', lang)}</button>
-                <span className={paidNum >= total ? 'text-green-600' : 'text-red-600'}>{paidNum >= total ? `${t('change', lang)}: ${money(paidNum - total)}` : `${t('amount_due', lang)}: ${money(total - paidNum)}`}</span></div>
+              {!editCode && (
+                <>
+                  <Select label={t('payment_method', lang)} value={method} onChange={(e) => setMethod(e.target.value)} options={PAYMENT_METHODS.map((m) => ({ value: m, label: t(m, lang) }))} />
+                  {method === 'bank_transfer' && <Input label={t('reference_number', lang)} value={reference} onChange={(e) => setReference(e.target.value)} />}
+                  <NumberInput label={t('amount_paid', lang)} value={paid} decimals={moneyDecimals} onChange={(e) => setPaid(e.target.value)} />
+                  <div className="flex justify-between text-sm"><button type="button" className="text-primary hover:underline" onClick={() => setPaid(total.toFixed(moneyDecimals))}>{t('full_payment', lang)}</button>
+                    <span className={fullyPaid ? 'text-green-600' : 'text-red-600'}>{fullyPaid ? `${t('change', lang)}: ${money(paidNum - total)}` : `${t('amount_due', lang)}: ${money(total - paidNum)}`}</span></div>
+                </>
+              )}
               <Textarea rows={2} label={t('notes', lang)} value={notes} onChange={(e) => setNotes(e.target.value)} />
-              <div className="grid grid-cols-1 gap-2 pt-1">
-                <Button loading={busy === 'cash'} disabled={!!busy || rows.length === 0} onClick={() => submit('cash')}>{t('cash_sale', lang)}</Button>
-                {(settings?.creditSalesSupport) && <Button variant="secondary" loading={busy === 'credit'} disabled={!!busy || rows.length === 0} onClick={() => submit('credit')}>{t('credit_sale', lang)}</Button>}
+              <div className="flex gap-2 pt-1">
+                {!editCode && <Button className="flex-1 whitespace-normal text-center leading-tight" size="sm" mobileIcon={false} loading={busy === 'cash'} disabled={!!busy || !fullyPaid} onClick={() => submit('cash')}>{t('cash_sale', lang)}</Button>}
+                {!editCode && settings?.creditSalesSupport && <Button className="flex-1 whitespace-normal text-center leading-tight" size="sm" mobileIcon={false} variant="secondary" loading={busy === 'credit'} disabled={!!busy || rows.length === 0 || fullyPaid} onClick={() => submit('credit')}>{t('credit_sale', lang)}</Button>}
                 {editCode
-                  ? <Button variant="secondary" loading={busy === 'save'} disabled={!!busy || rows.length === 0} onClick={saveChanges}>{t('save_changes', lang)}</Button>
-                  : <Button variant="secondary" loading={busy === 'pending'} disabled={!!busy || rows.length === 0} onClick={() => submit('pending')}>{t('save_as_pending', lang)}</Button>}
+                  ? <>
+                    <Button className="flex-1 whitespace-normal text-center leading-tight" size="sm" mobileIcon={false} loading={busy === 'save'} disabled={!!busy || !dirty} onClick={saveChanges}>{t('save_changes', lang)}</Button>
+                    <Button className="flex-1 whitespace-normal text-center leading-tight" size="sm" mobileIcon={false} variant="danger" loading={busy === 'cancel'} disabled={!!busy} onClick={() => (hasPayments ? setCancelOpen(true) : setConfirmCancel(true))}>{t('cancel_order', lang)}</Button>
+                  </>
+                  : <Button className="flex-1 whitespace-normal text-center leading-tight" size="sm" mobileIcon={false} variant="secondary" loading={busy === 'pending'} disabled={!!busy || rows.length === 0} onClick={() => submit('pending')}>{t('save_as_pending', lang)}</Button>}
               </div>
             </div>
           </div>
@@ -342,6 +423,14 @@ export default function Invoice() {
 
       {scanning && <BarcodeScanner onClose={() => setScanning(false)} onScan={(code) => { setScanning(false); addByCode(code); }} />}
       <ConfirmModal isOpen={confirmClear} variant="warning" title={t('clear', lang)} confirmText={t('clear', lang)} cancelText={t('ui_cancel', lang)} message={t('cancel_sale_message', lang)} onClose={() => setConfirmClear(false)} onConfirm={clearAll} />
+      <ConfirmModal isOpen={confirmCancel} variant="warning" title={t('cancel_order', lang)} confirmText={t('confirm', lang)} cancelText={t('ui_cancel', lang)} message={t('confirm_cancel_order', lang)} onClose={() => setConfirmCancel(false)} onConfirm={cancelThisOrder} />
+      <FormModal isOpen={cancelOpen} title={t('cancel_order', lang)} onClose={() => setCancelOpen(false)}>
+        <div className="space-y-3">
+          <p className="text-sm text-gray-600">{t('cancel_reason_required', lang)}</p>
+          <Textarea rows={3} value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder={t('cancel_reason_placeholder', lang)} />
+          <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setCancelOpen(false)}>{t('ui_cancel', lang)}</Button><Button variant="danger" loading={busy === 'cancel'} onClick={cancelThisOrder}>{t('cancel_order', lang)}</Button></div>
+        </div>
+      </FormModal>
     </MainLayout>
   );
 }

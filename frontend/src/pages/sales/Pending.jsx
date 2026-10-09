@@ -9,7 +9,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { salesService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS } from '../../components/ui';
+import { DataTable, ConfirmModal, FormModal, Button, RowActions, ACTION_ICONS, Textarea } from '../../components/ui';
 import { FilterBar, StatusBadge, dateOnly } from './common';
 import { formatCurrency } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
@@ -33,13 +33,23 @@ export default function Pending() {
   const list = useServerList({ fetcher: fetchOrders, initialFilters: { search: '', status: '' } });
   useLiveRefresh(['orderCreated', 'orderUpdated', 'newSale'], list.reload);
   const [confirm, setConfirm] = useState({ isOpen: false });
+  const [cancel, setCancel] = useState(null);
+  const [reason, setReason] = useState('');
   const manage = can('manage_pending_invoices') || can('create_invoice');
   const money = (v) => formatCurrency(Number(v) || 0, settings);
 
   const remove = async () => {
-    try { await salesService.deleteOrder(confirm.code); showSuccess('order_deleted'); list.reload(); }
-    catch (err) { showError(err.message); }
+    try {
+      if (confirm.mode === 'cancel') { await salesService.cancelOrder(confirm.code); showSuccess('order_cancelled'); }
+      else { await salesService.deleteOrder(confirm.code); showSuccess('order_deleted'); }
+      list.reload();
+    } catch (err) { showError(err.message); }
     setConfirm({ isOpen: false });
+  };
+  const cancelPaid = async () => {
+    if (reason.trim().length < 3) { showError(t('cancel_reason_required', lang)); return; }
+    try { await salesService.cancelOrder(cancel.cart_code, reason.trim()); showSuccess('order_cancelled'); setCancel(null); setReason(''); list.reload(); }
+    catch (err) { showError(err.message); }
   };
   const open = (o, path = '/sales/pending/preview') => navigate(path, { state: { cartCode: o.cart_code, fromPendingOrder: true } });
 
@@ -48,6 +58,7 @@ export default function Pending() {
     { key: 'customer_name', label: t('customer', lang), render: (o) => o.customer_name || t('walk_in', lang) },
     { key: 'customer_phone', label: t('phone', lang), render: (o) => o.customer_phone || '—' },
     { key: 'order_value', label: t('total', lang), align: 'right', render: (o) => money(o.order_value) },
+    { key: 'amount_paid', label: t('amount_paid', lang), align: 'right', render: (o) => money(o.amount_paid) },
     { key: 'order_status', label: t('status', lang), render: (o) => <StatusBadge value={o.order_status} /> },
     { key: 'created_at', label: t('date', lang), render: (o) => dateOnly(o.created_at) },
   ];
@@ -64,10 +75,18 @@ export default function Pending() {
           renderActions={(o) => <RowActions actions={[
             { label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(o) },
             { label: t('edit', lang), icon: ACTION_ICONS.edit, onClick: () => open(o, '/sales/invoice'), hidden: !manage },
-            { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ isOpen: true, code: o.cart_code, name: `#${o.order_number}` }), hidden: !can('manage_pending_invoices') },
+            { label: t('cancel_order', lang), icon: ACTION_ICONS.remove, onClick: () => { if (o.has_payment) { setReason(''); setCancel(o); } else setConfirm({ isOpen: true, mode: 'cancel', code: o.cart_code, name: `#${o.order_number}` }); }, hidden: !manage || String(o.order_status || '').toLowerCase().includes('cancel') },
+            { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ isOpen: true, mode: 'delete', code: o.cart_code, name: `#${o.order_number}` }), hidden: !can('manage_pending_invoices') || o.has_payment },
           ]} />} />
       </div>
-      <ConfirmModal isOpen={confirm.isOpen} variant="danger" title={t('delete', lang)} confirmText={t('delete', lang)} cancelText={t('ui_cancel', lang)} message={t('ui_confirm_delete', lang, { name: confirm.name })} onClose={() => setConfirm({ isOpen: false })} onConfirm={remove} />
+      <ConfirmModal isOpen={confirm.isOpen} variant={confirm.mode === 'cancel' ? 'warning' : 'danger'} title={t(confirm.mode === 'cancel' ? 'cancel_order' : 'delete', lang)} confirmText={t(confirm.mode === 'cancel' ? 'confirm' : 'delete', lang)} cancelText={t('ui_cancel', lang)} message={confirm.mode === 'cancel' ? t('confirm_cancel_order', lang) : t('ui_confirm_delete', lang, { name: confirm.name })} onClose={() => setConfirm({ isOpen: false })} onConfirm={remove} />
+      <FormModal isOpen={!!cancel} title={t('cancel_order', lang)} onClose={() => setCancel(null)}>
+        <div className="space-y-3">
+          <p className="text-sm text-gray-600">{t('cancel_reason_required', lang)}</p>
+          <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('cancel_reason_placeholder', lang)} />
+          <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setCancel(null)}>{t('ui_cancel', lang)}</Button><Button variant="danger" onClick={cancelPaid}>{t('cancel_order', lang)}</Button></div>
+        </div>
+      </FormModal>
     </MainLayout>
   );
 }

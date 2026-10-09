@@ -30,3 +30,17 @@ export function FilterBar({ list, statusOptions, statusKey = 'status', dates = t
 /** Server paging block { total, page, limit, totalPages } → the DataTable's { totalItems, currentPage, … } */
 export const toPaging = (p = {}, limit = 25) => ({ currentPage: p.page ?? 1, totalPages: p.totalPages ?? 1, totalItems: p.total ?? 0, limit: p.limit ?? limit });
 export const dateOnly = (v) => (v ? String(v).slice(0, 10) : '');
+
+const SYSTEM_NOTE = /^order_modified_on_(.+)_by_[0-9a-f-]{36}$/i;
+/** A saved edit used to stamp the cart with a timestamp and a user id. Show a date instead. */
+export const readableNote = (note, lang) => {
+  if (!note) return '';
+  const match = String(note).match(SYSTEM_NOTE);
+  if (!match) return note;
+  const when = new Date(match[1]);
+  const date = Number.isNaN(when.getTime()) ? match[1].replace('T', ' ').replace(/Z$/, '') : when.toLocaleString();
+  return t('order_updated_on', lang, { date });
+};
+/** Edit used to insert a fake payment whose method was "mod_by_<user id>". That is not a payment. */
+export const isSystemPayment = (method) => /^mod_by_/i.test(String(method || ''));
+export const readableMethod = (method, lang) => (isSystemPayment(method) ? t('order_update', lang) : t(method, lang));
