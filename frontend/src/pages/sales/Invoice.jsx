@@ -407,14 +407,14 @@ export default function Invoice() {
               )}
               <Textarea rows={2} label={t('notes', lang)} value={notes} onChange={(e) => setNotes(e.target.value)} />
               <div className="flex gap-2 pt-1">
-                {!editCode && <Button className="flex-1 whitespace-normal text-center leading-tight" size="sm" mobileIcon={false} loading={busy === 'cash'} disabled={!!busy || !fullyPaid} onClick={() => submit('cash')}>{t('cash_sale', lang)}</Button>}
-                {!editCode && settings?.creditSalesSupport && <Button className="flex-1 whitespace-normal text-center leading-tight" size="sm" mobileIcon={false} variant="secondary" loading={busy === 'credit'} disabled={!!busy || rows.length === 0 || fullyPaid} onClick={() => submit('credit')}>{t('credit_sale', lang)}</Button>}
+                {!editCode && <Button className="flex-1 whitespace-normal text-center leading-tight" size="" mobileIcon={false} loading={busy === 'cash'} disabled={!!busy || !fullyPaid} onClick={() => submit('cash')}>{t('cash_sale', lang)}</Button>}
+                {!editCode && settings?.creditSalesSupport && <Button className="flex-1 whitespace-normal text-center leading-tight" size="" mobileIcon={false} variant="secondary" loading={busy === 'credit'} disabled={!!busy || rows.length === 0 || fullyPaid} onClick={() => submit('credit')}>{t('credit_sale', lang)}</Button>}
                 {editCode
                   ? <>
-                    <Button className="flex-1 whitespace-normal text-center leading-tight" size="sm" mobileIcon={false} loading={busy === 'save'} disabled={!!busy || !dirty} onClick={saveChanges}>{t('save_changes', lang)}</Button>
-                    <Button className="flex-1 whitespace-normal text-center leading-tight" size="sm" mobileIcon={false} variant="danger" loading={busy === 'cancel'} disabled={!!busy} onClick={() => (hasPayments ? setCancelOpen(true) : setConfirmCancel(true))}>{t('cancel_order', lang)}</Button>
+                    <Button className="flex-1 whitespace-normal text-center leading-tight" size="" mobileIcon={false} loading={busy === 'save'} disabled={!!busy || !dirty} onClick={saveChanges}>{t('save_changes', lang)}</Button>
+                    <Button className="flex-1 whitespace-normal text-center leading-tight" size="" mobileIcon={false} variant="danger" loading={busy === 'cancel'} disabled={!!busy} onClick={() => (hasPayments ? setCancelOpen(true) : setConfirmCancel(true))}>{t('cancel_order', lang)}</Button>
                   </>
-                  : <Button className="flex-1 whitespace-normal text-center leading-tight" size="sm" mobileIcon={false} variant="secondary" loading={busy === 'pending'} disabled={!!busy || rows.length === 0} onClick={() => submit('pending')}>{t('save_as_pending', lang)}</Button>}
+                  : <Button className="flex-1 whitespace-normal text-center leading-tight" size="" mobileIcon={false} variant="secondary" loading={busy === 'pending'} disabled={!!busy || rows.length === 0} onClick={() => submit('pending')}>{t('save_as_pending', lang)}</Button>}
               </div>
             </div>
           </div>
