@@ -2940,8 +2940,19 @@ export const saveOrder = async (req, res) => {
       [cart_code, storeId],
     );
 
+    const paidAmount = Number(String(amountPaid ?? 0).replace(/,/g, '')) || 0;
+    const dueAmount = Number(String(amountDue ?? 0).replace(/,/g, '')) || 0;
+    const changeAmount = Number(String(amountChange ?? 0).replace(/,/g, '')) || 0;
+    const orderNote = String(notes || req.body.paymentNotes || '').trim();
+    if (orderNote) {
+      await client.query(
+        `UPDATE cart SET note = $1 WHERE cart_code = $2 AND store_id = $3`,
+        [orderNote, cart_code, storeId],
+      );
+    }
+
     let paymentId = null;
-    if (amountPaid > 0) {
+    if (paidAmount > 0) {
       const paymentResult = await client.query(
         `INSERT INTO pending_orders_payments (
                 cart_code, store_id, user_id, total_amount, amount_paid, amount_change,
@@ -2955,9 +2966,9 @@ export const saveOrder = async (req, res) => {
           storeId,
           userId,
           amountTotal,
-          amountPaid,
-          amountChange,
-          amountDue,
+          paidAmount,
+          changeAmount,
+          dueAmount,
           paymentMethod,
         ],
       );
@@ -3038,9 +3049,8 @@ export const saveOrderChanges = async (req, res) => {
   } = req.body;
   const userId = req.user.id;
   const lang = getLang(req);
-  const notes =
-    note || "order_modified_on_" + new Date().toISOString() + "_by_" + userId;
-  const paymentMethod = "mod_by_" + userId;
+  const userNote = typeof note === 'string' ? note.trim() : '';
+  const noteToSave = userNote && !/^order_modified_on_/i.test(userNote) ? userNote : '';
 
   const client = await pool.connect();
   try {
@@ -3068,50 +3078,38 @@ export const saveOrderChanges = async (req, res) => {
             cart_code,
             customerId,
             discountMode,
-            notes || null,
+            noteToSave || null,
           ],
         );
-      } else {
+      } else if (noteToSave) {
         await client.query(
           `UPDATE cart SET quantity = $1, price = $2, discount = $3, discount_mode = $4, note = $5
                WHERE cart_code = $6 AND product_id = $7`,
-          [
-            item.quantity,
-            item.selling_price,
-            item.discount,
-            discountMode,
-            notes || null,
-            cart_code,
-            item.product_id,
-          ],
+          [item.quantity, item.selling_price, item.discount, discountMode, noteToSave, cart_code, item.product_id],
+        );
+      } else {
+        await client.query(
+          `UPDATE cart SET quantity = $1, price = $2, discount = $3, discount_mode = $4
+               WHERE cart_code = $5 AND product_id = $6`,
+          [item.quantity, item.selling_price, item.discount, discountMode, cart_code, item.product_id],
         );
       }
     }
+
+    const keptIds = items.map((item) => item.product_id);
+    await client.query(
+      `DELETE FROM cart WHERE cart_code = $1 AND store_id = $2 AND NOT (product_id = ANY($3::uuid[]))`,
+      [cart_code, storeId, keptIds],
+    );
+    await client.query(
+      `UPDATE cart SET customer_id = $1 WHERE cart_code = $2 AND store_id = $3`,
+      [customerId || null, cart_code, storeId],
+    );
 
     await client.query(
       `UPDATE pending_orders SET total_amount = $1, subtotal = $2, total_discount = $3, total_vat = $4
              WHERE cart_code = $5 AND order_number = $6`,
       [amountTotal, subTotal, totalDiscount, amountTax, cart_code, orderNumber],
-    );
-
-    const paymentResult = await client.query(
-      `INSERT INTO pending_orders_payments (
-                cart_code, store_id, user_id, total_amount, amount_paid, amount_change,
-                amount_due, created_at, payment_method
-            ) VALUES (
-                $1, $2, $3, $4, $5, $6,
-                $7, NOW(), $8
-            ) RETURNING id`,
-      [
-        cart_code,
-        storeId,
-        userId,
-        amountTotal,
-        0, // amount_paid is 0 for updates, only record the latest payment
-        amountChange,
-        amountDue,
-        paymentMethod,
-      ],
     );
 
     await logActivity(client, {
@@ -3134,7 +3132,6 @@ export const saveOrderChanges = async (req, res) => {
       message: "order_updated",
       cart_code,
       order_number: orderNumber,
-      payment_id: paymentResult.rows[0].id,
       total_amount: amountTotal,
     });
   } catch (err) {
@@ -3162,10 +3159,21 @@ export const getOrders = async (req, res) => {
                 ct.cart_code, ct.status as order_status,
                 cst.name AS customer_name, cst.phone AS customer_phone, 
                 po.order_number AS order_number,
-                po.total_amount AS order_value, ct.created_at
+                po.total_amount AS order_value, ct.created_at,
+                COALESCE(pay.amount_paid, 0) AS amount_paid,
+                COALESCE(pay.has_payment, false) AS has_payment
             FROM cart ct
             LEFT JOIN customers cst ON ct.customer_id = cst.id
-            LEFT JOIN pending_orders po ON ct.cart_code = po.cart_code 
+            LEFT JOIN pending_orders po ON ct.cart_code = po.cart_code
+            LEFT JOIN LATERAL (
+                SELECT COALESCE(SUM(pop.amount_paid), 0) AS amount_paid,
+                       COUNT(*) FILTER (
+                         WHERE pop.amount_paid > 0
+                           AND COALESCE(pop.payment_method, '') NOT LIKE 'mod_by_%'
+                       ) > 0 AS has_payment
+                FROM pending_orders_payments pop
+                WHERE pop.cart_code = ct.cart_code
+            ) pay ON true
             WHERE ct.status = $1 AND ct.store_id = $2
             ORDER BY ct.cart_code, po.order_number ASC;
         `;
@@ -3323,13 +3331,24 @@ export const cancelOrder = async (req, res) => {
   const cartCode = req.params.cartCode;
   const storeId = req.user.current_store_id;
   const lang = getLang(req);
+  const reason = String(req.body?.note || req.body?.reason || '').trim();
 
   try {
+    const paid = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM pending_orders_payments
+       WHERE cart_code = $1 AND store_id = $2 AND amount_paid > 0
+         AND COALESCE(payment_method, '') NOT LIKE 'mod_by_%'`,
+      [cartCode, storeId],
+    );
+    if (paid.rows[0].count > 0 && reason.length < 3) {
+      return res.status(400).json({ success: false, message: t('cancel_reason_required', lang) });
+    }
+
     const result = await pool.query(
-      `UPDATE cart SET status = 'Cancelled' 
+      `UPDATE cart SET status = 'Cancelled', note = CASE WHEN $3 = '' THEN note ELSE $3 END
              WHERE cart_code = $1 AND store_id = $2 AND status IN ('Pending', 'Saved', 'OnProcess')
              RETURNING *`,
-      [cartCode, storeId],
+      [cartCode, storeId, reason],
     );
 
     if (result.rows.length === 0) {
@@ -3848,7 +3867,12 @@ export const deletePendingOrder = async (req, res) => {
     await client.query("BEGIN");
 
     const paymentCheck = await client.query(
-      `SELECT COUNT(*)::int AS count FROM payments WHERE cart_code = $1 AND store_id = $2`,
+      `SELECT (
+          (SELECT COUNT(*) FROM payments WHERE cart_code = $1 AND store_id = $2)
+          + (SELECT COUNT(*) FROM pending_orders_payments
+             WHERE cart_code = $1 AND store_id = $2 AND amount_paid > 0
+               AND COALESCE(payment_method, '') NOT LIKE 'mod_by_%')
+        )::int AS count`,
       [cartCode, storeId],
     );
 

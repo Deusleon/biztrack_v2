@@ -291,7 +291,7 @@ export const getProducts = async (req, res) => {
           FROM inventory_batches ib
           WHERE ib.product_id = p.id
             AND ib.store_id   = p.store_id
-            AND (NOT $2::boolean OR ib.status = 'active')
+            AND (NOT $2::boolean OR ib.status IN ('in_use', 'pending', 'active'))
           ORDER BY ib.created_at DESC
           LIMIT 1
         ) latest_batch ON true
@@ -645,7 +645,7 @@ export const addProduct = async (req, res) => {
                     FROM inventory_batches ib1
                     WHERE ib1.product_id = p.id
                       AND ib1.store_id = p.store_id
-                      AND ib1.status = 'active'
+                      AND ib1.status IN ('in_use', 'pending', 'active')
                     ORDER BY ib1.created_at DESC
                     LIMIT 1
                   )
@@ -929,7 +929,7 @@ export const updateProduct = async (req, res) => {
                   FROM inventory_batches ib1
                   WHERE ib1.product_id = p.id
                     AND ib1.store_id = p.store_id
-                    AND ib1.status = 'active'
+                    AND ib1.status IN ('in_use', 'pending', 'active')
                   ORDER BY ib1.created_at DESC
                   LIMIT 1
                 )

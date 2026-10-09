@@ -118,7 +118,7 @@ export const getPricelist = async (req, res) => {
                     FROM inventory_batches ib1
                     WHERE ib1.product_id = p.id
                       AND ib1.store_id = p.store_id
-                      AND ib1.status = 'active'
+                      AND ib1.status IN ('in_use', 'pending', 'active')
                       AND (
                         ib1.expiry_date IS NULL
                         OR ib1.expiry_date > NOW()
@@ -153,7 +153,7 @@ export const getPricelist = async (req, res) => {
                     FROM inventory_batches ib1
                     WHERE ib1.product_id = p.id
                       AND ib1.store_id = p.store_id
-                      AND ib1.status = 'active'
+                      AND ib1.status IN ('in_use', 'pending', 'active')
                       AND (
                         ib1.expiry_date IS NULL
                         OR ib1.expiry_date > NOW()
@@ -190,7 +190,7 @@ export const getPricelist = async (req, res) => {
                     FROM inventory_batches ib1
                     WHERE ib1.product_id = p.id
                       AND ib1.store_id = p.store_id
-                      AND ib1.status = 'active'
+                      AND ib1.status IN ('in_use', 'pending', 'active')
                       AND (
                         ib1.expiry_date IS NULL
                         OR ib1.expiry_date > NOW()
@@ -222,7 +222,7 @@ export const getPricelist = async (req, res) => {
                   FROM inventory_batches ib1
                   WHERE ib1.product_id = p.id
                     AND ib1.store_id = p.store_id
-                    AND ib1.status = 'active'
+                    AND ib1.status IN ('in_use', 'pending', 'active')
                     AND (
                       ib1.expiry_date IS NULL
                       OR ib1.expiry_date > NOW()

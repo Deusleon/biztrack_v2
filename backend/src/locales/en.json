@@ -331,5 +331,7 @@
   "support_ticket_received": "Support Ticket Received",
   "we_received_your_support_request_our_team_will_review_it_and_get_back_to_you_keep_your_ticket_number_for_reference": "We received your support request. Our team will review it and get back to you. Keep your ticket number for reference.",
   "insufficient_permissions": "You don't have permission to do this. Ask your administrator to give your role the required permission.",
-  "password_too_short_8": "Password must be at least 8 characters"
+  "password_too_short_8": "Password must be at least 8 characters",
+  "cancel_reason_required": "Write a note explaining why this paid order is being cancelled.",
+  "cannot_delete_order_with_payments": "This order has payment records and cannot be deleted"
 }

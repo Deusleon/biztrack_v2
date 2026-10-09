@@ -120,12 +120,11 @@ export const validateSaveOrder = [
     body('paymentNotes')
         .optional({ checkFalsy: true })
         .isString().withMessage((_, { req }) => t('invalid_format', getLang(req)))
-        .trim()
-        .isLength({ min: 5 }).withMessage((_, { req }) => t('note_too_short', getLang(req))),
+        .trim(),
 
     body('paymentMethod')
         .notEmpty().withMessage((_, { req }) => t('payment_method_required', getLang(req)))
-        .isIn(['cash', 'mpesa', 'mixx', 'airtelmoney', 'halopesa', 'bank', 'mobile']).withMessage((_, { req }) => t('invalid_payment_type', getLang(req))),
+        .isIn(['cash', 'mobile_money', 'bank_transfer', 'mpesa', 'mixx', 'airtelmoney', 'halopesa', 'bank', 'mobile']).withMessage((_, { req }) => t('invalid_payment_type', getLang(req))),
 
     // Sale type validation
     body('saleType')
@@ -156,7 +155,7 @@ export const validateCreditPayment = [
 
     body('paymentMethod')
         .optional()
-        .isIn(['cash', 'mpesa', 'mixx', 'airtelmoney', 'halopesa', 'bank', 'mobile']).withMessage((_, { req }) => t('invalid_payment_type', getLang(req))),
+        .isIn(['cash', 'mobile_money', 'bank_transfer', 'mpesa', 'mixx', 'airtelmoney', 'halopesa', 'bank', 'mobile']).withMessage((_, { req }) => t('invalid_payment_type', getLang(req))),
 
     body('referenceNumber')
         .optional()
@@ -184,7 +183,7 @@ export const validateSalesOrderPayment = [
 
     body('paymentMethod')
         .optional()
-        .isIn(['cash', 'mpesa', 'mixx', 'airtelmoney', 'halopesa', 'bank', 'mobile']).withMessage((_, { req }) => t('invalid_payment_type', getLang(req))),
+        .isIn(['cash', 'mobile_money', 'bank_transfer', 'mpesa', 'mixx', 'airtelmoney', 'halopesa', 'bank', 'mobile']).withMessage((_, { req }) => t('invalid_payment_type', getLang(req))),
 
     body('referenceNumber')
         .optional()

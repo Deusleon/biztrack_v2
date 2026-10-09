@@ -331,5 +331,7 @@
   "adjustments_by_product_fetched": "Marekebisho kwa kila bidhaa yameletwa kwa mafanikio",
   "product_adjustments_fetched": "Marekebisho ya bidhaa yameletwa kwa mafanikio",
   "insufficient_permissions": "Huna ruhusa ya kufanya hatua hii. Mwombe msimamizi wako aipe nafasi yako ruhusa inayohitajika.",
-  "password_too_short_8": "Nenosiri lazima liwe na angalau herufi 8"
+  "password_too_short_8": "Nenosiri lazima liwe na angalau herufi 8",
+  "cancel_reason_required": "Andika maelezo kwa nini oda hii yenye malipo inaghairiwa.",
+  "cannot_delete_order_with_payments": "Oda hii ina rekodi za malipo, haiwezi kufutwa"
 }

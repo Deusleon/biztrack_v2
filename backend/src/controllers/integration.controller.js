@@ -12,6 +12,7 @@ const GATEWAYS = {
 const BACKUP_PROVIDERS = new Set(['cloud_backup', 'google_drive']);
 const SUPPORTED_PROVIDERS = new Set([...Object.keys(GATEWAYS), ...BACKUP_PROVIDERS]);
 import { notifyStore } from '../services/notification.service.js';
+import { isDeveloper } from '../middlewares/developerOnly.js';
 // Fields that must be masked when returning config to the frontend
 const SENSITIVE_KEYS = ["secret_key", "password", "api_key", "client_secret", "refresh_token", "token"];
 
@@ -39,10 +40,12 @@ export const getIntegrations = async (req, res) => {
       "SELECT id, provider, type, config, is_active, created_at, updated_at FROM integrations WHERE type IN ('sms', 'backup') ORDER BY type, provider"
     );
 
-    const integrations = result.rows.map((row) => ({
-      ...row,
-      config: maskConfig(row.config),
-    }));
+    const integrations = result.rows
+      .filter((row) => row.type !== 'backup' || isDeveloper(req.user))
+      .map((row) => ({
+        ...row,
+        config: maskConfig(row.config),
+      }));
 
     return res.status(200).json({ integrations });
   } catch (err) {
