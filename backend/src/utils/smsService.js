@@ -2,10 +2,12 @@ import pool from '../config/db.js';
 import * as beemAfrica from './smsGateways/beemAfrica.js';
 import * as nextSMS from './smsGateways/nextSMS.js';
 import * as meseji from './smsGateways/meseji.js';
+import * as swalaSms from './smsGateways/swalaSms.js';
 const GATEWAYS = {
   beem_africa: beemAfrica,
   next_sms: nextSMS,
   meseji: meseji,
+  swala_sms: swalaSms,
 };
 
 async function send(to, message, context = {}) {

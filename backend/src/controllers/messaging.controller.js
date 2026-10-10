@@ -6,6 +6,7 @@ import { respondWithError } from '../utils/response.js';
 import * as beemAfrica from '../utils/smsGateways/beemAfrica.js';
 import * as nextSMS from '../utils/smsGateways/nextSMS.js';
 import * as meseji from '../utils/smsGateways/meseji.js';
+import * as swalaSms from '../utils/smsGateways/swalaSms.js';
 import * as smsService from '../utils/smsService.js';
 import { t } from '../utils/translate.js';
 import sendEmail from '../utils/emailService.js';
@@ -17,12 +18,14 @@ const GATEWAYS = {
   beem_africa: beemAfrica,
   next_sms: nextSMS,
   meseji: meseji,
+  swala_sms: swalaSms,
 };
 
 const GATEWAY_LABELS = {
   beem_africa: "Beem Africa",
   next_sms: "NextSMS",
   meseji: "Meseji",
+  swala_sms: "SwalaSMS",
 };
 
 /**
@@ -73,7 +76,7 @@ const langOf = (req) => req?.user?.lang || req?.headers?.["x-language"] || "en";
 // Everyone else gets general messages that never name a provider.
 const viewerIsDeveloper = (req) => isDeveloper(req?.user);
 
-const PROVIDER_NAME_RE = /\b(meseji(\.co\.tz)?|next\s?sms|beem(\s+africa)?|zenopay|messaging-service\.co\.tz)\b\s*:?\s*/gi;
+const PROVIDER_NAME_RE = /\b(meseji(\.co\.tz)?|next\s?sms|beem(\s+africa)?|swala\s?sms|zenopay|messaging-service\.co\.tz)\b\s*:?\s*/gi;
 
 // Provider error text can contain the provider's name or raw responses. The
 // developer sees it as-is (useful for debugging); everyone else gets it with
@@ -226,12 +229,6 @@ export const requestTopup = async (req, res) => {
       return res.status(429).json({ message: t("topup_request_already_sent", lang) });
     }
 
-    const recipients = getSupportRecipients();
-    if (recipients.length === 0) {
-      console.error("Top-up request: no support email configured (SUPPORT_EMAIL / SUPPORT_ADMIN_EMAILS / DEVELOPER_EMAIL).");
-      return res.status(503).json({ message: t("topup_request_failed", lang) });
-    }
-
     const [userRes, storeRes] = await Promise.all([
       pool.query("SELECT name, email, phone FROM users WHERE id = $1", [userId]),
       pool.query("SELECT id, name FROM stores WHERE id = $1", [storeId]),
@@ -243,35 +240,86 @@ export const requestTopup = async (req, res) => {
     const amount = Number.isFinite(amountNum) && amountNum > 0 ? amountNum : null;
     const note = String(req.body?.note || "").trim().slice(0, 500);
     const domain = req.headers.origin || process.env.CLIENT_URL || "unknown";
-
     const baseMessage = "A client has requested an SMS credit top-up. Please contact them to arrange the top-up.";
 
-    const result = await sendEmail({
-      to: recipients,
-      subject: `SMS top-up request: ${store.name || "Unknown business"}`,
-      html: buildEmailHtml({
-        recipientName: "Support Team",
-        title: "sms_topup_request",
-        message: note ? `${baseMessage} Note from client: ${note}` : baseMessage,
-        meta: {
-          requested_by: `${user.name || "Unknown"} <${user.email || req.user?.email || "-"}>`,
-          phone: user.phone || undefined,
-          business: store.name ? `${store.name} (${store.id})` : String(storeId || ""),
-          system_domain: domain,
-          sms_gateway: gatewayLabel(active.gatewayKey),
-          amount_tzs: amount || undefined,
-          role: req.user?.current_store_role?.role_name || undefined,
-          requested_at: new Date().toISOString(),
-        },
-      }),
-    });
+    // The request is a support ticket first, so it is still on file when email
+    // cannot be sent (missing address, or the mail provider rejecting the key).
+    let ticketNumber = null;
+    const email = String(user.email || req.user?.email || "").trim().toLowerCase();
+    if (email) {
+      try {
+        const inserted = await pool.query(
+          `INSERT INTO support_tickets
+             (name, email, phone, category, subject, message, user_id, store_id, context, ip_address)
+           VALUES ($1, $2, $3, 'billing', $4, $5, $6, $7, $8, $9)
+           RETURNING id`,
+          [
+            user.name || "Unknown",
+            email,
+            user.phone || null,
+            `SMS top-up request: ${store.name || "Unknown business"}`.slice(0, 200),
+            [
+              baseMessage,
+              note ? `Note from client: ${note}` : "",
+              `Requested by: ${user.name || "Unknown"} <${email}>`,
+              user.phone ? `Phone: ${user.phone}` : "",
+              `Business: ${store.name || ""} (${store.id || storeId || ""})`,
+              `SMS gateway: ${gatewayLabel(active.gatewayKey)}`,
+              amount ? `Amount (TZS): ${amount}` : "",
+              `System: ${domain}`,
+            ].filter(Boolean).join("\n"),
+            userId || null,
+            storeId || null,
+            JSON.stringify({ page: "messaging/account" }),
+            req.ip || null,
+          ],
+        );
+        const id = inserted.rows[0].id;
+        ticketNumber = `TKT-${String(id).padStart(6, "0")}`;
+        await pool.query("UPDATE support_tickets SET ticket_number = $1 WHERE id = $2", [ticketNumber, id]);
+      } catch (ticketErr) {
+        console.error("Top-up request: could not open a support ticket:", ticketErr.message);
+      }
+    }
 
-    if (!result?.success) {
-      return res.status(502).json({ message: t("topup_request_failed", lang) });
+    const recipients = getSupportRecipients();
+    let emailed = false;
+    if (recipients.length === 0) {
+      console.error("Top-up request: no support email configured (SUPPORT_EMAIL / SUPPORT_ADMIN_EMAILS / DEVELOPER_EMAIL).");
+    } else {
+      const result = await sendEmail({
+        to: recipients,
+        subject: `SMS top-up request: ${store.name || "Unknown business"}`,
+        html: buildEmailHtml({
+          recipientName: "Support Team",
+          title: "sms_topup_request",
+          message: note ? `${baseMessage} Note from client: ${note}` : baseMessage,
+          meta: {
+            requested_by: `${user.name || "Unknown"} <${email || "-"}>`,
+            phone: user.phone || undefined,
+            business: store.name ? `${store.name} (${store.id})` : String(storeId || ""),
+            system_domain: domain,
+            sms_gateway: gatewayLabel(active.gatewayKey),
+            amount_tzs: amount || undefined,
+            ticket_number: ticketNumber || undefined,
+            role: req.user?.current_store_role?.role_name || undefined,
+            requested_at: new Date().toISOString(),
+          },
+        }),
+      });
+      emailed = !!result?.success;
+      if (!emailed) console.error("Top-up request email failed:", result?.error || "unknown");
+    }
+
+    if (!ticketNumber && !emailed) {
+      return res.status(503).json({ message: t("topup_request_failed", lang) });
     }
 
     topupRequestCooldown.set(cooldownKey, true);
-    return res.status(200).json({ message: t("topup_request_sent", lang) });
+    return res.status(200).json({
+      message: ticketNumber ? `${t("topup_request_sent", lang)} (${ticketNumber})` : t("topup_request_sent", lang),
+      ticket_number: ticketNumber,
+    });
   } catch (err) {
     console.error("Messaging requestTopup error:", err);
     return res.status(500).json({ message: t("topup_request_failed", lang) });

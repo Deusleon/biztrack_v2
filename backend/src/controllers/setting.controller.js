@@ -71,7 +71,7 @@ export const updateStoreSettings = async (req, res) => {
   // (DEVELOPER_EMAIL). For anyone else the submitted value is ignored and the
   // saved one is kept (see below).
   const canChangeSmsGateway = isDeveloper(req.user);
-  const VALID_SMS_GATEWAYS = ["", "beem_africa", "next_sms", "meseji"];
+  const VALID_SMS_GATEWAYS = ["", "beem_africa", "next_sms", "meseji", "swala_sms"];
   if (!canChangeSmsGateway) {
     delete systemDefaults.defaultSmsGateway;
   } else if (

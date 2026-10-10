@@ -4,10 +4,12 @@ import { t } from '../utils/translate.js';
 import * as beemAfrica from '../utils/smsGateways/beemAfrica.js';
 import * as nextSMS from '../utils/smsGateways/nextSMS.js';
 import * as meseji from '../utils/smsGateways/meseji.js';
+import * as swalaSms from '../utils/smsGateways/swalaSms.js';
 const GATEWAYS = {
   beem_africa: beemAfrica,
   next_sms: nextSMS,
   meseji: meseji,
+  swala_sms: swalaSms,
 };
 const BACKUP_PROVIDERS = new Set(['cloud_backup', 'google_drive']);
 const SUPPORTED_PROVIDERS = new Set([...Object.keys(GATEWAYS), ...BACKUP_PROVIDERS]);

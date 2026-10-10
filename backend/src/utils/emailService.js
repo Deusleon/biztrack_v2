@@ -65,10 +65,14 @@
 import * as _n33 from '@sendgrid/mail';
 const sgMail = _n33.default ?? _n33;
 import 'dotenv/config';
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const SENDGRID_KEY = String(process.env.SENDGRID_API_KEY || '');
+if (SENDGRID_KEY.startsWith('SG.')) sgMail.setApiKey(SENDGRID_KEY);
 
 // Function ya kutuma barua pepe
 const sendEmail = async ({ to, subject, html }) => {
+    if (!SENDGRID_KEY.startsWith('SG.') || !process.env.EMAIL_FROM) {
+        return { success: false, error: 'Email is not configured.' };
+    }
     const msg = {
         to,
         from: {
