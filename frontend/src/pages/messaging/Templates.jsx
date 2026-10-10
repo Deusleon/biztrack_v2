@@ -6,7 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { messagingService } from '../../services/api';
-import { ConfirmModal, Button, Input, Textarea } from '../../components/ui';
+import { DataTable, ConfirmModal, Button, Input, Textarea, RowActions, ACTION_ICONS } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { smsParts } from './common';
 import { t } from '../../utils/i18n';
@@ -36,11 +36,16 @@ export default function Templates() {
     <MainLayout>
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3"><div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('templates', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('templates_description', lang)}</p></div>{manage && <Button onClick={() => { setForm({ name: '', content: '' }); setModal({}); }} mobileLabel={t('new_template', lang)}>{t('new_template', lang)}</Button>}</div>
-        {loading && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}
-        {!loading && rows.length === 0 && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('ui_nothing_yet', lang)}</div>}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{rows.map((r) => (
-          <div key={r.id} className="bg-white rounded shadow p-4 text-left space-y-2"><h2 className="text-sm font-semibold text-gray-900">{r.name}</h2><p className="text-sm text-gray-600 whitespace-pre-wrap line-clamp-4">{r.content}</p><p className="text-[11px] text-gray-400">{r.content.length} {t('characters', lang)} · {smsParts(r.content)} {t(smsParts(r.content) === 1 ? 'sms_part' : 'sms_parts', lang)}</p>
-            <div className="flex gap-3 text-xs"><button type="button" className="text-primary hover:underline" onClick={() => setView(r)}>{t('view', lang)}</button>{manage && <button type="button" className="text-gray-600 hover:underline" onClick={() => { setForm({ name: r.name, content: r.content }); setModal({ id: r.id }); }}>{t('edit', lang)}</button>}{manage && <button type="button" className="text-red-600 hover:underline" onClick={() => setConfirm({ id: r.id, name: r.name })}>{t('delete', lang)}</button>}</div></div>))}</div>
+        <DataTable columns={[
+          { key: 'name', label: t('template_name', lang), render: (r) => <span className="font-medium text-gray-900">{r.name}</span> },
+          { key: 'content', label: t('message', lang), width: 'max-w-md', render: (r) => <span className="block max-w-md truncate text-gray-600" title={r.content}>{r.content}</span> },
+          { key: 'length', label: t('characters', lang), align: 'right', render: (r) => `${r.content.length} · ${smsParts(r.content)} ${t(smsParts(r.content) === 1 ? 'sms_part' : 'sms_parts', lang)}` },
+        ]} data={rows} loading={loading} emptyMessage={t('ui_nothing_yet', lang)}
+          renderActions={(r) => <RowActions actions={[
+            { label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => setView(r) },
+            { label: t('edit', lang), icon: ACTION_ICONS.edit, onClick: () => { setForm({ name: r.name, content: r.content }); setModal({ id: r.id }); }, hidden: !manage },
+            { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ id: r.id, name: r.name }), hidden: !manage },
+          ]} />} />
       </div>
       <FormModal isOpen={!!modal} onClose={() => !saving && setModal(null)} size="lg" title={modal?.id ? t('edit_template', lang) : t('new_template', lang)}>
         {modal && <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4 text-left" noValidate><Input label={t('template_name', lang)} required autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /><div><Textarea rows={5} label={t('template_content', lang)} required value={form.content} onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} /><p className="text-xs text-gray-500 mt-1">{form.content.length} {t('characters', lang)} · {smsParts(form.content)} {t(smsParts(form.content) === 1 ? 'sms_part' : 'sms_parts', lang)}</p></div><div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{t(modal.id ? 'save_changes' : 'save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setModal(null)}>{t('cancel', lang)}</Button></div></form>}

@@ -29,7 +29,7 @@ export default function DayReport() {
   const fmt = (k, v) => formatValue(k, v, { settings, lang });
   const r = state.r; const tx = r?.transactions || []; const pay = r?.payment_breakdown || [];
   const txCols = ['invoice_number', 'sales_date', 'cashier_name', 'total_items', 'total_discount', 'total_amount', 'total_cost', 'profit'];
-  const columns = txCols.map((k) => ({ key: k, label: labelOf(k, lang), align: ['money', 'number'].includes(kindOf(k)) ? 'right' : 'left', render: (x) => fmt(k, x[k]) }));
+  const columns = txCols.map((k) => ({ key: k, label: labelOf(k, lang), nowrap: true, align: ['money', 'number'].includes(kindOf(k)) ? 'right' : 'left', render: (x) => fmt(k, x[k]) }));
   const exportRows = useMemo(() => tx.map((x, i) => ({ __no: `${i + 1}.`, ...Object.fromEntries(txCols.map((k) => [k, fmt(k, x[k])])) })), [tx, settings, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

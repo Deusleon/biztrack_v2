@@ -14,6 +14,7 @@ import NotificationBell from './NotificationBell';
 import SupportWidget from './SupportWidget';
 import { useIdleLock } from '../contexts/IdleLockContext';
 import InstallBanner from './InstallBanner';
+import { Select } from './ui';
 
 const Svg = ({ d, className = 'w-6 h-6' }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} /></svg>
@@ -58,7 +59,7 @@ export default function MainLayout({ children }) {
     <div className="min-h-screen bg-gray-100">
       <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen((o) => !o)} closeSidebar={closeSidebar} isCollapsed={collapsed} />
 
-      <div className={`transition-all duration-300 min-h-screen flex flex-col ${collapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+      <div className={`transition-all duration-300 min-h-screen min-w-0 flex flex-col ${collapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <header className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200 print:hidden safe-top">
           <div className="flex items-center justify-between px-4 h-14 gap-3">
             <div className="flex items-center gap-2 min-w-0">
@@ -66,16 +67,17 @@ export default function MainLayout({ children }) {
               <button onClick={toggleCollapse} className="hidden lg:block p-2 rounded text-gray-600 hover:bg-gray-100" title={collapsed ? t('ui_expand_menu', lang) : t('ui_collapse_menu', lang)} aria-label={t('ui_menu', lang)}><Svg d={ICON_PATHS.menu} /></button>
 
               {canSwitchStore ? (
-                <select
+                <Select
+                  size=""
+                  searchable={stores.length > 6}
                   value={currentStore?.id || ''}
                   onChange={changeStore}
                   disabled={switching}
-                  className="text-sm border border-gray-300 rounded px-2 py-1.5 bg-white max-w-[12rem] sm:max-w-xs truncate focus:outline-none focus:ring-2 focus:ring-primary-20"
-                  aria-label={t('select_store', lang)}
                   title={t('switch_store', lang)}
-                >
-                  {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+                  placeholder={t('select_store', lang)}
+                  className="w-40 sm:w-56"
+                  options={stores.map((s) => ({ value: s.id, label: s.name }))}
+                />
               ) : (
                 <span className="text-sm font-medium text-gray-700 truncate">{currentStore?.name}</span>
               )}
@@ -115,7 +117,7 @@ export default function MainLayout({ children }) {
         </header>
 
         <InstallBanner />
-        <main className="flex-1 px-4 py-3 print:p-0">{children}</main>
+        <main className="flex-1 min-w-0 px-4 py-3 print:p-0">{children}</main>
       </div>
           <SupportWidget isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
 </div>

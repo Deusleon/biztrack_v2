@@ -208,4 +208,5 @@ export const ACTION_ICONS = {
   calendar: icon("M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"),
   add: icon("M12 4v16m8-8H4"),
   members: icon("M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-8.13a4 4 0 11-6 0 4 4 0 016 0zm6 3a4 4 0 11-8 0 4 4 0 018 0z"),
+  send: icon("M12 19l9 2-9-18-9 18 9-2zm0 0v-8"),
 };

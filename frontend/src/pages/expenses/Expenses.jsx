@@ -38,13 +38,14 @@ export default function Expenses() {
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [view, setView] = useState(null);
+  const [newCat, setNewCat] = useState(false);
   const money = (v) => formatCurrency(Number(v) || 0, settings);
   const canCreate = can('create_expenses'); const canUpdate = can('update_expenses'); const canDelete = can('delete_expenses');
   const loadCats = () => expenseService.categories().then((r) => setCats(r.data.map((c) => (typeof c === 'string' ? c : c.name || c.category)))).catch(() => setCats([]));
   useEffect(() => { loadCats(); }, [currentStore?.id]);
 
-  const openCreate = () => { setForm(EMPTY); setModal({ mode: 'create' }); };
-  const openEdit = (e) => { setForm({ category: e.category || '', amount: String(Number(e.amount) || ''), description: e.description || '', payment_method: e.payment_method || 'cash', reference_number: e.reference_number || '', expense_date: dateOnly(e.expense_date) || today() }); setModal({ mode: 'edit', id: e.id }); };
+  const openCreate = () => { setForm(EMPTY); setNewCat(cats.length === 0); setModal({ mode: 'create' }); };
+  const openEdit = (e) => { setForm({ category: e.category || '', amount: String(Number(e.amount) || ''), description: e.description || '', payment_method: e.payment_method || 'cash', reference_number: e.reference_number || '', expense_date: dateOnly(e.expense_date) || today() }); setNewCat(false); setModal({ mode: 'edit', id: e.id }); };
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const save = async () => {
@@ -108,8 +109,9 @@ export default function Expenses() {
       <FormModal isOpen={!!modal} onClose={() => !saving && setModal(null)} size="lg" title={modal?.mode === 'edit' ? t('edit_expense', lang) : t('add_expense', lang)}>
         {modal && (
           <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>
-            <div><Input label={t('category', lang)} required list="expense-categories" value={form.category} onChange={set('category')} placeholder={t('type_or_choose_category', lang)} /><datalist id="expense-categories">{cats.map((c) => <option key={c} value={c} />)}</datalist></div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><NumberInput label={t('amount', lang)} required value={form.amount} onChange={set('amount')} /><DatePicker label={t('date', lang)} value={form.expense_date} onChange={set('expense_date')} /></div>
+            <Select label={t('category', lang)} required searchable value={newCat ? '__new__' : form.category} placeholder={t('select_category', lang)} onChange={(e) => { if (e.target.value === '__new__') { setNewCat(true); setForm((f) => ({ ...f, category: '' })); } else { setNewCat(false); setForm((f) => ({ ...f, category: e.target.value })); } }} options={[...[...new Set([...cats, ...(newCat ? [] : [form.category])].filter(Boolean))].map((c) => ({ value: c, label: c })), { value: '__new__', label: t('new_expense_category', lang) }]} />
+            {newCat && <Input label={t('new_expense_category', lang)} required autoFocus value={form.category} onChange={set('category')} placeholder={t('category', lang)} />}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><NumberInput label={t('amount', lang)} required decimals={settings?.defaultDecimalPlaces ?? 0} value={form.amount} onChange={set('amount')} /><DatePicker label={t('date', lang)} value={form.expense_date} onChange={set('expense_date')} /></div>
             <div className="grid grid-cols-2 gap-3"><Select label={t('payment_method', lang)} value={form.payment_method} onChange={set('payment_method')} options={METHODS.map((m) => ({ value: m, label: t(m, lang) }))} /><Input label={t('reference_number', lang)} value={form.reference_number} onChange={set('reference_number')} /></div>
             <Textarea rows={2} label={t('description', lang)} value={form.description} onChange={set('description')} />
             <div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{modal.mode === 'edit' ? t('ui_update', lang) : t('save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setModal(null)}>{t('ui_cancel', lang)}</Button></div>

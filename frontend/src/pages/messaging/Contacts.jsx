@@ -9,6 +9,7 @@ import { useStore } from '../../contexts/StoreContext';
 import { messagingService } from '../../services/api';
 import { DataTable, ConfirmModal, Button, Input, Select, RowActions, ACTION_ICONS } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
+import SendMessageModal from './SendMessageModal';
 import { normalizePhone } from './common';
 import { t } from '../../utils/i18n';
 
@@ -28,7 +29,9 @@ export default function Contacts() {
   const [form, setForm] = useState({ name: '', phone: '', groupIds: [] });
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [compose, setCompose] = useState(null);
   const manage = can('manage_contacts');
+  const canSend = can('manage_messaging');
   const load = useCallback(async () => { try { setLoading(true); const [c, g] = await Promise.all([messagingService.contacts(), messagingService.groups()]); setRows(c); setGroups(g); } catch (err) { showError(err.message); } finally { setLoading(false); } }, [currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]);
 
@@ -64,13 +67,18 @@ export default function Contacts() {
           <div className="flex items-center gap-3">{can('view_bulk_operations') && <Link to="/settings/bulk-operations" className="text-sm text-primary hover:underline">{t('bulk_operations', lang)}</Link>}{manage && <Button onClick={openNew} mobileLabel={t('add_contact', lang)}>{t('add_contact', lang)}</Button>}</div></div>
         <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 gap-3"><Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={t('ui_search_placeholder', lang)} /><Select searchable value={groupFilter} onChange={(e) => { setGroupFilter(e.target.value); setPage(1); }} options={[{ value: '', label: t('all_groups', lang) }, ...groups.map((g) => ({ value: String(g.id), label: `${g.parent_group_id ? '↳ ' : ''}${g.name}` }))]} /></div>
         <DataTable columns={columns} data={shown.slice((cur - 1) * PAGE, cur * PAGE)} loading={loading} emptyMessage={search || groupFilter ? t('ui_nothing_matches', lang) : t('no_contacts_yet', lang)} pagination={{ currentPage: cur, totalPages: pages, totalItems: shown.length, limit: PAGE }} onPageChange={setPage}
-          renderActions={manage ? (c) => <RowActions actions={[{ label: t('edit', lang), icon: ACTION_ICONS.edit, onClick: () => openEdit(c) }, { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ id: c.id, name: c.name || c.phone }) }]} /> : undefined} />
+          renderActions={(manage || canSend) ? (c) => <RowActions actions={[
+            { label: t('send_sms', lang), icon: ACTION_ICONS.send, onClick: () => setCompose(c), hidden: !canSend },
+            { label: t('edit', lang), icon: ACTION_ICONS.edit, onClick: () => openEdit(c), hidden: !manage },
+            { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ id: c.id, name: c.name || c.phone }), hidden: !manage },
+          ]} /> : undefined} />
       </div>
       <FormModal isOpen={!!modal} onClose={() => !saving && setModal(null)} size="lg" title={modal?.id ? t('edit_contact', lang) : t('add_contact', lang)}>
         {modal && <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4 text-left" noValidate><Input label={t('contact_name_optional', lang)} autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /><Input label={t('phone_number', lang)} required value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="255712345678" helperText={t('tip_contact_phone_format', lang)} />
           {groups.length > 0 && <div><p className="text-sm font-medium text-gray-700 mb-1">{t('groups_optional', lang)}</p><ul className="max-h-40 overflow-auto border border-gray-200 rounded divide-y divide-gray-100">{groups.map((g) => <li key={g.id}><label className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer" style={{ paddingLeft: g.parent_group_id ? 28 : 12 }}><input type="checkbox" className="h-4 w-4 accent-[var(--color-primary)]" checked={form.groupIds.includes(g.id)} onChange={() => toggle(g.id)} />{g.name}</label></li>)}</ul></div>}
           <div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{t(modal.id ? 'save_changes' : 'save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setModal(null)}>{t('cancel', lang)}</Button></div></form>}
       </FormModal>
+      <SendMessageModal isOpen={!!compose} initialNumbers={compose?.phone || ''} groups={groups} onClose={() => setCompose(null)} />
       <ConfirmModal isOpen={!!confirm} variant="danger" title={t('delete', lang)} confirmText={t('delete', lang)} cancelText={t('ui_cancel', lang)} message={t('ui_confirm_delete', lang, { name: confirm?.name })} onClose={() => setConfirm(null)} onConfirm={remove} />
     </MainLayout>
   );

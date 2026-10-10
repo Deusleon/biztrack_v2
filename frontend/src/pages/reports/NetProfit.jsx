@@ -1,6 +1,7 @@
 // FILE PATH: frontend/src/pages/reports/NetProfit.jsx
 import { useState, useEffect } from 'react';
 import MainLayout from '../../components/MainLayout';
+import ExportMenu from '../../components/ExportMenu';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
@@ -26,11 +27,17 @@ export default function NetProfit() {
   }, [range, currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const s = state.s; const fmt = (k, v) => formatValue(k, v, { settings, lang });
   const lines = s ? [['total_revenue', s.total_revenue], ['total_cost_of_goods_sold', -s.total_cost_of_goods_sold], ['gross_profit', s.gross_profit, true], ['total_expenses', -s.total_expenses], ['net_profit', s.net_profit, true]] : [];
+  const exportRows = s ? [
+    ...lines.map(([k, v]) => ({ item: labelOf(k, lang), amount: fmt('amount', v) })),
+    { item: labelOf('net_profit_margin_percentage', lang), amount: fmt('net_profit_margin_percentage', s.net_profit_margin_percentage) },
+    { item: labelOf('total_purchases', lang), amount: fmt('amount', s.total_purchases) },
+    ...(s.expenses_by_category || []).map((e) => ({ item: `${t('expenses', lang)} · ${e.category}`, amount: fmt('amount', e.total ?? e.total_amount ?? e.amount) })),
+  ] : [];
 
   return (
     <MainLayout>
       <div className="space-y-4">
-        <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('net_profit_reports', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('net_profit_report_description', lang)}</p></div>
+        <div className="page-header flex items-center justify-between flex-wrap gap-3"><div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('net_profit_reports', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('net_profit_report_description', lang)}</p></div><ExportMenu rows={exportRows} columns={[{ key: 'item', title: 'description' }, { key: 'amount', title: 'amount' }]} title="net_profit_report" fromDate={range.startDate} toDate={range.endDate} disabled={state.loading || exportRows.length === 0} /></div>
         <div className="bg-white p-4 rounded shadow space-y-3"><div className="flex flex-wrap gap-2">{Object.keys(PRESETS).map((p) => <button key={p} type="button" className="px-2.5 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-50" onClick={() => { const [a, b] = PRESETS[p](); setRange({ startDate: a, endDate: b }); }}>{t(p, lang)}</button>)}</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"><DatePicker label={t('start_date', lang)} value={range.startDate} onChange={(e) => setRange((r) => ({ ...r, startDate: e.target.value }))} /><DatePicker label={t('end_date', lang)} align="right" value={range.endDate} onChange={(e) => setRange((r) => ({ ...r, endDate: e.target.value }))} /></div></div>
         {state.loading && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}
