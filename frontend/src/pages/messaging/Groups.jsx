@@ -68,7 +68,7 @@ export default function Groups() {
         {tree.length > 0 && <ul className="bg-white rounded shadow px-5 divide-y divide-gray-100">{tree.flatMap((g) => [row(g, false), ...g.subs.map((s) => row(s, true))])}</ul>}
       </div>
 
-      <FormModal isOpen={!!edit} onClose={() => !saving && setEdit(null)} size="sm" title={edit?.id ? t(groups.find((g) => g.id === edit.id)?.parent_group_id ? 'edit_subgroup' : 'edit_group', lang) : t(edit?.parentGroupId ? 'new_subgroup_name' : 'new_group', lang)}>
+      <FormModal isOpen={!!edit} onClose={() => !saving && setEdit(null)} size="md" title={edit?.id ? t(groups.find((g) => g.id === edit.id)?.parent_group_id ? 'edit_subgroup' : 'edit_group', lang) : t(edit?.parentGroupId ? 'new_subgroup_name' : 'new_group', lang)}>
         {edit && <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>{edit.parentGroupId && <p className="text-xs text-gray-500 text-left">{t('under_group', lang)}: <b>{groups.find((g) => g.id === edit.parentGroupId)?.name}</b></p>}<Input label={t('group_name', lang)} required autoFocus value={edit.name} onChange={(e) => setEdit((x) => ({ ...x, name: e.target.value }))} /><div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{t('save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setEdit(null)}>{t('cancel', lang)}</Button></div></form>}
       </FormModal>
 

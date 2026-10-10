@@ -118,7 +118,7 @@ export default function DataTable({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 min-w-0 max-w-full">
       {/* Phones: one card per row (the first column is the title; the rest are label / value pairs). */}
       <div className="md:hidden space-y-2">
         {data.map((row, idx) => {
@@ -150,7 +150,7 @@ export default function DataTable({
         })}
       </div>
 
-      <div className="hidden md:block bg-white rounded shadow overflow-x-auto lg:overflow-visible">
+      <div className="hidden md:block bg-white rounded shadow max-w-full overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           {/* ── thead ── */}
           <thead className="bg-gray-50">
@@ -169,7 +169,7 @@ export default function DataTable({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${alignClass(col.align)} ${col.sortable && onSort ? "cursor-pointer select-none hover:text-gray-700" : ""} ${col.width ?? ""}`}
+                  className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${col.nowrap ? "whitespace-nowrap" : ""} ${alignClass(col.align)} ${col.sortable && onSort ? "cursor-pointer select-none hover:text-gray-700" : ""} ${col.width ?? ""}`}
                   onClick={col.sortable && onSort ? () => onSort(col.key) : undefined}
                 >
                   {col.label}
@@ -207,7 +207,7 @@ export default function DataTable({
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={`px-5 py-2 text-sm text-gray-700 ${alignClass(col.align)}`}
+                      className={`px-4 py-2 text-sm text-gray-700 ${col.nowrap ? "whitespace-nowrap" : ""} ${col.width ?? ""} ${alignClass(col.align)}`}
                     >
                       {col.render ? col.render(row, idx) : row[col.key] ?? <span className="text-gray-400">—</span>}
                     </td>

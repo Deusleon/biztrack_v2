@@ -340,7 +340,7 @@ export const messagingService = {
   // account (400 { code: 'no_default_sms_gateway' } until the developer account sets a gateway)
   gatewayInfo: () => api.get('/messaging/gateway-info'),
   accountStats: () => api.get('/messaging/account-stats'),
-  topupRequest: () => api.post('/messaging/topup/request', {}),
+  topupRequest: (body = {}) => api.post('/messaging/topup/request', body),
   topupUssd: ({ amountTzs, phone }) => api.post('/messaging/topup/ussd', { amountTzs, phone }),
   zenoCreate: ({ amount, buyerName, buyerPhone }) => api.post('/messaging/topup/zenopay', { amount, buyerName, buyerPhone }),
   zenoStatus: (orderId) => api.get('/messaging/topup/zenopay/status', { params: { orderId } }),

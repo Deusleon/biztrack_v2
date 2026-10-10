@@ -14,7 +14,13 @@ export const kindOf = (key) => {
   return 'text';
 };
 
-export const hiddenColumn = (k) => k === 'id' || k.endsWith('_id') || k === 'is_unlinked_legacy_row' || k.startsWith('has_') || k.startsWith('is_');
+// Breakdown fields that repeat a total already on the row, plus timestamps and
+// long notes. They made report tables wider than the page.
+const EXTRA_HIDDEN = new Set([
+  'discount_mode', 'discount_value', 'discount_per_unit', 'discount_percent', 'original_unit_price', 'original_selling_price',
+  'created_at', 'updated_at', 'manufacturing_date', 'notes', 'internal_notes', 'tax_rate',
+]);
+export const hiddenColumn = (k) => k === 'id' || k.endsWith('_id') || k === 'is_unlinked_legacy_row' || k.startsWith('has_') || k.startsWith('is_') || EXTRA_HIDDEN.has(k);
 
 const humanize = (k) => k.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 export const labelOf = (key, lang) => { const v = t(key, lang); return v === key ? humanize(key) : v; };

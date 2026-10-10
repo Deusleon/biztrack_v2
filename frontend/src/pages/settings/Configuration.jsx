@@ -55,7 +55,7 @@ export default function Configuration() {
       if (isDeveloper && primary && !fields.some((f) => f.key === 'defaultSmsGateway')) {
         fields.push({
           key: 'defaultSmsGateway', type: 'select', label: 'default_sms_gateway',
-          options: [{ label: 'Beem Africa', value: 'beem_africa' }, { label: 'NextSMS', value: 'next_sms' }, { label: 'Meseji', value: 'meseji' }],
+          options: [{ label: 'Beem Africa', value: 'beem_africa' }, { label: 'NextSMS', value: 'next_sms' }, { label: 'Meseji', value: 'meseji' }, { label: 'SwalaSMS', value: 'swala_sms' }],
         });
       }
       out.push({ ...loc, fields, group: 'ops' });

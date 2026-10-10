@@ -30,6 +30,10 @@ const GATEWAYS = [
     { key: 'api_key', label: 'api_key', placeholder: 'enter_api_key', secret: true },
     { key: 'sender_id', label: 'sender_id', placeholder: 'enter_sender_id' },
   ] },
+  { provider: 'swala_sms', name: 'SwalaSMS', desc: 'send_sms_notifications_via_swala_sms_desc', fields: [
+    { key: 'api_key', label: 'api_key', placeholder: 'enter_api_key', secret: true },
+    { key: 'sender_id', label: 'sender_id', placeholder: 'enter_sender_id' },
+  ] },
 ];
 
 function GatewayCard({ meta, saved, canEdit, lang, onSaved }) {

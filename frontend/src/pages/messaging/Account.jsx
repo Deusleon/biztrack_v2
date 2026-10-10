@@ -27,6 +27,7 @@ export default function Account() {
   const [ussd, setUssd] = useState({ amountTzs: '', phone: '' });
   const [zeno, setZeno] = useState({ amount: '', buyerName: '', buyerPhone: '', orderId: '' });
   const [sender, setSender] = useState(null);
+  const [request, setRequest] = useState({ amount: '', note: '' });
   const manage = can('manage_messaging_account');
 
   const load = useCallback(async () => {
@@ -62,7 +63,7 @@ export default function Account() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {cap.topupUssd && <div className="bg-white rounded shadow p-5 space-y-3 text-left"><h2 className="text-sm font-semibold text-gray-800">{t('topup_via_ussd', lang)}</h2><Input label={t('amount_tzs', lang)} inputMode="numeric" value={ussd.amountTzs} onChange={(e) => setUssd((u) => ({ ...u, amountTzs: e.target.value.replace(/\D/g, '') }))} /><Input label={t('phone_number', lang)} value={ussd.phone} onChange={(e) => setUssd((u) => ({ ...u, phone: e.target.value }))} placeholder="255712345678" /><Button loading={busy === 'ussd'} onClick={payUssd}>{t('send_payment_request', lang)}</Button></div>}
             {cap.topupZenoPay && <div className="bg-white rounded shadow p-5 space-y-3 text-left"><h2 className="text-sm font-semibold text-gray-800">{t('topup_via_zenopay', lang)}</h2><Input label={t('amount_tzs', lang)} inputMode="numeric" value={zeno.amount} onChange={(e) => setZeno((z) => ({ ...z, amount: e.target.value.replace(/\D/g, '') }))} /><Input label={t('full_name', lang)} value={zeno.buyerName} onChange={(e) => setZeno((z) => ({ ...z, buyerName: e.target.value }))} /><Input label={t('phone_number', lang)} value={zeno.buyerPhone} onChange={(e) => setZeno((z) => ({ ...z, buyerPhone: e.target.value }))} placeholder="255712345678" /><div className="flex gap-2"><Button loading={busy === 'zeno'} onClick={payZeno}>{t('send_payment_request', lang)}</Button>{zeno.orderId && <Button variant="secondary" loading={busy === 'zenostatus'} onClick={checkZeno}>{t('check_status', lang)}</Button>}</div></div>}
-            {cap.topupRequest && <div className="bg-white rounded shadow p-5 space-y-3 text-left"><h2 className="text-sm font-semibold text-gray-800">{t('request_topup', lang)}</h2><p className="text-xs text-gray-500">{t('request_topup_desc', lang)}</p><Button loading={busy === 'request'} onClick={() => act('request', () => messagingService.topupRequest(), 'request_sent')}>{t('request_topup', lang)}</Button></div>}
+            {cap.topupRequest && <div className="bg-white rounded shadow p-5 space-y-3 text-left"><h2 className="text-sm font-semibold text-gray-800">{t('request_topup', lang)}</h2><p className="text-xs text-gray-500">{t('request_topup_desc', lang)}</p><Input label={t('amount_tzs', lang)} inputMode="numeric" value={request.amount} onChange={(e) => setRequest((r) => ({ ...r, amount: e.target.value.replace(/\D/g, '') }))} /><Textarea rows={2} label={t('note', lang)} value={request.note} onChange={(e) => setRequest((r) => ({ ...r, note: e.target.value }))} /><Button loading={busy === 'request'} onClick={() => act('request', () => messagingService.topupRequest({ amount: request.amount ? Number(request.amount) : undefined, note: request.note }), 'request_sent')}>{t('request_topup', lang)}</Button></div>}
           </div>
         )}
 

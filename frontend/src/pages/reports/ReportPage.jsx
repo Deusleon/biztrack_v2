@@ -70,7 +70,7 @@ export default function ReportPage({ group }) {
   const shown = useMemo(() => { const q = search.trim().toLowerCase(); return q ? rows.filter((r) => cols.some((k) => fmt(k, r[k]).toLowerCase().includes(q))) : rows; }, [rows, search, cols, settings, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   const pages = Math.max(1, Math.ceil(shown.length / PAGE));
   const pageRows = shown.slice((Math.min(page, pages) - 1) * PAGE, Math.min(page, pages) * PAGE);
-  const columns = cols.map((k) => ({ key: k, label: labelOf(k, lang), align: ['money', 'number', 'percent'].includes(kindOf(k)) ? 'right' : 'left', render: (r) => fmt(k, r[k]) }));
+  const columns = cols.map((k) => ({ key: k, label: labelOf(k, lang), nowrap: true, align: ['money', 'number', 'percent'].includes(kindOf(k)) ? 'right' : 'left', render: (r) => fmt(k, r[k]) }));
   const exportCols = [{ key: '__no', title: 'no.', width: '45px' }, ...cols.map((k) => ({ key: k, title: k }))];
   const exportRows = useMemo(() => shown.map((r, i) => ({ __no: `${i + 1}.`, ...Object.fromEntries(cols.map((k) => [k, fmt(k, r[k])])) })), [shown, cols, settings, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   const cards = state.summary ? Object.entries(state.summary).filter(([k, v]) => v !== null && typeof v !== 'object' && typeof v !== 'boolean' && !k.startsWith('has_')) : [];
