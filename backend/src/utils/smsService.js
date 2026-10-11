@@ -10,6 +10,14 @@ const GATEWAYS = {
   swala_sms: swalaSms,
 };
 
+function configForPurpose(config, purpose) {
+  const cfg = { ...(config || {}) };
+  if (purpose !== 'system') return cfg;
+  if (cfg.system_sender_id) cfg.sender_id = cfg.system_sender_id;
+  if (cfg.system_sender_name) cfg.sender_name = cfg.system_sender_name;
+  return cfg;
+}
+
 async function send(to, message, context = {}) {
   try {
     const sysRes = await pool.query("SELECT settings FROM system_settings LIMIT 1");
@@ -42,7 +50,7 @@ async function send(to, message, context = {}) {
         continue;
       }
 
-      const result = await GATEWAYS[gatewayKey].sendSms(row.config, to, message);
+      const result = await GATEWAYS[gatewayKey].sendSms(configForPurpose(row.config, context.purpose), to, message);
       attempts.push({ gateway: gatewayKey, success: result.success, error: result.error });
 
       if (result.success) {

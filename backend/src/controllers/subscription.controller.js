@@ -75,6 +75,7 @@ const _exp_createCheckout = async (req, res) => {
   const {
     planCode,
     billingCycle,
+    months,
     phoneNumber,
     customerName,
     customerEmail,
@@ -92,6 +93,7 @@ const _exp_createCheckout = async (req, res) => {
       userId,
       planCode,
       billingCycle,
+      months,
       phoneNumber,
       customerName,
       customerEmail,

@@ -334,6 +334,8 @@ function channelEnabled(settings, type) {
 async function processStore(storeId, rawSettings, dateKey, options = {}) {
   const { endOverride = null } = options;
   const settings = { ...DEFAULT_NOTIFICATION_SETTINGS, ...(rawSettings || {}) };
+  const storeName = (await pool.query("SELECT name FROM stores WHERE id = $1", [storeId])).rows[0]?.name || "your business";
+  const money = (n) => Number(n || 0).toLocaleString("en-US");
 
   if (channelEnabled(settings, "low_stock")) {
     const action = `scheduled_low_stock_${dateKey}`;
@@ -376,24 +378,80 @@ async function processStore(storeId, rawSettings, dateKey, options = {}) {
     const action = `scheduled_daily_summary_${dateKey}`;
     if (!(await wasProcessed(storeId, action))) {
       const summary = await getDailySummary(storeId, dateKey, endOverride);
+      const vars = {
+        store_name: storeName,
+        date: dateKey,
+        sales_count: summary.sales_count,
+        revenue: money(summary.revenue),
+        profit: money(summary.gross_profit),
+        expenses: money(summary.expenses),
+        net_profit: money(summary.net_profit),
+        returns_count: summary.returns_count,
+        returned_amount: money(summary.returned_amount),
+      };
+      const langOf = (recipient) => String(recipient?.preferred_language || "en").toLowerCase().startsWith("sw") ? "sw" : "en";
       await notifyStore({
         storeId,
         type: "daily_summary",
-        title: "Daily business summary",
-        message: t("daily_summary_msg", { sales_count: summary.sales_count, revenue: Number(summary.revenue).toLocaleString('en-US'), profit: Number(summary.gross_profit).toLocaleString('en-US'), expenses: Number(summary.expenses).toLocaleString('en-US'), net_profit: Number(summary.net_profit).toLocaleString('en-US') }),
+        title: t("daily_summary_title", {}, "en"),
+        message: t("daily_summary_sms", vars, "en"),
+        roles: ["Owner"],
+        localize: (recipient) => {
+          const lang = langOf(recipient);
+          return {
+            title: t("daily_summary_title", {}, lang),
+            email: t("daily_summary_email", vars, lang),
+            sms: t("daily_summary_sms", vars, lang),
+          };
+        },
         meta: {
           report_period: `${formatBusinessTime(summary.window_start)} - ${formatBusinessTime(summary.window_end)}`,
           sales_count: summary.sales_count,
-          revenue: Number(summary.revenue).toLocaleString('en-US'),
+          revenue: vars.revenue,
           sales_returns: summary.returns_count,
-          returned_amount: Number(summary.returned_amount).toLocaleString('en-US'),
-          gross_profit: Number(summary.gross_profit).toLocaleString('en-US'),
-          expenses: Number(summary.expenses).toLocaleString('en-US'),
-          net_profit: Number(summary.net_profit).toLocaleString('en-US'),
+          returned_amount: vars.returned_amount,
+          gross_profit: vars.profit,
+          expenses: vars.expenses,
+          net_profit: vars.net_profit,
         },
-        channels: ["email", "sms"],
+        channels: ["inapp", "email", "sms"],
       });
       await markProcessed(storeId, action, { date: dateKey, ...summary });
+    }
+  }
+
+  if (channelEnabled(settings, "subscription_expiring")) {
+    const action = `scheduled_subscription_expiring_${dateKey}`;
+    if (!(await wasProcessed(storeId, action))) {
+      const sub = await pool.query(
+        "SELECT status, ends_at FROM store_subscriptions WHERE account_id = $1 LIMIT 1",
+        [storeId],
+      );
+      const ends = sub.rows[0]?.ends_at ? new Date(sub.rows[0].ends_at) : null;
+      const days = ends ? Math.ceil((ends.getTime() - Date.now()) / 86400000) : null;
+      const live = ["active", "grace"].includes(sub.rows[0]?.status);
+      if (live && days != null && days >= 0 && days <= 7) {
+        const vars = { store_name: storeName, days, date: ends.toISOString().slice(0, 10) };
+        const langOf = (recipient) => String(recipient?.preferred_language || "en").toLowerCase().startsWith("sw") ? "sw" : "en";
+        await notifyStore({
+          storeId,
+          type: "subscription_expiring",
+          title: t("subscription_expiring_title", {}, "en"),
+          message: t("subscription_expiring_sms", vars, "en"),
+          roles: ["Owner"],
+          localize: (recipient) => {
+            const lang = langOf(recipient);
+            return {
+              title: t("subscription_expiring_title", {}, lang),
+              email: t("subscription_expiring_email", vars, lang),
+              sms: t("subscription_expiring_sms", vars, lang),
+            };
+          },
+          meta: { store: storeName, days_left: days, ends: vars.date },
+          channels: ["inapp", "email", "sms"],
+        });
+      }
+      await markProcessed(storeId, action, { date: dateKey, days });
     }
   }
 }
@@ -405,12 +463,13 @@ async function runNotificationsForStoreNow(storeId, { force = false } = {}) {
     await pool.query(
       `DELETE FROM system_logs
        WHERE store_id = $1
-         AND action IN ($2, $3, $4)`,
+         AND action IN ($2, $3, $4, $5)`,
       [
         storeId,
         `scheduled_low_stock_${dateKey}`,
         `scheduled_payment_due_${dateKey}`,
         `scheduled_daily_summary_${dateKey}`,
+        `scheduled_subscription_expiring_${dateKey}`,
       ],
     );
   }

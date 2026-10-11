@@ -4,6 +4,7 @@ const express = _n56.default ?? _n56;
 const router = express.Router();
 import * as messagingController from '../controllers/messaging.controller.js';
 import authMiddleware from '../middlewares/authMiddleware.js';
+import { developerOnly } from '../middlewares/developerOnly.js';
 import { checkPermission } from '../middlewares/checkPermission.js';
 const viewMessaging = checkPermission(["view_messaging", "manage_messaging"]);
 const manageMessaging = checkPermission(["manage_messaging"]);
@@ -36,13 +37,13 @@ router.get("/history", authMiddleware, viewMessaging, messagingController.getMes
 router.get("/history/:batchId", authMiddleware, viewMessaging, messagingController.getMessageBatchDetail);
 
 // Sender IDs
-router.get("/sender-ids", authMiddleware, viewOrManageAccount, messagingController.listSenderIds);
-router.post("/sender-ids", authMiddleware, manageAccount, messagingController.requestSenderId);
+router.get("/sender-ids", authMiddleware, developerOnly, viewOrManageAccount, messagingController.listSenderIds);
+router.post("/sender-ids", authMiddleware, developerOnly, manageAccount, messagingController.requestSenderId);
 
 // Buy SMS credit
-router.post("/topup/ussd", authMiddleware, manageAccount, messagingController.buyCreditsUssd);
-router.post("/topup/zenopay", authMiddleware, manageAccount, messagingController.createZenoPayOrder);
-router.get("/topup/zenopay/status", authMiddleware, viewOrManageAccount, messagingController.checkZenoPayStatus);
+router.post("/topup/ussd", authMiddleware, developerOnly, manageAccount, messagingController.buyCreditsUssd);
+router.post("/topup/zenopay", authMiddleware, developerOnly, manageAccount, messagingController.createZenoPayOrder);
+router.get("/topup/zenopay/status", authMiddleware, developerOnly, viewOrManageAccount, messagingController.checkZenoPayStatus);
 
 // Contact groups & subgroups
 router.get("/groups", authMiddleware, viewOrManageGroups, messagingController.listGroups);

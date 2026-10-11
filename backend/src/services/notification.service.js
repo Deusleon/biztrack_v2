@@ -14,6 +14,8 @@ const DEFAULT_NOTIFICATION_SETTINGS = Object.freeze({
   inapp_new_user: true,
   inapp_user_activity: true,
   inapp_cloud_backup: true,
+  inapp_daily_summary: false,
+  inapp_subscription_expiring: false,
 
   email_low_stock: false,
   email_new_sale: false,
@@ -26,13 +28,20 @@ const DEFAULT_NOTIFICATION_SETTINGS = Object.freeze({
   email_user_activity: false,
   email_cloud_backup: false,
   email_daily_summary: false,
+  email_subscription_expiring: false,
 
   sms_low_stock: false,
   sms_new_sale: false,
   sms_payment_due: false,
   sms_sales_return: false,
+  sms_purchase_received: false,
+  sms_stock_transfer: false,
+  sms_stock_adjustment: false,
+  sms_new_user: false,
+  sms_cloud_backup: false,
   sms_user_activity: false,
   sms_daily_summary: false,
+  sms_subscription_expiring: false,
 });
 
 const EMAIL_BRAND = Object.freeze({
@@ -124,14 +133,15 @@ function buildEmailHtml({
 }) {
   const B = EMAIL_BRAND;
   const safeTitle = escapeHtml(humanize(title));
-  const safeMessage = escapeHtml(humanize(message));
+  const plain = String(message || "");
+  const safeMessage = escapeHtml(plain).replace(/\n/g, "<br>");
   const safeName = escapeHtml(recipientName || "there");
   const year = new Date().getFullYear();
 
   // Preheader: the preview line shown next to the subject in the inbox.
   const preheader = `
     <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
-      ${safeMessage}
+      ${escapeHtml(plain.replace(/\s+/g, " ").slice(0, 140))}
     </div>`;
 
   const metaEntries = Object.entries(meta || {})
@@ -271,11 +281,19 @@ function buildEmailHtml({
  *
  * Optional: actionUrl/actionLabel add a call-to-action button to the email.
  */
+function fitSms(text) {
+  const clean = String(text || "").replace(/\r/g, "");
+  return clean.length > 306 ? `${clean.slice(0, 303)}...` : clean;
+}
+
 async function notifyStore({
   storeId,
   type,
   title,
   message,
+  emailMessage,
+  smsMessage,
+  localize,
   meta = {},
   roles,
   recipientUserIds,
@@ -292,32 +310,42 @@ async function notifyStore({
 
   const result = { inapp: false, email: { sent: 0, failed: 0 }, sms: { sent: 0, failed: 0 } };
 
+  const needsPeople = enabledChannels.includes("email") || enabledChannels.includes("sms") || (enabledChannels.includes("inapp") && typeof localize === "function");
+  let recipients = [];
+  if (needsPeople) {
+    recipients = await getRecipients(storeId, { roles, recipientUserIds, excludeUserId });
+    if (Array.isArray(roles) && roles.length && recipients.length === 0 && !recipientUserIds) {
+      recipients = await getRecipients(storeId, { excludeUserId });
+    }
+  }
+
   if (enabledChannels.includes("inapp")) {
-    await emitInAppNotification(storeId, type, { title, message, meta });
+    const local = recipients[0] && typeof localize === "function" ? localize(recipients[0]) || {} : {};
+    await emitInAppNotification(storeId, type, { title: local.title || title, message: local.sms || message, meta });
     result.inapp = true;
   }
 
   if (enabledChannels.includes("email") || enabledChannels.includes("sms")) {
-    const recipients = await getRecipients(
-      storeId,
-      { roles, recipientUserIds, excludeUserId },
-    );
-
     if (enabledChannels.includes("email")) {
       const emailRecipients = recipients.filter((recipient) => recipient.email);
       const deliveries = await Promise.allSettled(
-        emailRecipients.map((recipient) => sendEmail({
-          to: recipient.email,
-          subject: `BizTrack: ${humanize(title || type)}`,
-          html: buildEmailHtml({
-            recipientName: recipient.name,
-            title: title || type,
-            message: message || title || type,
-            meta,
-            actionUrl,
-            actionLabel,
-          }),
-        })),
+        emailRecipients.map((recipient) => {
+          const local = typeof localize === "function" ? localize(recipient) || {} : {};
+          const emailTitle = local.title || title || type;
+          const emailBody = local.email || emailMessage || message || title || type;
+          return sendEmail({
+            to: recipient.email,
+            subject: `BizTrack: ${humanize(emailTitle)}`,
+            html: buildEmailHtml({
+              recipientName: recipient.name,
+              title: emailTitle,
+              message: emailBody,
+              meta,
+              actionUrl,
+              actionLabel,
+            }),
+          });
+        }),
       );
       deliveries.forEach((delivery) => {
         const succeeded = delivery.status === "fulfilled" && delivery.value?.success !== false;
@@ -330,8 +358,9 @@ async function notifyStore({
 
       const deliveries = await Promise.allSettled(
         smsRecipients.map((recipient) => {
-          const smsText = message || title || type;
-          return smsService.send(recipient.phone, smsText);
+          const local = typeof localize === "function" ? localize(recipient) || {} : {};
+          const smsText = fitSms(local.sms || smsMessage || message || title || type);
+          return smsService.send(recipient.phone, smsText, { storeId, purpose: "system" });
         }),
       );
 

@@ -236,7 +236,7 @@ export const getNotificationSettings = async (req, res) => {
       return res.status(200).json({ notifications: getDefaultNotifications() });
     }
 
-    const notifications = result.rows[0].settings?.notifications || getDefaultNotifications();
+    const notifications = { ...getDefaultNotifications(), ...(result.rows[0].settings?.notifications || {}) };
     return res.status(200).json({ notifications });
   } catch (err) {
     console.error("Get notification settings error:", err.message);

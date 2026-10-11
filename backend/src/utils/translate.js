@@ -15,7 +15,8 @@ const t = (key, options = {}, lang = "en") => {
     .split("-")[0];
 
   const dictionary = translations[normalizedLang] || translations.en;
-  let text = dictionary[key] || translations.en[key] || key;
+  const readable = String(key || "").replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  let text = dictionary[key] || translations.en[key] || readable;
 
   Object.keys(options).forEach((k) => {
     const regex = new RegExp(`{{${k}}}`, "g");

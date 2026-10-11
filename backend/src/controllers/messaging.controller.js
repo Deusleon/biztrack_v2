@@ -158,11 +158,10 @@ export const getGatewayInfo = async (req, res) => {
     const direct = has("buyCreditsUssd") || has("createZenoPayOrder");
     const capabilities = {
       balance: has("getAccountStats"),
-      topupUssd: has("buyCreditsUssd"),
-      topupZenoPay: has("createZenoPayOrder"),
-      // Providers without a payment API: the client asks our support team,
-      // and a developer does the top-up for them.
-      topupRequest: !!active.config && !!mod && !direct,
+      // Paying the gateway directly is a developer action. Everyone else asks support.
+      topupUssd: dev && has("buyCreditsUssd"),
+      topupZenoPay: dev && has("createZenoPayOrder"),
+      topupRequest: !!active.config && !!mod && (!dev || !direct),
     };
 
     const body = {
@@ -218,7 +217,7 @@ export const requestTopup = async (req, res) => {
     if (!config) return;
 
     const mod = active.gatewayModule;
-    if (typeof mod.buyCreditsUssd === "function" || typeof mod.createZenoPayOrder === "function") {
+    if (viewerIsDeveloper(req) && (typeof mod.buyCreditsUssd === "function" || typeof mod.createZenoPayOrder === "function")) {
       return res.status(400).json({ message: t("topup_request_not_needed", lang) });
     }
 

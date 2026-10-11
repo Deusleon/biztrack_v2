@@ -169,7 +169,7 @@ async function getTransactionSnapshot(transactionId) {
     `SELECT st.id, st.account_id, st.store_id, st.subscription_id, st.status, st.billing_cycle, st.amount, st.currency,
             st.payment_method, st.phone_number, st.provider, st.provider_reference,
             st.provider_transaction_id, st.request_id, st.checkout_url, st.paid_at,
-            st.failed_reason, st.created_at, st.updated_at,
+            st.failed_reason, st.raw_request, st.created_at, st.updated_at,
             sp.code AS plan_code, sp.name AS plan_name
      FROM subscription_transactions st
      LEFT JOIN subscription_plans sp ON sp.id = st.plan_id
@@ -221,6 +221,7 @@ async function createCheckout({
   userId,
   planCode,
   billingCycle,
+  months,
   phoneNumber,
   customerName,
   customerEmail,
@@ -249,11 +250,14 @@ async function createCheckout({
   }
 
   const plan = planResult.rows[0];
+  const prepaidMonths = cycle === 'annual'
+    ? 12
+    : cycle === 'quarterly'
+      ? 3
+      : Math.min(24, Math.max(1, Math.round(Number(months) || 1)));
   const amount = cycle === 'annual'
     ? Number(plan.annual_amount)
-    : cycle === 'quarterly'
-      ? Number(plan.monthly_amount) * 3
-      : Number(plan.monthly_amount);
+    : Number(plan.monthly_amount) * prepaidMonths;
   const requestId = crypto.randomUUID();
 
   const client = await pool.connect();
@@ -314,7 +318,7 @@ async function createCheckout({
         normalizedPhoneNumber,
         requestId,
         userId,
-        JSON.stringify({ planCode: plan.code, billingCycle: cycle }),
+        JSON.stringify({ planCode: plan.code, billingCycle: cycle, months: prepaidMonths }),
       ]
     );
 
@@ -424,12 +428,18 @@ async function applySuccessfulPayment({
     return { alreadyPaid: true };
   }
 
+  let paidMonths = 1;
+  try {
+    const raw = typeof transaction.raw_request === 'string' ? JSON.parse(transaction.raw_request) : transaction.raw_request;
+    const n = Math.round(Number(raw?.months));
+    if (n >= 1 && n <= 24) paidMonths = n;
+  } catch { /* older payments have no month count */ }
   const durationMonths =
     transaction.billing_cycle === 'annual'
       ? 12
       : transaction.billing_cycle === 'quarterly'
         ? 3
-        : 1;
+        : paidMonths;
 
   const existingSubResult = await client.query(
     `SELECT * FROM store_subscriptions

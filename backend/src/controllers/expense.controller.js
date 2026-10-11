@@ -137,6 +137,15 @@ export const updateExpense = async (req, res) => {
   }
 
   try {
+    const previous = await pool.query(
+      `SELECT category, amount, description, payment_method, reference_number, expense_date
+       FROM expenses WHERE id = $1 AND store_id = $2`,
+      [id, storeId],
+    );
+    if (previous.rows.length === 0) {
+      return respondWithError(req, res, 404, 'not_found');
+    }
+
     const result = await pool.query(
       `UPDATE expenses
        SET category = $1, amount = $2, description = $3, payment_method = $4,
@@ -164,10 +173,15 @@ export const updateExpense = async (req, res) => {
       storeId: storeId,
       action: "update_expense",
       description: {
-        category,
-        amount,
-        payment_method,
-        expense_date,
+        old: previous.rows[0],
+        new: {
+          category: result.rows[0].category,
+          amount: result.rows[0].amount,
+          description: result.rows[0].description,
+          payment_method: result.rows[0].payment_method,
+          reference_number: result.rows[0].reference_number,
+          expense_date: result.rows[0].expense_date,
+        },
       },
       ip: req.ip,
     });
