@@ -29,6 +29,7 @@ export default function Subscription() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cycle, setCycle] = useState('monthly');
+  const [monthCount, setMonthCount] = useState('1');
   const [checkout, setCheckout] = useState(null);       // { plan, phone, name, email }
   const [paying, setPaying] = useState(null);           // { transactionId, amount, currency } waiting for the phone prompt
   const [busy, setBusy] = useState(false);
@@ -54,7 +55,7 @@ export default function Subscription() {
     if (!phone) { showError(t('invalid_phone_number', lang)); return; }
     try {
       setBusy(true);
-      const c = await subscriptionService.checkout({ planCode: checkout.plan.code, billingCycle: cycle, phoneNumber: phone, customerName: checkout.name, customerEmail: checkout.email });
+      const c = await subscriptionService.checkout({ planCode: checkout.plan.code, billingCycle: cycle, months: cycle === 'monthly' ? months : undefined, phoneNumber: phone, customerName: checkout.name, customerEmail: checkout.email });
       setPaying({ transactionId: c.transactionId, amount: c.amount, currency: c.currency }); setCheckout(null); showWarning(t('confirm_payment_on_phone', lang));
     } catch (err) { showError(err.message); } finally { setBusy(false); }
   };
@@ -62,6 +63,9 @@ export default function Subscription() {
 
   const left = daysLeft(sub?.ends_at); const state = !sub ? null : left != null && left >= 0 ? 'active' : sub.grace_ends_at && daysLeft(sub.grace_ends_at) >= 0 ? 'grace' : 'expired';
   const saving = (p) => { const m = Number(p.monthly_amount) * 12; return m > 0 ? Math.round((1 - Number(p.annual_amount) / m) * 100) : 0; };
+  const months = cycle === 'monthly' ? Math.min(24, Math.max(1, parseInt(monthCount, 10) || 1)) : 1;
+  const due = (plan) => (cycle === 'annual' ? Number(plan.annual_amount) : Number(plan.monthly_amount) * months);
+  const periodLabel = cycle === 'annual' ? t('year', lang) : months === 1 ? t('month', lang) : `${months} ${t('months', lang)}`;
 
   return (
     <MainLayout>
@@ -82,11 +86,11 @@ export default function Subscription() {
         {paying && <div className="bg-amber-50 border border-amber-200 rounded p-4 text-left flex items-center justify-between gap-3 flex-wrap"><p className="text-sm text-amber-800">{t('confirm_payment_on_phone', lang)} · {money(paying.amount, paying.currency)}</p><div className="flex gap-2"><Button variant="secondary" onClick={checkNow}>{t('check_status', lang)}</Button><Button variant="secondary" onClick={() => setPaying(null)}>{t('cancel', lang)}</Button></div></div>}
 
         {!loading && plans.length > 0 && (<>
-          <div className="flex items-center justify-between gap-3 flex-wrap"><h2 className="text-sm font-semibold text-gray-800">{t('choose_plan', lang)}</h2><div className="flex gap-2">{['monthly', 'annual'].map((c) => <button key={c} type="button" onClick={() => setCycle(c)} className={`px-3 py-1.5 text-sm rounded border ${cycle === c ? 'border-primary bg-primary-10 text-primary font-medium' : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'}`}>{t(c, lang)}</button>)}</div></div>
+          <div className="flex items-center justify-between gap-3 flex-wrap"><h2 className="text-sm font-semibold text-gray-800">{t('choose_plan', lang)}</h2><div className="flex flex-wrap items-center gap-2">{['monthly', 'annual'].map((c) => <button key={c} type="button" onClick={() => setCycle(c)} className={`px-3 py-1.5 text-sm rounded border ${cycle === c ? 'border-primary bg-primary-10 text-primary font-medium' : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'}`}>{t(c, lang)}</button>)}{cycle === 'monthly' && <label className="flex items-center gap-2 text-sm text-gray-700"><span>{t('months_to_pay', lang)}</span><input type="number" min={1} max={24} value={monthCount} onChange={(e) => setMonthCount(e.target.value.replace(/\D/g, '').slice(0, 2))} className="w-20 rounded border border-gray-300 px-2 py-1.5" /></label>}</div></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{plans.map((p) => { const mine = sub?.plan_code === p.code; return (
             <div key={p.id} className={`bg-white rounded shadow p-5 text-left space-y-3 border-2 ${mine ? 'border-primary' : 'border-transparent'}`}>
               <div><h3 className="text-base font-bold text-gray-900">{p.name}{mine && <span className="ml-2 text-xs text-primary">● {t('current', lang)}</span>}</h3><p className="text-xs text-gray-500">{p.description}</p></div>
-              <p className="text-2xl font-bold text-gray-900">{money(cycle === 'annual' ? p.annual_amount : p.monthly_amount, p.currency)}<span className="text-xs font-normal text-gray-500"> / {t(cycle === 'annual' ? 'year' : 'month', lang)}</span></p>
+              <p className="text-2xl font-bold text-gray-900">{money(due(p), p.currency)}<span className="text-xs font-normal text-gray-500"> / {periodLabel}</span></p>
               {cycle === 'annual' && saving(p) > 0 && <p className="text-xs text-green-700">{t('save', lang)} {saving(p)}%</p>}
               <ul className="text-sm text-gray-600 space-y-1">{p.metadata?.maxUsers != null && <li>• {t('up_to_users', lang, { count: p.metadata.maxUsers })}</li>}{p.metadata?.maxStores != null && <li>• {t('up_to_stores', lang, { count: p.metadata.maxStores })}</li>}</ul>
               {canPay && <Button className="w-full" variant={mine ? 'secondary' : 'primary'} onClick={() => start(p)}>{t(mine ? 'renew' : 'choose', lang)}</Button>}
@@ -101,7 +105,7 @@ export default function Subscription() {
         )}
       </div>
       <FormModal isOpen={!!checkout} onClose={() => !busy && setCheckout(null)} size="md" title={`${t('pay_for', lang)} ${checkout?.plan?.name || ''}`}>
-        {checkout && <form onSubmit={(e) => { e.preventDefault(); pay(); }} className="space-y-4 text-left" noValidate><p className="text-sm text-gray-700">{money(cycle === 'annual' ? checkout.plan.annual_amount : checkout.plan.monthly_amount, checkout.plan.currency)} · {t(cycle, lang)}</p><Input label={t('mobile_money_phone', lang)} required autoFocus value={checkout.phone} onChange={(e) => setCheckout((c) => ({ ...c, phone: e.target.value }))} placeholder="255712345678" helperText={t('payment_prompt_hint', lang)} /><Input label={t('full_name', lang)} value={checkout.name} onChange={(e) => setCheckout((c) => ({ ...c, name: e.target.value }))} /><Input type="email" label={t('email', lang)} value={checkout.email} onChange={(e) => setCheckout((c) => ({ ...c, email: e.target.value }))} /><div className="flex justify-end gap-3"><Button type="submit" loading={busy}>{t('pay_now', lang)}</Button><Button type="button" variant="secondary" onClick={() => setCheckout(null)}>{t('cancel', lang)}</Button></div></form>}
+        {checkout && <form onSubmit={(e) => { e.preventDefault(); pay(); }} className="space-y-4 text-left" noValidate><p className="text-sm text-gray-700">{t('amount_to_pay', lang)}: <b>{money(due(checkout.plan), checkout.plan.currency)}</b> · {periodLabel}</p>{cycle === 'monthly' && <Input label={t('months_to_pay', lang)} inputMode="numeric" value={monthCount} onChange={(e) => setMonthCount(e.target.value.replace(/\D/g, '').slice(0, 2))} helperText={t('months_to_pay_hint', lang)} />}<Input label={t('mobile_money_phone', lang)} required autoFocus value={checkout.phone} onChange={(e) => setCheckout((c) => ({ ...c, phone: e.target.value }))} placeholder="255712345678" helperText={t('payment_prompt_hint', lang)} /><Input label={t('full_name', lang)} value={checkout.name} onChange={(e) => setCheckout((c) => ({ ...c, name: e.target.value }))} /><Input type="email" label={t('email', lang)} value={checkout.email} onChange={(e) => setCheckout((c) => ({ ...c, email: e.target.value }))} /><div className="flex justify-end gap-3"><Button type="submit" loading={busy}>{t('pay_now', lang)}</Button><Button type="button" variant="secondary" onClick={() => setCheckout(null)}>{t('cancel', lang)}</Button></div></form>}
       </FormModal>
     </MainLayout>
   );

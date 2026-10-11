@@ -3,6 +3,11 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const ThemeContext = createContext(null);
 
+function storedScheme() {
+  try { return localStorage.getItem('biztrack-color-scheme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; }
+}
+if (typeof document !== 'undefined' && storedScheme() === 'dark') document.documentElement.classList.add('dark');
+
 // Predefined color themes
 export const presetThemes = {
   navy: {
@@ -75,6 +80,13 @@ export const ThemeProvider = ({ children }) => {
     const saved = localStorage.getItem('biztrack-theme');
     return saved ? JSON.parse(saved) : presetThemes.navy;
   });
+  const [scheme, setScheme] = useState(storedScheme);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', scheme === 'dark');
+    localStorage.setItem('biztrack-color-scheme', scheme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', scheme === 'dark' ? '#0f172a' : darken(theme.primaryDark || theme.primary, 0.32));
+  }, [scheme, theme]);
 
   useEffect(() => {
     // Apply CSS variables to root
@@ -87,8 +99,6 @@ export const ThemeProvider = ({ children }) => {
     // The installed app's title bar (and the browser's address bar on phones) takes the page's theme-color,
     // so it follows the chosen theme instead of staying blue.
     // 30% deeper than the sidebar's top colour, so the title bar and the sidebar read as two different bars where they meet.
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', darken(theme.primaryDark || theme.primary, 0.32));
-    
     // Save to localStorage
     localStorage.setItem('biztrack-theme', JSON.stringify(theme));
   }, [theme]);
@@ -112,6 +122,8 @@ export const ThemeProvider = ({ children }) => {
 
   const value = {
     theme,
+    scheme,
+    setScheme,
     updateTheme,
     setPresetTheme,
     setCustomTheme,

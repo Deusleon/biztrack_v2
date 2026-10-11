@@ -76,7 +76,7 @@ export default function ExportMenu({ rows, columns, title, formats = ['pdf', 'xl
     <div className="relative" ref={ref}>
       <Button variant="secondary" mobileIcon="download" mobileLabel={t('export', lang)} loading={!!busy} disabled={disabled} onClick={() => setOpen((o) => !o)}>{t('export', lang)}</Button>
       {open && (
-        <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded shadow-lg py-1 z-20" role="menu">
+        <div className="absolute top-full right-0 mt-1 w-40 bg-white border border-gray-200 rounded shadow-lg py-1 z-20" role="menu">
           {formats.map((f) => (
             <button key={f} type="button" onClick={() => run(f)} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-50" role="menuitem">
               <Icon name={f === 'print' ? 'printer' : f === 'copy' ? 'copy' : 'download'} className="w-4 h-4 text-gray-500" />

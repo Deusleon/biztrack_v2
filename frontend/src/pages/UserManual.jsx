@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { t } from '../utils/i18n';
 
+const UPDATES = ['returns', 'purchases', 'modals', 'messaging', 'daily_summary', 'appearance', 'subscription', 'activity'];
+
 const MANUALS = {
   en: { titleKey: 'manual_title_en', languageKey: 'manual_english', pdf: '/manuals/BizTrack_User_Manual.pdf' },
   sw: { titleKey: 'manual_title_sw', languageKey: 'manual_swahili', pdf: '/manuals/BizTrack_Muongozo_wa_Mtumiaji.pdf' },
@@ -35,6 +37,15 @@ export default function UserManual() {
           <ManualCard code={mine} highlighted lang={lang} />
           <ManualCard code={mine === 'sw' ? 'en' : 'sw'} lang={lang} />
         </div>
+        <section className="bg-white rounded shadow p-5 text-left space-y-4">
+          <div><h2 className="text-base font-semibold text-gray-900">{t('manual_whats_new', lang)}</h2><p className="text-sm text-gray-500 mt-1">{t('manual_whats_new_intro', lang)}</p></div>
+          {UPDATES.map((key) => (
+            <article key={key} className="border-t border-gray-100 pt-3">
+              <h3 className="text-sm font-semibold text-gray-800">{t(`manual_${key}_title`, lang)}</h3>
+              <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{t(`manual_${key}_body`, lang)}</p>
+            </article>
+          ))}
+        </section>
         <p className="text-xs text-gray-400 text-left">{t('manual_formats_hint', lang)}</p>
       </div>
     </MainLayout>

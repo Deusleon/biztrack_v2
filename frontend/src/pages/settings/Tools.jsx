@@ -6,14 +6,14 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { toolsService, userAdminService } from '../../services/api';
-import { Button, Input, Select, ConfirmModal } from '../../components/ui';
+import { Button, Select, ConfirmModal, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
+import ActivityLogView from '../../components/ActivityLogView';
 import { t } from '../../utils/i18n';
 
 const saveBlob = (data, name) => { const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type: 'text/plain' })); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
 const when = (v) => (v ? new Date(v).toLocaleString() : '—');
-const parse = (d) => { try { return typeof d === 'string' ? JSON.parse(d) : d || {}; } catch { return { note: String(d) }; } };
-const ACTIONS = ['login_success', 'login_failed', 'password_changed', 'create_product', 'update_product', 'delete_product', 'create_user', 'update_user', 'remove_user_from_store', 'update_settings', 'database_restore', 'cloud_backup_completed'];
+const ACTIONS = ['login_success', 'login_failed', 'password_changed', 'create_product', 'update_product', 'delete_product', 'create_user', 'update_user', 'remove_user_from_store', 'update_settings', 'update_expense', 'database_restore', 'cloud_backup_completed'];
 
 export default function Tools() {
   const { can } = useAuth();
@@ -26,6 +26,7 @@ export default function Tools() {
   const [filters, setFilters] = useState({ action: '', userId: '', dateFrom: '', dateTo: '' });
   const [logs, setLogs] = useState({ rows: [], total: 0, page: 0, loading: false, loaded: false });
   const [detail, setDetail] = useState(null);
+  const [showTechnical, setShowTechnical] = useState(false);
   const [confirmCache, setConfirmCache] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
   const canUse = can('view_tools');
@@ -39,7 +40,6 @@ export default function Tools() {
   }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const card = (title, desc, children) => <div className="bg-white rounded shadow p-5 text-left space-y-3"><div><h2 className="text-sm font-semibold text-gray-800">{title}</h2><p className="text-xs text-gray-500 mt-0.5">{desc}</p></div>{children}</div>;
-  const d = detail ? parse(detail.description) : null;
 
   return (
     <MainLayout>
@@ -55,24 +55,22 @@ export default function Tools() {
 
         <div className="bg-white rounded shadow p-5 space-y-3 text-left"><div><h2 className="text-sm font-semibold text-gray-800">{t('activity_logs', lang)}</h2><p className="text-xs text-gray-500">{t('press_filter_to_load_logs', lang)}</p></div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-            <Select label={t('filter_by_action', lang)} value={filters.action} onChange={(e) => setFilters((f) => ({ ...f, action: e.target.value }))} options={[{ value: '', label: t('all_actions', lang) }, ...ACTIONS.map((a) => ({ value: a, label: a }))]} />
+            <Select label={t('filter_by_action', lang)} value={filters.action} onChange={(e) => setFilters((f) => ({ ...f, action: e.target.value }))} options={[{ value: '', label: t('all_actions', lang) }, ...ACTIONS.map((a) => ({ value: a, label: t(a, lang) }))]} />
             <Select searchable label={t('filter_by_user', lang)} value={filters.userId} onChange={(e) => setFilters((f) => ({ ...f, userId: e.target.value }))} options={[{ value: '', label: t('all_users', lang) }, ...users.map((u) => ({ value: u.id, label: u.name }))]} />
-            <Input type="date" label={t('start_date', lang)} value={filters.dateFrom} onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))} /><Input type="date" label={t('end_date', lang)} value={filters.dateTo} onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))} />
+            <DatePicker label={t('start_date', lang)} value={filters.dateFrom} onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))} /><DatePicker label={t('end_date', lang)} align="right" value={filters.dateTo} onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))} />
             <div className="flex gap-2"><Button loading={logs.loading && logs.page === 0} onClick={() => loadLogs(1)}>{t('filter', lang)}</Button><Button variant="secondary" onClick={() => { setFilters({ action: '', userId: '', dateFrom: '', dateTo: '' }); setLogs({ rows: [], total: 0, page: 0, loading: false, loaded: false }); }}>{t('clear', lang)}</Button></div></div>
           {logs.loaded && (logs.rows.length === 0 ? <p className="text-sm text-gray-400 py-4 text-center">{t('no_data', lang)}</p> : <div className="overflow-x-auto border border-gray-100 rounded"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('log_time', lang)}</th><th className="px-3 py-2 text-left">{t('log_user', lang)}</th><th className="px-3 py-2 text-left">{t('action', lang)}</th><th className="px-3 py-2 text-left">IP</th><th className="w-16" /></tr></thead>
-            <tbody>{logs.rows.map((l) => <tr key={l.id} className="border-t border-gray-100"><td className="px-3 py-2 whitespace-nowrap">{when(l.created_at)}</td><td className="px-3 py-2">{l.user_name || '—'}<span className="block text-[11px] text-gray-400">{l.user_email}</span></td><td className="px-3 py-2">{l.action}</td><td className="px-3 py-2 text-gray-500">{l.ip_address || '—'}</td><td className="px-2"><button type="button" className="text-primary text-xs hover:underline" onClick={() => setDetail(l)}>{t('view', lang)}</button></td></tr>)}</tbody></table></div>)}
+            <tbody>{logs.rows.map((l) => <tr key={l.id} className="border-t border-gray-100"><td className="px-3 py-2 whitespace-nowrap">{when(l.created_at)}</td><td className="px-3 py-2">{l.user_name || '—'}<span className="block text-[11px] text-gray-400">{l.user_email}</span></td><td className="px-3 py-2">{t(l.action, lang)}</td><td className="px-3 py-2 text-gray-500">{l.ip_address || '—'}</td><td className="px-2"><button type="button" className="text-primary text-xs hover:underline" onClick={() => { setShowTechnical(false); setDetail(l); }}>{t('view', lang)}</button></td></tr>)}</tbody></table></div>)}
           {logs.loaded && logs.rows.length < logs.total && <div className="text-center"><Button variant="secondary" loading={logs.loading} onClick={() => loadLogs(logs.page + 1)}>{t('load_more', lang)} ({logs.rows.length}/{logs.total})</Button></div>}
         </div>
       </div>
-      <FormModal isOpen={!!detail} onClose={() => setDetail(null)} size="xl" title={detail?.action}>
-        {detail && <div className="space-y-5 text-left">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[[t('log_time', lang), when(detail.created_at)], [t('log_user', lang), detail.user_name], [t('action', lang), detail.action], ['IP', detail.ip_address]].map(([k, v]) => <div key={k} className="rounded-md bg-gray-50 px-3 py-2.5"><p className="text-[11px] uppercase tracking-wide text-gray-400">{k}</p><p className="text-sm font-medium text-gray-900 mt-0.5 break-words">{v || '—'}</p></div>)}
-          </div>
-          {Object.keys(d).length === 0 ? <p className="text-sm text-gray-400">{t('no_changes', lang)}</p> : <div className="overflow-x-auto border border-gray-200 rounded-md"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('name', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('details', lang)}</th></tr></thead>
-            <tbody>{Object.entries(d).map(([k, v]) => <tr key={k} className="border-t border-gray-100"><td className="px-3 py-2.5 text-gray-500">{k}</td><td className="px-3 py-2.5 break-all">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</td></tr>)}</tbody></table></div>}
-          <div className="flex justify-end"><Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button></div>
-        </div>}
+      <FormModal isOpen={!!detail} onClose={() => setDetail(null)} size="xl" title={detail ? t(detail.action, lang) : ''}>
+        {detail && (
+          <>
+            <ActivityLogView entry={detail} lang={lang} showTechnical={showTechnical} onToggleTechnical={() => setShowTechnical((v) => !v)} />
+            <div className="flex justify-end mt-4"><Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button></div>
+          </>
+        )}
       </FormModal>
       <ConfirmModal isOpen={confirmCache} variant="warning" title={t('clear_cache', lang)} confirmText={t('confirm', lang)} cancelText={t('ui_cancel', lang)} message={t('clear_cache_confirm', lang)} onClose={() => setConfirmCache(false)} onConfirm={() => { setConfirmCache(false); run('cache', () => toolsService.clearCache(), 'cache_cleared_msg'); }} />
     </MainLayout>

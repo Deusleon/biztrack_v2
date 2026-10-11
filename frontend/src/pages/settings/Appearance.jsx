@@ -11,7 +11,7 @@ const shade = (hex, f) => { const n = parseInt(hex.replace('#', ''), 16); const 
 
 /** The colours of this device's app (kept in the browser, not on the server): ready-made themes or your own. */
 export default function Appearance() {
-  const { theme, presetThemes, setPresetTheme, setCustomTheme } = useTheme();
+  const { theme, scheme, setScheme, presetThemes, setPresetTheme, setCustomTheme } = useTheme();
   const { lang } = useLanguage();
   const [filter, setFilter] = useState('all');
   const [custom, setCustom] = useState({ primary: theme.primary, accent: theme.accent });
@@ -22,6 +22,10 @@ export default function Appearance() {
     <MainLayout>
       <div className="space-y-4">
         <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('appearance', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('appearance_desc', lang)}</p></div>
+        <div className="bg-white rounded shadow p-5 text-left space-y-3">
+          <div><h2 className="text-sm font-semibold text-gray-800">{t('color_scheme', lang)}</h2><p className="text-xs text-gray-500 mt-0.5">{t('color_scheme_desc', lang)}</p></div>
+          <div className="flex gap-2">{[['light', 'light_mode'], ['dark', 'dark_mode']].map(([k, label]) => <button key={k} type="button" onClick={() => setScheme(k)} className={`px-3 py-1.5 text-sm rounded border ${scheme === k ? 'border-primary bg-primary-10 text-primary font-medium' : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'}`}>{t(label, lang)}</button>)}</div>
+        </div>
         <div className="flex gap-2">{[['all', 'all_themes'], ['light', 'light_themes'], ['dark', 'dark_themes']].map(([k, label]) => <button key={k} type="button" onClick={() => setFilter(k)} className={`px-3 py-1.5 text-sm rounded border ${filter === k ? 'border-primary bg-primary-10 text-primary font-medium' : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'}`}>{t(label, lang)}</button>)}</div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {entries.map(([key, p]) => { const active = theme.primary === p.primary && theme.accent === p.accent; return (

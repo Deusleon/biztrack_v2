@@ -19,20 +19,24 @@ const GATEWAYS = [
   { provider: 'beem_africa', name: 'Beem Africa', desc: 'send_sms_notifications_via_beem_africa_desc', fields: [
     { key: 'api_key', label: 'api_key', placeholder: 'enter_api_key', secret: true },
     { key: 'secret_key', label: 'secret_key', placeholder: 'enter_secret_key', secret: true },
-    { key: 'sender_name', label: 'sender_name', placeholder: 'enter_sender_name' },
+    { key: 'sender_name', label: 'business_sender_name', placeholder: 'enter_sender_name' },
+    { key: 'system_sender_name', label: 'system_sender_name', placeholder: 'enter_sender_name', optional: true, helper: 'system_sender_hint' },
   ] },
   { provider: 'next_sms', name: 'NextSMS', desc: 'send_sms_notifications_via_next_sms_desc', fields: [
     { key: 'username', label: 'username', placeholder: 'enter_username' },
     { key: 'password', label: 'password', placeholder: 'enter_password', secret: true },
-    { key: 'sender_name', label: 'sender_name', placeholder: 'enter_sender_name' },
+    { key: 'sender_name', label: 'business_sender_name', placeholder: 'enter_sender_name' },
+    { key: 'system_sender_name', label: 'system_sender_name', placeholder: 'enter_sender_name', optional: true, helper: 'system_sender_hint' },
   ] },
   { provider: 'meseji', name: 'Meseji', desc: 'send_sms_notifications_via_meseji_desc', fields: [
     { key: 'api_key', label: 'api_key', placeholder: 'enter_api_key', secret: true },
-    { key: 'sender_id', label: 'sender_id', placeholder: 'enter_sender_id' },
+    { key: 'sender_id', label: 'business_sender_id', placeholder: 'enter_sender_id' },
+    { key: 'system_sender_id', label: 'system_sender_id', placeholder: 'enter_sender_id', optional: true, helper: 'system_sender_hint' },
   ] },
   { provider: 'swala_sms', name: 'SwalaSMS', desc: 'send_sms_notifications_via_swala_sms_desc', fields: [
     { key: 'api_key', label: 'api_key', placeholder: 'enter_api_key', secret: true },
-    { key: 'sender_id', label: 'sender_id', placeholder: 'enter_sender_id' },
+    { key: 'sender_id', label: 'business_sender_id', placeholder: 'enter_sender_id' },
+    { key: 'system_sender_id', label: 'system_sender_id', placeholder: 'enter_sender_id', optional: true, helper: 'system_sender_hint' },
   ] },
 ];
 
@@ -45,9 +49,10 @@ function GatewayCard({ meta, saved, canEdit, lang, onSaved }) {
     meta.fields.forEach((f) => { next[f.key] = saved?.[f.key] || ''; });
     setForm(next);
   }, [saved, meta]);
-  const configured = meta.fields.every((f) => saved?.[f.key]);
+  const required = meta.fields.filter((f) => !f.optional);
+  const configured = required.every((f) => saved?.[f.key]);
   const save = async () => {
-    if (meta.fields.some((f) => !String(form[f.key] || '').trim())) { showError(t('required_field', lang)); return; }
+    if (required.some((f) => !String(form[f.key] || '').trim())) { showError(t('required_field', lang)); return; }
     try {
       setBusy('save');
       const r = await integrationService.save(meta.provider, form);
@@ -75,7 +80,7 @@ function GatewayCard({ meta, saved, canEdit, lang, onSaved }) {
       </div>
       {meta.fields.map((f) => (
         <Input key={f.key} label={t(f.label, lang)} type={f.secret ? 'password' : 'text'} value={form[f.key] || ''} autoComplete="off" disabled={!canEdit}
-          placeholder={t(f.placeholder, lang)} onChange={(e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value }))} />
+          placeholder={t(f.placeholder, lang)} helperText={f.helper ? t(f.helper, lang) : undefined} onChange={(e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value }))} />
       ))}
       {canEdit && (
         <div className="flex flex-wrap gap-2">

@@ -483,6 +483,13 @@ main .flex-wrap:has(> div.w-14.h-14) { flex-wrap: nowrap; }
 
 /* ── Page header: title left, actions right ─────────────────────────────────────
  * Actions stay right-aligned even when they wrap onto their own line. */
+.page-header,
+.page-header > :first-child,
+.page-header h1,
+.page-header p {
+  text-align: left;
+}
+
 .page-header > :not(:first-child) {
   margin-left: auto;
   display: flex;
@@ -490,4 +497,39 @@ main .flex-wrap:has(> div.w-14.h-14) { flex-wrap: nowrap; }
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+/* Dark color scheme. Accent colours stay on the sidebar; the page surface flips.
+   Screen-only so printed receipts and reports stay on white paper. */
+@media screen {
+  html.dark { color-scheme: dark; }
+  html.dark body { background: #0f172a; color: #e2e8f0; }
+  html.dark .bg-white { background-color: #1e293b !important; }
+  html.dark .bg-gray-50 { background-color: #0f172a !important; }
+  html.dark .bg-gray-100 { background-color: #1e293b !important; }
+  html.dark .text-gray-900 { color: #f8fafc !important; }
+  html.dark .text-gray-800 { color: #e2e8f0 !important; }
+  html.dark .text-gray-700 { color: #cbd5e1 !important; }
+  html.dark .text-gray-600,
+  html.dark .text-gray-500,
+  html.dark .text-gray-400 { color: #94a3b8 !important; }
+  html.dark .border-gray-100,
+  html.dark .border-gray-200,
+  html.dark .border-gray-300 { border-color: #334155 !important; }
+  html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+  html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: #334155 !important; }
+  html.dark input:not([type="color"]):not([type="checkbox"]):not([type="radio"]),
+  html.dark select,
+  html.dark textarea {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+  }
+  html.dark input::placeholder,
+  html.dark textarea::placeholder { color: #64748b !important; }
+  html.dark .bg-white.text-primary-dark { background-color: #ffffff !important; color: var(--color-primary-dark) !important; }
+  html.dark aside .bg-white { background-color: #ffffff !important; }
+  html.dark aside .text-gray-900,
+  html.dark aside .text-gray-800,
+  html.dark aside .text-gray-700 { color: inherit !important; }
 }

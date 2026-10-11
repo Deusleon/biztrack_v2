@@ -36,7 +36,7 @@ export default function Account() {
       const gi = await messagingService.gatewayInfo(); setInfo(gi);
       if (!gi.configured) { setNotSetUp(true); setStats(null); return; }
       try { setStats(await messagingService.accountStats()); } catch (e) { if (e.code === 'no_default_sms_gateway') setNotSetUp(true); else showError(e.message); }
-      if (gi.capabilities?.listSenderIds !== false) messagingService.senderIds().then(setSenders).catch(() => {});
+      if (gi.isDeveloper && gi.capabilities?.senderIds) messagingService.senderIds().then(setSenders).catch(() => {});
     } catch (err) { showError(err.message); } finally { setLoading(false); }
   }, [currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]);
@@ -67,7 +67,7 @@ export default function Account() {
           </div>
         )}
 
-        {info?.configured && cap.listSenderIds !== false && (
+        {info?.isDeveloper && info?.configured && cap.senderIds && (
           <div className="bg-white rounded shadow p-5 text-left space-y-3"><div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold text-gray-800">{t('sender_ids', lang)}</h2>{manage && <Button variant="secondary" onClick={() => setSender({ name: '', description: '', sampleMessage: '' })}>{t('request_sender_id', lang)}</Button>}</div>
             {senders.length === 0 ? <p className="text-sm text-gray-400">{t('ui_nothing_yet', lang)}</p> : <ul className="divide-y divide-gray-100 text-sm">{senders.map((s, i) => <li key={s.id || s.name || i} className="py-1.5 flex justify-between"><span>{s.name || s.sender_name || s}</span><span className="text-gray-500">{s.status || ''}</span></li>)}</ul>}</div>
         )}

@@ -22,7 +22,8 @@ export function t(key, langOrReplacements, maybeReplacements) {
     lang = detectLanguage();
   }
 
-  let text = translations[lang]?.[key] || key;
+  const readable = String(key || "").replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  let text = translations[lang]?.[key] || translations.en?.[key] || readable;
 
   for (const [placeholder, value] of Object.entries(replacements)) {
     text = text.replace(`{${placeholder}}`, value);

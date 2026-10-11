@@ -7,13 +7,14 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { messagingService } from '../../services/api';
-import { DataTable, Button, Input, Select, RowActions, ACTION_ICONS } from '../../components/ui';
+import { DataTable, Button, Input, Select, RowActions, ACTION_ICONS, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { PStatus } from '../purchases/common';
 import { dateTime } from './common';
 import { t } from '../../utils/i18n';
 
 const PAGE = 25;
+const localDay = (v) => { const d = new Date(v); if (Number.isNaN(d.getTime())) return ''; const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
 export default function Recent() {
   const { can } = useAuth();
   const { currentStore } = useStore();
@@ -24,13 +25,21 @@ export default function Recent() {
   const [groups, setGroups] = useState([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
   const [send, setSend] = useState(false);
   const [detail, setDetail] = useState(null);
   const load = useCallback(async () => { try { setLoading(true); setRows(await messagingService.history()); } catch (err) { showError(err.message); } finally { setLoading(false); } }, [currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); if (can('manage_messaging')) messagingService.groups().then(setGroups).catch(() => {}); }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shown = useMemo(() => { const q = search.trim().toLowerCase(); return rows.filter((r) => (!status || r.status === status) && (!q || `${r.message} ${r.group_name || ''} ${r.recipient || ''} ${r.recipient_name || ''} ${r.sent_by || ''}`.toLowerCase().includes(q))); }, [rows, search, status]);
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      const day = localDay(r.created_at);
+      return (!status || r.status === status) && (!from || day >= from) && (!to || day <= to) && (!q || `${r.message} ${r.group_name || ''} ${r.recipient || ''} ${r.recipient_name || ''} ${r.sent_by || ''}`.toLowerCase().includes(q));
+    });
+  }, [rows, search, status, from, to]);
   const pages = Math.max(1, Math.ceil(shown.length / PAGE)); const cur = Math.min(page, pages);
   const open = async (r) => { try { setDetail(await messagingService.batch(r.batch_id)); } catch (err) { showError(err.message); } };
   const columns = [
@@ -44,8 +53,13 @@ export default function Recent() {
     <MainLayout>
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3"><div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('recently_sent', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('recently_sent_desc', lang)}</p></div>{can('manage_messaging') && <Button onClick={() => setSend(true)} mobileLabel={t('send_message', lang)}>{t('send_message', lang)}</Button>}</div>
-        <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 gap-3"><Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={t('ui_search_placeholder', lang)} /><Select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} options={[{ value: '', label: t('all', lang) }, ...['sent', 'partial', 'failed'].map((x) => ({ value: x, label: t(x === 'partial' ? 'partially_sent' : x, lang) }))]} /></div>
-        <DataTable columns={columns} data={shown.slice((cur - 1) * PAGE, cur * PAGE)} loading={loading} rowId="batch_id" emptyMessage={search || status ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={{ currentPage: cur, totalPages: pages, totalItems: shown.length, limit: PAGE }} onPageChange={setPage} renderActions={(r) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(r) }]} />} />
+        <div className="bg-white p-4 rounded shadow flex flex-wrap items-end gap-3">
+          <div className="w-full max-w-xs"><Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={t('ui_search_placeholder', lang)} /></div>
+          <div className="w-full max-w-xs"><Select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} options={[{ value: '', label: t('all', lang) }, ...['sent', 'partial', 'failed'].map((x) => ({ value: x, label: t(x === 'partial' ? 'partially_sent' : x, lang) }))]} /></div>
+          <div className="w-full max-w-xs"><DatePicker label={t('start_date', lang)} value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} /></div>
+          <div className="w-full max-w-xs"><DatePicker label={t('end_date', lang)} align="right" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} /></div>
+        </div>
+        <DataTable columns={columns} data={shown.slice((cur - 1) * PAGE, cur * PAGE)} loading={loading} rowId="batch_id" emptyMessage={search || status || from || to ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={{ currentPage: cur, totalPages: pages, totalItems: shown.length, limit: PAGE }} onPageChange={setPage} renderActions={(r) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(r) }]} />} />
       </div>
       <SendMessageModal isOpen={send} onClose={() => setSend(false)} groups={groups} onSent={load} />
       <FormModal isOpen={!!detail} onClose={() => setDetail(null)} size="xl" title={t('message_details', lang)}>
