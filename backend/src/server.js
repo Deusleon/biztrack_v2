@@ -2,6 +2,7 @@ import * as _n1 from 'express';
 const express = _n1.default ?? _n1;
 import * as _n2 from 'cors';
 const cors = _n2.default ?? _n2;
+import helmet from 'helmet';
 import * as _n3 from 'compression';
 const compression = _n3.default ?? _n3;
 import 'dotenv/config';
@@ -24,12 +25,24 @@ startStockValueHistoryScheduler();
 // CLIENT_URL may list several origins separated by commas (web app, installed PWA, preview builds).
 const allowedOrigins = (process.env.CLIENT_URL || '').split(',').map((o) => o.trim()).filter(Boolean);
 
+// Behind a proxy (cPanel/Passenger, nginx) the visitor's real address arrives in X-Forwarded-For. Set TRUST_PROXY in
+// .env (1 = one proxy in front) so req.ip — used by the rate limiters — is the visitor, not the proxy. Unset = unchanged.
+if (process.env.TRUST_PROXY) {
+  const tp = process.env.TRUST_PROXY;
+  app.set('trust proxy', tp === 'true' ? true : /^\d+$/.test(tp) ? Number(tp) : tp);
+}
+
 // Middlewares
 
 // Request timing (logs slow requests; everything with PERF_LOG=1). Must be first.
 app.use(perfMiddleware);
 // Clears role/permission caches after changes to roles, permissions, store users.
 app.use(cacheInvalidation);
+
+// Standard security headers (no sniffing, no framing, no X-Powered-By, HSTS over HTTPS). This server only answers JSON/PDF
+// to a separate front-end, so the content-security-policy is left to the front-end host, and cross-origin reads of our
+// files (images, receipts) stay allowed — the CORS list below is what decides who may call the API.
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' }, crossOriginEmbedderPolicy: false }));
 
 app.use(cors({
   origin: function (origin, callback) {

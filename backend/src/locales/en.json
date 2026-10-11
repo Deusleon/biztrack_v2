@@ -537,5 +537,6 @@
   "swala_topup_unavailable": "Buying credit here is available when SwalaSMS is the active gateway.",
   "swala_units_required": "Enter how many SMS credits to buy, or choose a package.",
   "swala_topup_link": "Top-up created. Open the payment link to finish. The credits arrive once the payment clears.",
-  "swala_topup_prompt": "A payment prompt has been sent. Approve it on the phone to receive the credits."
+  "swala_topup_prompt": "A payment prompt has been sent. Approve it on the phone to receive the credits.",
+  "too_many_attempts": "Too many attempts. Please wait {{minutes}} minute(s) and try again."
 }

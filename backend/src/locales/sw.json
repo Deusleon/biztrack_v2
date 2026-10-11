@@ -537,5 +537,6 @@
   "swala_topup_unavailable": "Kununua salio hapa kunapatikana SwalaSMS ikiwa ndiyo lango lililowashwa.",
   "swala_units_required": "Weka idadi ya salio la SMS la kununua, au chagua kifurushi.",
   "swala_topup_link": "Ongezeko limeundwa. Fungua kiungo cha malipo ili umalizie. Salio linafika malipo yakishaidhinishwa.",
-  "swala_topup_prompt": "Ombi la malipo limetumwa. Lidhinishe kwenye simu ili upokee salio."
+  "swala_topup_prompt": "Ombi la malipo limetumwa. Lidhinishe kwenye simu ili upokee salio.",
+  "too_many_attempts": "Majaribio mengi mno. Tafadhali subiri dakika {{minutes}} kisha ujaribu tena."
 }
