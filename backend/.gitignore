@@ -16,6 +16,3 @@ config/
 # OS specific
 .DS_Store
 Thumbs.db
-
-#Zip files
-*.zip
