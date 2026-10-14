@@ -3,9 +3,13 @@ const express = _n51.default ?? _n51;
 import * as subscriptionController from '../controllers/subscription.controller.js';
 import verifyToken from '../middlewares/authMiddleware.js';
 import { checkStorePermission } from '../middlewares/permissions.js';
+import { developerOnly } from '../middlewares/developerOnly.js';
 const router = express.Router();
 
 router.post('/webhooks/clickpesa', subscriptionController.clickpesaWebhook);
+
+router.get('/manual/stores', verifyToken, developerOnly, subscriptionController.listManualStores);
+router.post('/manual', verifyToken, developerOnly, subscriptionController.recordManualPayment);
 
 router.get('/plans', verifyToken, subscriptionController.getPlans);
 router.get('/me', verifyToken, subscriptionController.getMySubscription);

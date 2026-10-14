@@ -8,6 +8,8 @@ const {
   createCheckout,
   processWebhook,
   reconcileTransaction,
+  listManualSubscriptionStores,
+  recordManualSubscription,
  } = _m10;
 import { validateWebhookSignature } from '../utils/clickpesaClient.js';
 const _exp_getPlans = async (req, res) => {
@@ -161,5 +163,54 @@ export const verifyTransaction = async (req, res) => {
     return respondWithError(req, res, 500, 'server_error');
   }
 };
+export const listManualStores = async (req, res) => {
+  try {
+    const stores = await listManualSubscriptionStores();
+    return res.status(200).json({ stores });
+  } catch (error) {
+    console.error('List manual subscription stores error:', error.message);
+    return respondWithError(req, res, 500, 'server_error');
+  }
+};
+
+export const recordManualPayment = async (req, res) => {
+  const lang = req.user?.lang || req.headers['x-language'] || 'en';
+  const { storeId, planCode, billingCycle, months, paymentMethod, reference, phoneNumber, note } = req.body || {};
+
+  if (!storeId) return res.status(400).json({ message: t('store_required', lang) });
+  if (!planCode) return res.status(400).json({ message: t('subscription_plan_required', lang) });
+
+  try {
+    const result = await recordManualSubscription({
+      storeId,
+      userId: req.user.id,
+      planCode,
+      billingCycle,
+      months,
+      paymentMethod,
+      reference,
+      phoneNumber,
+      note,
+    });
+    const date = result.subscription?.ends_at
+      ? new Date(result.subscription.ends_at).toLocaleDateString('en-GB')
+      : '';
+    return res.status(201).json({
+      message: t('manual_subscription_recorded', { date }, lang),
+      subscription: result.subscription,
+      quote: result.quote,
+    });
+  } catch (error) {
+    console.error('Record manual subscription error:', error.message);
+    if (error.code === 'STORE_NOT_FOUND') return res.status(404).json({ message: t('store_not_found', lang) });
+    if (error.code === 'PLAN_NOT_FOUND') return res.status(404).json({ message: t('subscription_plan_not_found', lang) });
+    if (error.code === 'REFERENCE_REQUIRED') return res.status(400).json({ message: t('payment_reference_required', lang) });
+    if (error.code === 'INVALID_METHOD') return res.status(400).json({ message: t('invalid_payment_method', lang) });
+    if (error.code === 'PHONE_INVALID') return res.status(400).json({ message: t('invalid_phone_number', lang) });
+    if (error.code === 'DUPLICATE_REFERENCE') return res.status(409).json({ message: t('duplicate_payment_reference', lang) });
+    return respondWithError(req, res, 500, 'server_error');
+  }
+};
+
 export { _exp_getPlans as getPlans };
 export { _exp_createCheckout as createCheckout };

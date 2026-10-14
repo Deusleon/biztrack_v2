@@ -915,6 +915,186 @@ async function ensureSubscriptionAccess(accountId) {
   };
 }
 
+const MANUAL_METHODS = ['cash', 'bank_transfer', 'mobile_money', 'other'];
+
+async function listManualSubscriptionStores() {
+  const { rows } = await pool.query(
+    `SELECT s.id, s.name, s.store_code,
+            u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,
+            ss.status, ss.current_cycle, ss.starts_at, ss.ends_at, ss.grace_ends_at, ss.last_payment_at,
+            sp.code AS plan_code, sp.name AS plan_name, sp.monthly_amount, sp.currency
+     FROM stores s
+     LEFT JOIN users u ON u.id = s.owner_id
+     LEFT JOIN store_subscriptions ss ON ss.account_id = s.id
+     LEFT JOIN subscription_plans sp ON sp.id = ss.plan_id
+     ORDER BY s.name ASC`
+  );
+  return rows;
+}
+
+/**
+ * A payment taken outside ClickPesa (cash, bank, mobile money). Records a paid
+ * transaction and extends the store with the same month and discount rules as checkout.
+ */
+async function recordManualSubscription({
+  storeId,
+  userId,
+  planCode,
+  billingCycle,
+  months,
+  paymentMethod,
+  reference,
+  phoneNumber,
+  note,
+}) {
+  const cycle = normalizeBillingCycle(billingCycle);
+  const method = String(paymentMethod || '').trim();
+  const ref = String(reference || '').trim();
+  const phone = normalizePhoneNumber(phoneNumber);
+  const remark = String(note || '').trim().slice(0, 500);
+
+  if (!MANUAL_METHODS.includes(method)) {
+    const err = new Error('Choose how this outside payment was received');
+    err.code = 'INVALID_METHOD';
+    throw err;
+  }
+  if (ref.length < 3 || ref.length > 80) {
+    const err = new Error('Enter the receipt or transfer reference');
+    err.code = 'REFERENCE_REQUIRED';
+    throw err;
+  }
+  if (phone && !/^\d{9,15}$/.test(phone)) {
+    const err = new Error('Phone number is not valid');
+    err.code = 'PHONE_INVALID';
+    throw err;
+  }
+
+  const planResult = await pool.query(
+    `SELECT id, code, name, monthly_amount, annual_amount, currency, is_active
+     FROM subscription_plans
+     WHERE code = $1 AND is_active = true
+     LIMIT 1`,
+    [planCode]
+  );
+  if (planResult.rows.length === 0) {
+    const err = new Error('Subscription plan not found');
+    err.code = 'PLAN_NOT_FOUND';
+    throw err;
+  }
+  const plan = planResult.rows[0];
+  const quoted = cycle === 'annual' ? quoteAnnual(plan.monthly_amount) : quotePrepaidMonths(plan.monthly_amount, months);
+  const requestId = crypto.randomUUID();
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const storeResult = await client.query('SELECT id, name FROM stores WHERE id = $1 LIMIT 1', [storeId]);
+    if (storeResult.rows.length === 0) {
+      const err = new Error('Store not found');
+      err.code = 'STORE_NOT_FOUND';
+      throw err;
+    }
+
+    const current = await client.query(
+      'SELECT id FROM store_subscriptions WHERE account_id = $1 FOR UPDATE',
+      [storeId]
+    );
+    const subscriptionId = current.rows[0]?.id || null;
+
+    const created = await client.query(
+      `INSERT INTO subscription_transactions (
+          account_id, store_id, subscription_id, plan_id, provider, billing_cycle, amount, currency,
+          status, payment_method, phone_number, request_id, provider_reference, created_by, raw_request
+        )
+       VALUES ($1, $2, $3, $4, 'manual', $5, $6, $7, 'pending', $8, $9, $10, $11, $12, $13)
+       RETURNING *`,
+      [
+        storeId,
+        storeId,
+        subscriptionId,
+        plan.id,
+        cycle,
+        quoted.amount,
+        plan.currency || 'TZS',
+        method,
+        phone || null,
+        requestId,
+        ref,
+        userId,
+        JSON.stringify({
+          planCode: plan.code,
+          billingCycle: cycle,
+          months: quoted.months,
+          gross: quoted.gross,
+          discount: quoted.discount,
+          discountRate: quoted.rate,
+          source: 'manual',
+          note: remark || null,
+        }),
+      ]
+    );
+
+    const applied = await applySuccessfulPayment({
+      client,
+      transaction: created.rows[0],
+      providerReference: ref,
+      paymentMethod: method,
+      rawResponse: { source: 'manual', note: remark || null },
+    });
+
+    await logPaymentEvent(client, {
+      userId,
+      storeId,
+      action: 'record_manual_subscription',
+      payload: {
+        store: storeResult.rows[0].name,
+        plan: plan.name,
+        months: quoted.months,
+        amount: quoted.amount,
+        currency: plan.currency || 'TZS',
+        payment_method: method,
+        reference: ref,
+        note: remark || null,
+        ends_at: applied.endsAt,
+      },
+    });
+
+    await client.query('COMMIT');
+
+    await emitSubscriptionPaymentUpdate({
+      accountId: storeId,
+      storeId,
+      transactionId: created.rows[0].id,
+      status: 'paid',
+      source: 'manual',
+    });
+
+    if (phone) {
+      try {
+        await sendSubscriptionSuccessNotification({
+          subscription: applied.subscription,
+          transaction: { ...created.rows[0], phone_number: phone, amount: quoted.amount, currency: plan.currency || 'TZS' },
+        });
+      } catch (notifyError) {
+        console.error('Manual subscription SMS error:', notifyError.message);
+      }
+    }
+
+    return { subscription: applied.subscription, quote: quoted, transactionId: created.rows[0].id };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    if (error.code === '23505') {
+      const err = new Error('This payment reference is already recorded');
+      err.code = 'DUPLICATE_REFERENCE';
+      throw err;
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export default {
   getPlans,
   getStoreSubscription,
@@ -922,6 +1102,8 @@ export default {
   createCheckout: clearGuardCacheAfter(createCheckout),
   processWebhook: clearGuardCacheAfter(processWebhook),
   reconcileTransaction: clearGuardCacheAfter(reconcileTransaction),
+  listManualSubscriptionStores,
+  recordManualSubscription: clearGuardCacheAfter(recordManualSubscription),
   ensureSubscriptionAccess,
   invalidateSubscriptionCache,
 };
