@@ -3144,6 +3144,7 @@
   "log_created": "Imeundwa",
   "log_deleted": "Imefutwa",
   "log_recorded_before_history": "Ingizo hili lilihifadhiwa kabla ya historia ya kila sehemu, kwa hiyo linaonyesha lililohifadhiwa tu — si kabla na baada.",
+  "settings_log_whole_form": "Ingizo hili lilihifadhi fomu yote ya mipangilio, kwa hiyo halionyeshi sehemu zilizobadilika. Masasisho mapya yanaorodhesha sehemu zilizobadilika tu.",
   "log_updated": "Imesasishwa",
   "manual_activity_body": "Katika toleo hili Zana → Kumbukumbu za shughuli hufungua rekodi yenye nani alifanya, lini, na kutoka wapi. Pale thamani za awali zilipohifadhiwa, dirisha linaonyesha kila sehemu kabla na baada.",
   "manual_activity_title": "Kumbukumbu ya shughuli",

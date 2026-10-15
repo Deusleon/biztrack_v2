@@ -94,7 +94,7 @@ export default function OrderPreview() {
               <div className="bg-white rounded shadow p-4 space-y-3 text-left">
                 <h2 className="text-sm font-semibold text-gray-700">{t('payments', lang)}</h2>
                 {payments.length === 0 && <p className="text-sm text-gray-400">{t('ui_nothing_yet', lang)}</p>}
-                <ul className="divide-y divide-gray-100 text-sm">{payments.map((p, i) => <li key={p.id || i} className="py-1.5 flex justify-between"><span>{dateOnly(p.created_at)} · {readableMethod(p.payment_method, lang)}</span><span>{money(p.amount_paid)}</span></li>)}</ul>
+                <ul className="divide-y divide-gray-100 text-sm">{payments.map((p, i) => <li key={p.id || i} className="py-1.5 flex justify-between gap-3"><span>{dateOnly(p.created_at)} · {readableMethod(p.payment_method, lang)}{p.receiver ? ` · ${t('recorded_by', lang)}: ${p.receiver}` : ''}</span><span className="font-medium">{money(p.amount_paid)}</span></li>)}</ul>
                 {manage && !cancelled && due > 0 && (
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
                     <NumberInput label={t('amount_paid', lang)} value={amount} onChange={(e) => setAmount(e.target.value)} />

@@ -46,6 +46,86 @@ export const getStoreSettings = async (req, res) => {
   }
 };
 
+const SECURITY_LABELS = {
+  sessionTimeout: "security_session_timeout",
+  loginAttempts: "security_login_attempts",
+  passwordExpiry: "security_password_expiry",
+  accountLockMinutes: "security_account_lock",
+  auditLogging: "security_audit_logging",
+  dataEncryption: "security_data_encryption",
+};
+
+function labelsFrom(settings) {
+  const map = {};
+  for (const section of settings?.systemOptions || []) {
+    for (const field of section.fields || []) {
+      if (field?.key && field?.label) map[field.key] = field.label;
+    }
+  }
+  return map;
+}
+
+function fieldLabel(key, labels) {
+  const leaf = String(key).split(".").pop();
+  if (labels[leaf]) return labels[leaf];
+  if (SECURITY_LABELS[leaf]) return SECURITY_LABELS[leaf];
+  return leaf.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+}
+
+function isPlainObject(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function valuesEqual(a, b) {
+  if (Object.is(a, b)) return true;
+  if ((a == null || a === "") && (b == null || b === "")) return true;
+  if (a == null || b == null) return false;
+  if (isPlainObject(a) || isPlainObject(b) || Array.isArray(a) || Array.isArray(b)) {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+  if (typeof a === "boolean" || typeof b === "boolean") return String(a) === String(b);
+  const left = Number(a);
+  const right = Number(b);
+  if (a !== "" && b !== "" && !Number.isNaN(left) && !Number.isNaN(right) && left === right) return true;
+  return String(a) === String(b);
+}
+
+// Leaf fields whose saved value differs. Nested groups (security, and so on) are opened
+// so the log lists "Session timeout" rather than one blob of every setting.
+function collectSettingChanges(before, after, out) {
+  const walk = (prev, next, prefix) => {
+    const keys = new Set([...Object.keys(prev || {}), ...Object.keys(next || {})]);
+    for (const key of keys) {
+      if (/password|secret|token|api_?key|private_?key/i.test(key)) continue;
+      const path = prefix ? `${prefix}.${key}` : key;
+      const left = prev?.[key];
+      const right = next?.[key];
+      if (isPlainObject(left) || isPlainObject(right)) walk(left || {}, right || {}, path);
+      else if (!valuesEqual(left, right)) out.push({ key: path, before: left ?? null, after: right ?? null });
+    }
+  };
+  walk(before || {}, after || {}, "");
+  return out;
+}
+
+async function readableSettingValue(key, value) {
+  if (value == null || value === "") return value ?? null;
+  const leaf = String(key).split(".").pop();
+  try {
+    if (leaf === "defaultStore") {
+      const found = await pool.query("SELECT name FROM stores WHERE id::text = $1", [String(value)]);
+      return found.rows[0]?.name || value;
+    }
+    if (leaf === "defaultPriceCategory") {
+      const found = await pool.query("SELECT name FROM price_categories WHERE id::text = $1", [String(value)]);
+      return found.rows[0]?.name || value;
+    }
+  } catch {
+    return value;
+  }
+  return value;
+}
+
 // Update store settings
 export const updateStoreSettings = async (req, res) => {
   const { id } = req.params; // storeId
@@ -133,6 +213,8 @@ export const updateStoreSettings = async (req, res) => {
     };
 
     let finalStoreSettings;
+    let previousSystem = null;
+    let nextSystem = null;
 
     // UPDATE existing
     finalStoreSettings = await pool.query(
@@ -153,8 +235,9 @@ export const updateStoreSettings = async (req, res) => {
       );
       const systemSettingsId = sysSettingsRes.rows[0].id;
 
-      let existingSysSettings =
+      const existingSysSettings =
         sysSettingsRes.rows.length > 0 ? sysSettingsRes.rows[0].settings : {};
+      previousSystem = existingSysSettings;
 
       // Never lose the saved default SMS gateway: it is only replaced when the
       // developer account explicitly sends a new value.
@@ -173,6 +256,7 @@ export const updateStoreSettings = async (req, res) => {
         businessInfo: businessInfo || existingSysSettings.businessInfo,
         systemDefaults: nextSystemDefaults,
       };
+      nextSystem = updatedSysSettings;
 
       // UPDATE system_settings
       await pool.query(
@@ -181,7 +265,22 @@ export const updateStoreSettings = async (req, res) => {
       );
     }
 
-    // 4️⃣ Log action
+    // 4️⃣ Log only the fields whose saved value actually changed.
+    const labels = { ...labelsFrom(existingStoreSettings), ...labelsFrom(previousSystem || {}) };
+    const rawChanges = [];
+    collectSettingChanges(existingStoreSettings.operations || {}, updatedStoreSettings.operations || {}, rawChanges);
+    if (previousSystem && nextSystem) {
+      collectSettingChanges(previousSystem.businessInfo || {}, nextSystem.businessInfo || {}, rawChanges);
+      collectSettingChanges(previousSystem.systemDefaults || {}, nextSystem.systemDefaults || {}, rawChanges);
+    }
+    const fields = [];
+    for (const change of rawChanges) {
+      fields.push({
+        field: fieldLabel(change.key, labels),
+        before: await readableSettingValue(change.key, change.before),
+        after: await readableSettingValue(change.key, change.after),
+      });
+    }
     await pool.query(
       `INSERT INTO system_logs (user_id, action, description, ip_address, store_id)
        VALUES ($1, $2, $3, $4, $5)`,
@@ -189,10 +288,9 @@ export const updateStoreSettings = async (req, res) => {
         userId,
         "update_store_settings",
         JSON.stringify({
-          store: id,
-          updatedOperations: operations,
+          changes: [{ op: "update", label: "settings", fields }],
         }),
-        null,
+        req.ip || null,
         id,
       ]
     );

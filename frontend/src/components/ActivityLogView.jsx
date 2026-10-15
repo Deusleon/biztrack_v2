@@ -33,7 +33,9 @@ export function describeActivity(raw, action) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     return { changes: [], legacy: true, submitted: { note: String(raw ?? '') } };
   }
-  if (Array.isArray(data.changes) && data.changes.length) return { changes: data.changes, legacy: false };
+  if (Array.isArray(data.changes)) return { changes: data.changes, legacy: false };
+  // Older store-settings rows saved the whole form. Do not spread every setting into the view.
+  if (data.updatedOperations && typeof data.updatedOperations === 'object') return { changes: [], settingsForm: true };
 
   if (data.old && data.new && typeof data.old === 'object' && typeof data.new === 'object' && !Array.isArray(data.old)) {
     const extra = { ...data };
@@ -158,7 +160,11 @@ export default function ActivityLogView({ entry, lang, showTechnical, onToggleTe
       {view.changes.map((change, i) => <ChangeSection key={`${change.op}-${i}`} change={change} lang={lang} />)}
       {view.extra && Object.keys(view.extra).length > 0 && <KeyValueList data={view.extra} lang={lang} />}
 
-      {view.changes.length === 0 && (
+      {view.settingsForm && (
+        <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded px-4 py-3">{t('settings_log_whole_form', lang)}</p>
+      )}
+
+      {view.changes.length === 0 && !view.settingsForm && (
         <div>
           <p className="text-xs text-gray-500 mb-2">{view.legacy ? t('submitted_data', lang) : t('no_record_changed', lang)}</p>
           {view.submitted && <KeyValueList data={view.submitted} lang={lang} />}

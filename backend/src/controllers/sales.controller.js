@@ -3301,7 +3301,7 @@ export const getOrderDetails = async (req, res) => {
     const paymentQuery = `
             SELECT pop.*, u.name AS receiver
             FROM pending_orders_payments pop
-            JOIN users u ON pop.user_id = u.id
+            LEFT JOIN users u ON pop.user_id = u.id
             WHERE pop.cart_code = $1
             ORDER BY pop.created_at ASC
         `;
@@ -3342,7 +3342,7 @@ export const getOrderDetailsForEdit = async (req, res) => {
     const paymentQuery = `
             SELECT pop.*, u.name AS receiver
             FROM pending_orders_payments pop
-            JOIN users u ON pop.user_id = u.id
+            LEFT JOIN users u ON pop.user_id = u.id
             WHERE pop.cart_code = $1
             ORDER BY pop.created_at ASC
         `;

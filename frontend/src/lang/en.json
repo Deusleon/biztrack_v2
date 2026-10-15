@@ -3144,6 +3144,7 @@
   "log_created": "Created",
   "log_deleted": "Deleted",
   "log_recorded_before_history": "This entry was recorded before field-by-field history, so only what was saved can be shown — not a before and after.",
+  "settings_log_whole_form": "This entry saved the whole settings form, so it does not show which fields changed. Updates from now on list only the fields that were changed.",
   "log_updated": "Updated",
   "manual_activity_body": "In this version Tools → Activity logs opens a record with who did it, when, and from where. Where the previous values were stored, the window shows each field before and after.",
   "manual_activity_title": "Activity log",
