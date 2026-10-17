@@ -1,5 +1,5 @@
 // FILE PATH: frontend/src/pages/Dashboard.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import MainLayout from '../components/MainLayout';
@@ -9,14 +9,17 @@ import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { useToast } from '../contexts/ToastContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { usePreferences } from '../contexts/PreferencesContext';
+import { useStoreSettings } from '../hooks/useStoreSettings';
 import useLiveRefresh from '../hooks/useLiveRefresh';
 import { dashboardService } from '../services/api';
 import { Button, Loader } from '../components/ui';
+import { formatCurrency } from '../utils/numberUtils';
+import { formatDateOnly } from '../utils/formatDateLocalized';
 import { t } from '../utils/i18n';
 
 const num = (v) => Number(v) || 0;
 const pct = (now, before) => (num(before) === 0 ? (num(now) > 0 ? 100 : 0) : ((num(now) - num(before)) / num(before)) * 100);
+const profitOf = (s = {}) => num(s.revenue) - num(s.cogs) - num(s.expenses);
 
 function Kpi({ title, value, sub, change, to }) {
   const body = (
@@ -47,9 +50,11 @@ export default function Dashboard() {
   const { currentStore } = useStore();
   const { showError } = useToast();
   const { lang } = useLanguage();
-  const { formatMoney } = usePreferences();
+  const { settings } = useStoreSettings();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const money = (v) => formatCurrency(num(v), settings);
 
   // Everyone has a dashboard; only people who may see the money figures get the stats.
   const canSeeStats = can('view_dashboard') || can('view_sales_records') || can('view_sales_reports');
@@ -69,7 +74,32 @@ export default function Dashboard() {
   const quick = QUICK.filter((q) => can(q.permission));
 
   const today = stats?.todayStats || {}; const yesterday = stats?.yesterdayStats || {}; const month = stats?.monthStats || {};
-  const trend = (stats?.revenueTrend || []).map((r) => ({ ...r, revenue: num(r.revenue ?? r.total ?? r.amount) }));
+  const todayProfit = profitOf(today);
+  const yesterdayProfit = profitOf(yesterday);
+
+  // Chart days arrive as YYYY-MM-DD. Build that calendar day in local time, then apply Settings → Date format.
+  const chartDate = useCallback((v) => {
+    const m = String(v ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return v ? formatDateOnly(v, settings) : '';
+    return formatDateOnly(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0), settings);
+  }, [settings]);
+
+  const trend = useMemo(() => (stats?.revenueTrend || []).map((r) => {
+    const day = r.day || r.date || r.label;
+    return {
+      ...r,
+      day,
+      label: day ? chartDate(day) : (r.label || ''),
+      revenue: num(r.revenue ?? r.total ?? r.amount),
+    };
+  }), [stats?.revenueTrend, chartDate]);
+
+  const monthRows = [
+    { label: t('revenue', lang), value: money(month.revenue) },
+    { label: t('sales', lang), value: String(num(month.sales_count)) },
+    { label: t('expenses', lang), value: money(month.expenses) },
+    { label: t('month_profit', lang), value: money(profitOf(month)) },
+  ];
 
   return (
     <MainLayout>
@@ -86,10 +116,10 @@ export default function Dashboard() {
         {canSeeStats && (!loading || stats) && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Kpi title={t('todays_sales', lang)} value={formatMoney(num(today.revenue))} sub={`${num(today.sales_count)} ${t('sales', lang)}`} change={pct(today.revenue, yesterday.revenue)} to="/sales/history" />
-              <Kpi title={t('this_month', lang)} value={formatMoney(num(month.revenue))} sub={`${num(month.sales_count)} ${t('sales', lang)}`} to="/sales/history" />
-              <Kpi title={t('amount_due', lang)} value={formatMoney(num(today.amount_due))} sub={t('today', lang)} to="/sales/debits" />
-              <Kpi title={t('expenses', lang)} value={formatMoney(num(month.expenses))} sub={t('this_month', lang)} to="/expenses" />
+              <Kpi title={t('todays_sales', lang)} value={money(today.revenue)} sub={`${num(today.sales_count)} ${t('sales', lang)}`} change={pct(today.revenue, yesterday.revenue)} to="/sales/history" />
+              <Kpi title={t('today_profit', lang)} value={money(todayProfit)} sub={t('today', lang)} change={pct(todayProfit, yesterdayProfit)} to="/reports/day-report" />
+              <Kpi title={t('amount_due', lang)} value={money(today.amount_due)} sub={t('today', lang)} to="/sales/debits" />
+              <Kpi title={t('expenses', lang)} value={money(month.expenses)} sub={t('this_month', lang)} to="/expenses" />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -99,21 +129,32 @@ export default function Dashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={trend}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                      <XAxis dataKey={trend[0]?.date !== undefined ? 'date' : 'label'} tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} width={60} />
-                      <Tooltip formatter={(v) => formatMoney(v)} />
-                      <Line type="monotone" dataKey="revenue" stroke="var(--color-primary)" strokeWidth={2} dot={false} />
+                      <XAxis dataKey="day" tickFormatter={chartDate} tick={{ fontSize: 11 }} interval="preserveStartEnd" minTickGap={8} />
+                      <YAxis tick={{ fontSize: 11 }} width={60} tickFormatter={(v) => money(v)} />
+                      <Tooltip content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const day = payload[0]?.payload?.day;
+                        return (
+                          <div className="bg-white border border-gray-200 rounded shadow-sm px-3 py-2 text-left text-xs">
+                            <p className="text-gray-500">{chartDate(day)}</p>
+                            <p className="mt-1 text-gray-900"><span className="text-gray-600">{t('revenue', lang)}: </span><span className="font-medium">{money(payload[0].value)}</span></p>
+                          </div>
+                        );
+                      }} />
+                      <Line type="monotone" dataKey="revenue" name={t('revenue', lang)} stroke="var(--color-primary)" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
               <div className="bg-white p-5 rounded shadow">
-                <h2 className="text-sm font-semibold text-gray-700 text-left mb-3">{t('payment_method_breakdown', lang)}</h2>
-                {(stats?.paymentBreakdown || []).length === 0 && <p className="text-sm text-gray-400">{t('ui_nothing_yet', lang)}</p>}
-                <ul className="space-y-2">
-                  {(stats?.paymentBreakdown || []).map((p, i) => (
-                    <li key={i} className="flex justify-between text-sm"><span className="capitalize text-gray-600">{p.payment_method || p.method}</span><span className="font-medium">{formatMoney(num(p.total ?? p.amount))}</span></li>
+                <h2 className="text-sm font-semibold text-gray-700 text-left mb-3">{t('monthly_statistics', lang)}</h2>
+                <ul className="divide-y divide-gray-100">
+                  {monthRows.map((row) => (
+                    <li key={row.label} className="py-2 flex justify-between text-sm gap-3">
+                      <span className="text-gray-600">{row.label}</span>
+                      <span className="font-medium">{row.value}</span>
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -125,7 +166,7 @@ export default function Dashboard() {
                 {(stats?.recentSales || []).length === 0 && <p className="text-sm text-gray-400 text-left">{t('ui_nothing_yet', lang)}</p>}
                 <ul className="divide-y divide-gray-100">
                   {(stats?.recentSales || []).map((s, i) => (
-                    <li key={s.id || i} className="py-2 flex justify-between text-sm"><span className="text-gray-700 truncate">{s.customer_name || s.invoice_number || s.id}</span><span className="font-medium">{formatMoney(num(s.total_amount ?? s.total ?? s.net_amount))}</span></li>
+                    <li key={s.id || i} className="py-2 flex justify-between text-sm"><span className="text-gray-700 truncate">{s.customer_name || s.invoice_number || s.id}</span><span className="font-medium">{money(s.total_amount ?? s.total ?? s.net_amount)}</span></li>
                   ))}
                 </ul>
               </div>
@@ -134,7 +175,7 @@ export default function Dashboard() {
                 {(stats?.topProducts || []).length === 0 && <p className="text-sm text-gray-400 text-left">{t('ui_nothing_yet', lang)}</p>}
                 <ul className="divide-y divide-gray-100">
                   {(stats?.topProducts || []).map((p, i) => (
-                    <li key={p.id || i} className="py-2 flex justify-between text-sm"><span className="text-gray-700 truncate">{p.name || p.product_name}</span><span className="font-medium">{num(p.total_quantity ?? p.quantity ?? p.qty)}</span></li>
+                    <li key={p.id || i} className="py-2 flex justify-between text-sm"><span className="text-gray-700 truncate">{p.name || p.product_name}</span><span className="font-medium">{num(p.total_sold ?? p.total_quantity ?? p.quantity ?? p.qty)}</span></li>
                   ))}
                 </ul>
               </div>

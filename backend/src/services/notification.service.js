@@ -42,6 +42,36 @@ const DEFAULT_NOTIFICATION_SETTINGS = Object.freeze({
   sms_user_activity: false,
   sms_daily_summary: false,
   sms_subscription_expiring: false,
+
+  // The other party. In-app stays with the store. Email and SMS are off until chosen.
+  email_new_sale_customer: false,
+  sms_new_sale_customer: false,
+  email_sales_return_customer: false,
+  sms_sales_return_customer: false,
+  email_payment_due_customer: false,
+  sms_payment_due_customer: false,
+  email_purchase_received_supplier: false,
+  sms_purchase_received_supplier: false,
+  inapp_stock_transfer_store: false,
+  email_stock_transfer_store: false,
+  sms_stock_transfer_store: false,
+  inapp_order_payment: true,
+  email_order_payment: false,
+  sms_order_payment: false,
+  email_order_payment_customer: false,
+  sms_order_payment_customer: false,
+  inapp_debit_paid: true,
+  email_debit_paid: false,
+  sms_debit_paid: false,
+  email_debit_paid_customer: false,
+  sms_debit_paid_customer: false,
+  email_new_user_user: false,
+  sms_new_user_user: false,
+  inapp_supplier_payment: true,
+  email_supplier_payment: false,
+  sms_supplier_payment: false,
+  email_supplier_payment_supplier: false,
+  sms_supplier_payment_supplier: false,
 });
 
 const EMAIL_BRAND = Object.freeze({
@@ -127,6 +157,8 @@ function buildEmailHtml({
   title,
   message,
   meta,
+  storeName = "",
+  detailHtml = "",
   actionUrl = null,
   actionLabel = "View Details",
   footerNote = null,
@@ -146,7 +178,7 @@ function buildEmailHtml({
 
   const metaEntries = Object.entries(meta || {})
     .filter(([, value]) => value !== null && value !== undefined && value !== "")
-    .slice(0, 8);
+    .slice(0, 12);
 
   const metaRows = metaEntries
     .map(
@@ -225,6 +257,8 @@ function buildEmailHtml({
                 Hello ${safeName},
               </p>
 
+              ${storeName ? `<p style="margin:0 0 8px;font-size:17px;line-height:1.35;font-weight:bold;color:${B.heading};">${escapeHtml(storeName)}</p>` : ""}
+
               <h1 style="margin:0 0 10px;font-size:19px;line-height:1.35;color:${B.heading};">
                 ${safeTitle}
               </h1>
@@ -233,6 +267,7 @@ function buildEmailHtml({
                 ${safeMessage}
               </p>
 
+              ${detailHtml || ""}
               ${metaTable}
               ${actionButton}
             </td>
@@ -295,6 +330,8 @@ async function notifyStore({
   smsMessage,
   localize,
   meta = {},
+  detailHtml = "",
+  attachments,
   roles,
   recipientUserIds,
   excludeUserId,
@@ -305,6 +342,10 @@ async function notifyStore({
   if (!storeId || !type) return { skipped: true, reason: "missing_store_or_type" };
 
   const settings = await getNotificationSettings(storeId);
+  let storeName = "";
+  try {
+    storeName = (await pool.query("SELECT name FROM stores WHERE id = $1", [storeId])).rows[0]?.name || "";
+  } catch { storeName = ""; }
   const enabledChannels = channels.filter((channel) => settings[`${channel}_${type}`] === true);
   if (!enabledChannels.length) return { skipped: true, reason: "disabled_by_settings" };
 
@@ -332,18 +373,21 @@ async function notifyStore({
         emailRecipients.map((recipient) => {
           const local = typeof localize === "function" ? localize(recipient) || {} : {};
           const emailTitle = local.title || title || type;
-          const emailBody = local.email || emailMessage || message || title || type;
+          const emailBody = `${local.email || emailMessage || message || title || type}${attachments?.length ? "\n\nThe full list is in the attached document. Please open the attachment to see it." : ""}`;
           return sendEmail({
             to: recipient.email,
-            subject: `BizTrack: ${humanize(emailTitle)}`,
+            subject: `BizTrack: ${humanize(emailTitle)}${storeName && !String(emailTitle).includes(storeName) ? ` — ${storeName}` : ""}`,
             html: buildEmailHtml({
               recipientName: recipient.name,
               title: emailTitle,
               message: emailBody,
               meta,
+              storeName,
+              detailHtml,
               actionUrl,
               actionLabel,
             }),
+            attachments,
           });
         }),
       );
@@ -377,5 +421,71 @@ async function notifyStore({
   return result;
 }
 
-export { DEFAULT_NOTIFICATION_SETTINGS, getNotificationSettings, notifyStore, buildEmailHtml };
+async function storeNameOf(storeId) {
+  try {
+    return (await pool.query("SELECT name FROM stores WHERE id = $1", [storeId])).rows[0]?.name || "";
+  } catch {
+    return "";
+  }
+}
+
+/** Email or SMS to one customer, supplier, or user, when that party's box is on. */
+async function notifyParty({ storeId, type, to, title, message, meta = {} }) {
+  if (!storeId || !type || !to) return { skipped: true };
+  const settings = await getNotificationSettings(storeId);
+  const emailOn = settings[`email_${type}`] === true && to.email;
+  const smsOn = settings[`sms_${type}`] === true && to.phone;
+  if (!emailOn && !smsOn) return { skipped: true, reason: "disabled_by_settings" };
+  const storeName = await storeNameOf(storeId);
+  const result = { email: false, sms: false };
+  if (emailOn) {
+    const sent = await sendEmail({
+      to: to.email,
+      subject: `BizTrack: ${humanize(title)}${storeName ? ` — ${storeName}` : ""}`,
+      html: buildEmailHtml({
+        recipientName: to.name,
+        title,
+        message,
+        meta,
+        storeName,
+      }),
+    });
+    result.email = sent?.success !== false;
+  }
+  if (smsOn) {
+    const sent = await smsService.send(to.phone, fitSms(storeName ? `${storeName}: ${message}` : message), { storeId, purpose: "system" });
+    result.sms = sent?.success === true;
+  }
+  return result;
+}
+
+/** Tell the other store, using the acting store's "other store" boxes. */
+async function notifyOtherStore({ actingStoreId, otherStoreId, title, message, meta = {} }) {
+  if (!actingStoreId || !otherStoreId || actingStoreId === otherStoreId) return { skipped: true };
+  const settings = await getNotificationSettings(actingStoreId);
+  const emailOn = settings.email_stock_transfer_store === true;
+  const smsOn = settings.sms_stock_transfer_store === true;
+  const inappOn = settings.inapp_stock_transfer_store === true;
+  if (!emailOn && !smsOn && !inappOn) return { skipped: true, reason: "disabled_by_settings" };
+  const storeName = await storeNameOf(actingStoreId);
+  if (inappOn) await emitInAppNotification(otherStoreId, "stock_transfer", { title, message, meta });
+  const people = emailOn || smsOn ? await getRecipients(otherStoreId) : [];
+  if (emailOn) {
+    await Promise.allSettled(people.filter((p) => p.email).map((p) => sendEmail({
+      to: p.email,
+      subject: `BizTrack: ${humanize(title)}${storeName ? ` — ${storeName}` : ""}`,
+      html: buildEmailHtml({ recipientName: p.name, title, message, meta, storeName }),
+    })));
+  }
+  if (smsOn) {
+    await Promise.allSettled(people.filter((p) => p.phone).map((p) => smsService.send(
+      p.phone,
+      fitSms(storeName ? `${storeName}: ${message}` : message),
+      { storeId: actingStoreId, purpose: "system" },
+    )));
+  }
+  return { sent: true };
+}
+
+export { DEFAULT_NOTIFICATION_SETTINGS, getNotificationSettings, notifyStore, notifyParty, notifyOtherStore, buildEmailHtml };
 

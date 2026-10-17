@@ -30,7 +30,21 @@ export const getStoreCustomers = async (req, res) => {
         const offsetIdx = search ? 4 : 3;
 
         const result = await pool.query(
-            `SELECT * FROM customers c WHERE c.store_id = $1 ${searchFilter} ORDER BY c.name ASC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+            `SELECT c.*,
+                    COALESCE(due.amount_owed, 0) AS amount_owed,
+                    (COALESCE(c.credit_limit, 0) - COALESCE(due.amount_owed, 0)) AS credit_balance
+             FROM customers c
+             LEFT JOIN (
+               SELECT customer_id, SUM(amount_due) AS amount_owed
+               FROM credit_sales
+               WHERE store_id = $1
+                 AND status NOT IN ('paid', 'cancelled')
+                 AND amount_due > 0
+               GROUP BY customer_id
+             ) due ON due.customer_id = c.id
+             WHERE c.store_id = $1 ${searchFilter}
+             ORDER BY c.name ASC
+             LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
             dataParams
         );
 

@@ -46,7 +46,7 @@ export default function StockValueHistory() {
   const remove = async () => { try { setBusy(true); const r = await inventoryService.deleteValueHistory(confirm.id); showSuccess(r.message || 'history_deleted_successfully'); list.reload(); } catch (err) { showError(err.message); } finally { setBusy(false); setConfirm(null); } };
 
   const columns = [
-    { key: 'snapshot_date', label: t('date', lang), render: (h) => <span className="font-medium text-gray-900">{dateOnly(h.snapshot_date)}</span> },
+    { key: 'snapshot_date', label: t('date', lang), render: (h) => <span className="font-medium text-gray-900">{dateOnly(h.snapshot_date, settings)}</span> },
     { key: 'price_category_name', label: t('price_category', lang), render: (h) => h.price_category_name || '—' },
     { key: 'total_products', label: t('products', lang), align: 'right', render: (h) => formatNumberWithCommas(h.total_products) },
     { key: 'total_stock_worth', label: t('stock_worth', lang), align: 'right', render: (h) => money(h.total_stock_worth) },
@@ -72,14 +72,14 @@ export default function StockValueHistory() {
         <DataTable columns={columns} data={list.rows} loading={list.loading} emptyMessage={list.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={list.pagination} onPageChange={list.setPage}
           renderActions={(h) => <RowActions actions={[
             { label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(h) },
-            { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ id: h.id, name: dateOnly(h.snapshot_date) }), hidden: !can('delete_stock_value_history') },
+            { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ id: h.id, name: dateOnly(h.snapshot_date, settings) }), hidden: !can('delete_stock_value_history') },
           ]} />} />
       </div>
 
       <FormModal isOpen={!!snap} onClose={() => !busy && setSnap(null)} size="md" title={t('save_snapshot', lang)}>
         {snap && <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4"><p className="text-sm text-gray-500 text-left">{t('snapshot_help', lang)}</p><Select label={t('price_category', lang)} required value={snap.priceCategoryId} onChange={(e) => setSnap((s) => ({ ...s, priceCategoryId: e.target.value }))} placeholder={t('select_price_category', lang)} options={cats.map((c) => ({ value: c.id, label: c.name }))} /><Textarea rows={2} label={t('notes', lang)} value={snap.notes} onChange={(e) => setSnap((s) => ({ ...s, notes: e.target.value }))} /><div className="flex justify-end gap-3"><Button type="submit" loading={busy}>{t('save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setSnap(null)}>{t('ui_cancel', lang)}</Button></div></form>}
       </FormModal>
-      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="xl" title={`${t('stock_value_history', lang)} · ${dateOnly(d?.snapshot_date)}`}>
+      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="xl" title={`${t('stock_value_history', lang)} · ${dateOnly(d?.snapshot_date, settings)}`}>
         {d && (
           <div className="space-y-4 text-left">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{[['price_category', d.price_category_name], ['stock_worth', money(d.total_stock_worth)], ['potential_revenue', money(d.total_potential_revenue)], ['potential_profit', money(d.total_potential_profit)]].map(([k, v]) => <div key={k} className="rounded-md bg-gray-50 px-3 py-2.5"><p className="text-[11px] uppercase tracking-wide text-gray-400">{t(k, lang)}</p><p className="text-sm font-medium text-gray-900 mt-0.5">{v || '—'}</p></div>)}</div>

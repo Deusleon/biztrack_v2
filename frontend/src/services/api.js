@@ -135,6 +135,7 @@ export const salesService = {
   // history
   history: (params = {}) => api.get('/sales/history', { params }),
   saleDetails: (invoiceNumber) => api.get(`/sales/history/${encodeURIComponent(invoiceNumber)}`),
+  updateSalesDate: (invoiceNumber, salesDate) => api.put(`/sales/history/${encodeURIComponent(invoiceNumber)}/sales-date`, { salesDate }),
   // returns
   createReturn: (payload) => api.post('/sales/returns', payload),
   returns: (params = {}) => api.get('/sales/returns', { params }),
@@ -400,6 +401,11 @@ export const aiService = {
 // ─── dashboard ────────────────────────────────────────────────────────────────────────────────────
 export const dashboardService = {
   getStats: async () => { const res = await api.get('/dashboard/stats'); return { success: true, data: res.data ?? res, raw: res }; },
+};
+
+// ─── public receipt verification (QR scan, no login) ──────────────────────────────────────────────
+export const receiptVerifyService = {
+  verify: (invoice, store) => api.get('/public/receipts/verify', { params: { invoice, store } }),
 };
 
 // ─── display preferences ──────────────────────────────────────────────────────────────────────────

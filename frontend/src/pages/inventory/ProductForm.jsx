@@ -6,6 +6,7 @@ import ImageInput from '../../components/ImageInput';
 import BarcodeScanner from '../../components/BarcodeScanner';
 import { Input, NumberInput, Select, Textarea, DatePicker, Button } from '../../components/ui';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { getMoneyInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
 export const UNITS = ['unit_pc', 'unit_packet', 'unit_box', 'unit_crt', 'unit_ctn', 'unit_kg', 'unit_g', 'unit_L', 'unit_ml', 'unit_m', 'unit_ft', 'unit_dz', 'unit_pair', 'unit_bottle', 'unit_tray', 'unit_bag'];
@@ -36,6 +37,7 @@ export default function ProductForm({ isOpen, onClose, product, categories, sett
 
   const set = (f) => (e) => { setForm((x) => ({ ...x, [f]: e?.target ? e.target.value : e })); setErrors((x) => ({ ...x, [f]: undefined })); };
   const currency = settings.showCurrency && settings.defaultCurrency ? ` (${settings.defaultCurrency})` : '';
+  const moneyInput = getMoneyInputProps(settings);
 
   const validate = () => {
     const e = {};
@@ -72,8 +74,8 @@ export default function ProductForm({ isOpen, onClose, product, categories, sett
               {form.barcode && <div className="mt-2 overflow-x-auto"><Barcode value={form.barcode} height={40} fontSize={12} margin={0} /></div>}
             </div>
 
-            {!editing && <NumberInput label={`${t('cost_price', lang)}${currency}`} required value={form.cost_price} onChange={set('cost_price')} error={errors.cost_price} disabled={saving} placeholder={t('enter_cost_price', lang)} />}
-            {!editing && <NumberInput label={`${t('selling_price', lang)}${currency}`} required value={form.selling_price} onChange={set('selling_price')} error={errors.selling_price} disabled={saving} placeholder={t('enter_selling_price', lang)} helperText={t('uses_default_price_category', lang)} />}
+            {!editing && <NumberInput label={`${t('cost_price', lang)}${currency}`} required value={form.cost_price} onChange={set('cost_price')} error={errors.cost_price} disabled={saving} {...moneyInput} />}
+            {!editing && <NumberInput label={`${t('selling_price', lang)}${currency}`} required value={form.selling_price} onChange={set('selling_price')} error={errors.selling_price} disabled={saving} helperText={t('uses_default_price_category', lang)} {...moneyInput} />}
             {!editing && <NumberInput label={t('current_stock', lang)} allowDecimals value={form.current_stock} onChange={set('current_stock')} error={errors.current_stock} disabled={saving} />}
             <NumberInput label={t('alert_qty', lang)} value={form.alert_qty} onChange={set('alert_qty')} error={errors.alert_qty} disabled={saving} />
             {editing && <Select label={t('status', lang)} value={form.status} onChange={set('status')} disabled={saving} options={[{ value: 'active', label: t('active', lang) }, { value: 'inactive', label: t('inactive', lang) }]} />}

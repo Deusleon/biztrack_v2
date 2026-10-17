@@ -263,12 +263,12 @@ router.get(
     salesController.getSaleDetails
 );
 
-// Correct the business date of one completed sale
+// Correct a sale's business date (backdated sales) — permission-gated
 router.put(
-    '/history/:invoiceNumber/date',
+    '/history/:invoiceNumber/sales-date',
     verifyToken,
-    checkStorePermission(['correct_sale_date']),
-    salesController.correctSaleDate
+    checkStorePermission(['edit_sales_date']),
+    salesController.updateSalesDate
 );
 
 // =====================================================

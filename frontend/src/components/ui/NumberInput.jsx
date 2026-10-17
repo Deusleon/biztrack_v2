@@ -1,4 +1,5 @@
 import Input from "./Input";
+import { formatNumberWithCommas } from "../../utils/numberUtils";
 
 /**
  * Drop-in replacement for <Input type="number"> wherever the value is a
@@ -11,11 +12,29 @@ import Input from "./Input";
  * with a plain numeric string (e.g. "1250000"), never the comma-formatted
  * display text. Supports decimals (e.g. "1,250.50") since amounts aren't
  * always whole numbers.
+ *
+ * For money fields, pass `decimals` / `placeholder` from getMoneyInputProps(settings)
+ * so comma + decimal places follow store settings everywhere.
  */
-export default function NumberInput({ value, onChange, name, allowDecimals = true, decimals, onBlur, ...props }) {
+export default function NumberInput({
+  value,
+  onChange,
+  name,
+  allowDecimals = true,
+  decimals,
+  onBlur,
+  placeholder,
+  ...props
+}) {
   const raw = value === null || value === undefined ? "" : String(value).replace(/,/g, "");
   const maxDecimals = decimals === 0 || decimals === "0" ? 0 : (decimals == null || decimals === "" ? null : Number(decimals));
   const allowDec = allowDecimals && maxDecimals !== 0;
+  const resolvedPlaceholder =
+    placeholder !== undefined
+      ? placeholder
+      : maxDecimals != null
+        ? formatNumberWithCommas(0, maxDecimals)
+        : undefined;
 
   // Strip everything except digits and (optionally) a single decimal point,
   // so pasted or typed junk (letters, extra dots, spaces) never sneaks in.
@@ -60,6 +79,7 @@ export default function NumberInput({ value, onChange, name, allowDecimals = tru
       value={formatDisplay(raw)}
       onChange={handleChange}
       onBlur={handleBlur}
+      placeholder={resolvedPlaceholder}
     />
   );
 }

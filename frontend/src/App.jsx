@@ -29,6 +29,7 @@ const Pending = lazy(() => import('./pages/sales/Pending'));
 const OrderPreview = lazy(() => import('./pages/sales/OrderPreview'));
 const History = lazy(() => import('./pages/sales/History'));
 const Receipt = lazy(() => import('./pages/sales/Receipt'));
+const VerifyReceipt = lazy(() => import('./pages/VerifyReceipt'));
 const Returns = lazy(() => import('./pages/sales/Returns'));
 const Debits = lazy(() => import('./pages/sales/Debits'));
 const PurchaseOrders = lazy(() => import('./pages/purchases/Orders'));
@@ -170,6 +171,7 @@ function App() {
                   <Route path="/verify-email" element={<VerifyEmail />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/new-password" element={<NewPassword />} />
+                  <Route path="/verify-receipt" element={<VerifyReceipt />} />
 
                   <Route element={<ProtectedRoute />}>
                     <Route path="/dashboard" element={<Dashboard />} />

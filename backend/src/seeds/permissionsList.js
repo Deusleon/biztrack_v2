@@ -38,6 +38,7 @@ const permissions = [
   { name: 'view_sales_records',       description: 'View sales orders and history',                      module: 'Sales',        submodule: 'Sales History',      display_no: 14  },
   { name: 'correct_sale_date',        description: 'Correct the date of a completed sale',               module: 'Sales',        submodule: 'Sales History',      display_no: 19  },
   { name: 'delete_sales',             description: 'Delete a sale record',                               module: 'Sales',        submodule: 'Sales History',      display_no: 15  },
+  { name: 'edit_sales_date',          description: 'Correct the sales date on a completed sale',         module: 'Sales',        submodule: 'Sales History',      display_no: 141 },
   { name: 'view_sales_returns',       description: 'View sales return records',                          module: 'Sales',        submodule: 'Sales Returns',      display_no: 16  },
   { name: 'create_sales_return',      description: 'Create a sales return',                              module: 'Sales',        submodule: 'Sales Returns',      display_no: 17  },
   { name: 'view_debits',              description: 'View debit / credit sales records',                  module: 'Sales',        submodule: 'Credit Sales',       display_no: 18  },

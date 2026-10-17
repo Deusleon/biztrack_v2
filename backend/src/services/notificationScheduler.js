@@ -1,7 +1,8 @@
 // path: backend/services/notificationScheduler.js
 import pool from '../config/db.js';
 import { t } from '../utils/translate.js';
-import { notifyStore, DEFAULT_NOTIFICATION_SETTINGS } from './notification.service.js';
+import { notifyStore, notifyParty, DEFAULT_NOTIFICATION_SETTINGS } from './notification.service.js';
+import { buildTablePdf } from '../utils/simplePdf.js';
 // All schedule decisions use THIS timezone, never the server's local clock.
 // The server can be in the US, Australia, anywhere — notifications still go
 // out at the configured Tanzania time.
@@ -96,39 +97,62 @@ async function getLowStockSummary(storeId) {
        WHERE p.store_id = $1
          AND LOWER(COALESCE(p.status, 'active')) = 'active'
        GROUP BY p.id, p.name, p.minimum_stock
-     ), low_items AS (
-       SELECT * FROM product_stock
-       WHERE current_stock <= COALESCE(minimum_stock, 0)
-       ORDER BY (COALESCE(minimum_stock, 0) - current_stock) DESC, name
      )
-     SELECT
-       (SELECT COUNT(*)::int FROM low_items) AS count,
-       COALESCE((
-         SELECT json_agg(json_build_object(
-           'name', name,
-           'current_stock', current_stock,
-           'minimum_stock', minimum_stock
-         ))
-         FROM (SELECT * FROM low_items LIMIT 5) ranked
-       ), '[]'::json) AS items`,
+     SELECT name, current_stock, COALESCE(minimum_stock, 0) AS minimum_stock
+     FROM product_stock
+     WHERE current_stock <= COALESCE(minimum_stock, 0)
+     ORDER BY (COALESCE(minimum_stock, 0) - current_stock) DESC, name`,
     [storeId],
   );
-  return result.rows[0] || { count: 0, items: [] };
+  return { count: result.rows.length, items: result.rows };
 }
 
 async function getPaymentDueSummary(storeId) {
   const result = await pool.query(
-    `SELECT COUNT(*)::int AS count,
-            COALESCE(SUM(amount_due), 0) AS total_due
-     FROM credit_sales
-     WHERE store_id = $1
-       AND status NOT IN ('paid', 'cancelled')
-       AND amount_due > 0
-       AND due_date IS NOT NULL
-       AND due_date <= NOW()`,
-    [storeId],
+    `SELECT c.id AS customer_id, c.name AS customer_name,
+            cs.invoice_number, cs.amount_due, cs.due_date,
+            GREATEST(0, ((NOW() AT TIME ZONE $2)::date - (cs.due_date AT TIME ZONE $2)::date))::int AS overdue_days
+     FROM credit_sales cs
+     JOIN customers c ON c.id = cs.customer_id
+     WHERE cs.store_id = $1
+       AND cs.status NOT IN ('paid', 'cancelled')
+       AND cs.amount_due > 0
+       AND cs.due_date IS NOT NULL
+       AND cs.due_date <= NOW()
+     ORDER BY c.name, cs.due_date, cs.invoice_number`,
+    [storeId, BUSINESS_TIMEZONE],
   );
-  return result.rows[0] || { count: 0, total_due: 0 };
+  const customers = [];
+  const byId = new Map();
+  let total = 0;
+  for (const row of result.rows) {
+    total += Number(row.amount_due) || 0;
+    let customer = byId.get(row.customer_id);
+    if (!customer) {
+      customer = { id: row.customer_id, name: row.customer_name || 'Customer', invoices: [], total: 0 };
+      byId.set(row.customer_id, customer);
+      customers.push(customer);
+    }
+    customer.invoices.push({
+      invoice_number: row.invoice_number,
+      amount_due: Number(row.amount_due) || 0,
+      due_date: row.due_date,
+      overdue_days: Number(row.overdue_days) || 0,
+    });
+    customer.total += Number(row.amount_due) || 0;
+  }
+  return { count: result.rows.length, customerCount: customers.length, total_due: total, customers };
+}
+
+async function storeLetterhead(storeName, location) {
+  const system = await pool.query('SELECT settings FROM system_settings LIMIT 1').catch(() => ({ rows: [] }));
+  const info = system.rows[0]?.settings?.businessInfo || {};
+  return {
+    businessName: info.businessName || storeName,
+    address: info.address || location || '',
+    phone: info.phone || '',
+    email: info.email || '',
+  };
 }
 
 
@@ -312,6 +336,18 @@ async function getDailySummary(storeId, dateKey, endOverride = null) {
 // "2026-07-23T22:25:00.000Z" -> "2026-07-23 22:25" in BUSINESS_TIMEZONE.
 // Used to label report_period with the window's real start/end, whatever
 // length NOTIFICATION_SUMMARY_WINDOW_HOURS is set to.
+function formatBusinessDate(date) {
+  if (!date) return '-';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: BUSINESS_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(date));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 function formatBusinessTime(date) {
   if (!date) return "-";
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -327,6 +363,51 @@ function formatBusinessTime(date) {
   return `${values.year}-${values.month}-${values.day} ${values.hour}:${values.minute}`;
 }
 
+const NEAR_DUE_DAYS = 3;
+
+async function sendCustomerPaymentReminders(storeId, storeName, money) {
+  const result = await pool.query(
+    `SELECT c.id, c.name, c.email, c.phone,
+            cs.invoice_number, cs.amount_due,
+            ((cs.due_date AT TIME ZONE $2)::date - (NOW() AT TIME ZONE $2)::date)::int AS days_until_due
+     FROM credit_sales cs
+     JOIN customers c ON c.id = cs.customer_id
+     WHERE cs.store_id = $1
+       AND cs.status NOT IN ('paid', 'cancelled')
+       AND cs.amount_due > 0
+       AND cs.due_date IS NOT NULL
+       AND (cs.due_date AT TIME ZONE $2)::date <= (NOW() AT TIME ZONE $2)::date + $3::int
+       AND (NULLIF(c.email, '') IS NOT NULL OR NULLIF(c.phone, '') IS NOT NULL)
+     ORDER BY c.name, cs.due_date`,
+    [storeId, BUSINESS_TIMEZONE, NEAR_DUE_DAYS],
+  );
+  const groups = new Map();
+  for (const row of result.rows) {
+    let customer = groups.get(row.id);
+    if (!customer) {
+      customer = { name: row.name, email: row.email, phone: row.phone, invoices: [], total: 0 };
+      groups.set(row.id, customer);
+    }
+    const amount = Number(row.amount_due) || 0;
+    customer.total += amount;
+    customer.invoices.push({ invoice_number: row.invoice_number, amount, days: Number(row.days_until_due) || 0 });
+  }
+  for (const customer of groups.values()) {
+    const lines = customer.invoices.map((invoice) => {
+      const when = invoice.days < 0 ? `${Math.abs(invoice.days)} days overdue` : invoice.days === 0 ? 'due today' : `due in ${invoice.days} days`;
+      return `${invoice.invoice_number}: ${money(invoice.amount)} (${when})`;
+    });
+    await notifyParty({
+      storeId,
+      type: 'payment_due_customer',
+      to: customer,
+      title: 'Payment reminder',
+      message: `This is a reminder about the amount still due on your account.\n${lines.join('\n')}\nWe have these amounts on record. Please pay so your account stays up to date.`,
+      meta: { invoices: customer.invoices.length, total_due: money(customer.total) },
+    });
+  }
+}
+
 function channelEnabled(settings, type) {
   return ["inapp", "email", "sms"].some((channel) => settings[`${channel}_${type}`] === true);
 }
@@ -334,7 +415,9 @@ function channelEnabled(settings, type) {
 async function processStore(storeId, rawSettings, dateKey, options = {}) {
   const { endOverride = null } = options;
   const settings = { ...DEFAULT_NOTIFICATION_SETTINGS, ...(rawSettings || {}) };
-  const storeName = (await pool.query("SELECT name FROM stores WHERE id = $1", [storeId])).rows[0]?.name || "your business";
+  const storeRow = (await pool.query("SELECT name, location FROM stores WHERE id = $1", [storeId])).rows[0] || {};
+  const storeName = storeRow.name || "your business";
+  const letterhead = await storeLetterhead(storeName, storeRow.location);
   const money = (n) => Number(n || 0).toLocaleString("en-US");
 
   if (channelEnabled(settings, "low_stock")) {
@@ -345,31 +428,70 @@ async function processStore(storeId, rawSettings, dateKey, options = {}) {
         const formattedValue = new Intl.NumberFormat("en-US").format(
           Number(lowStock.count)
         );
+        const qty = (n) => Number(n || 0).toLocaleString("en-US");
+        const pdf = buildTablePdf({
+          title: 'Low stock',
+          subtitle: `${formattedValue} item(s) at or below reorder level`,
+          ...letterhead,
+          columns: [
+            { key: 'name', label: 'Item' },
+            { key: 'current_stock', label: 'Current stock', halign: 'right' },
+            { key: 'reorder_level', label: 'Reorder level', halign: 'right' },
+          ],
+          rows: lowStock.items.map((item) => ({
+            name: item.name,
+            current_stock: qty(item.current_stock),
+            reorder_level: qty(item.minimum_stock),
+          })),
+        });
         await notifyStore({
           storeId,
           type: "low_stock",
           title: "Low stock alert",
           message: t("product_low_stock_msg", { count: formattedValue }),
-          meta: { low_stock_products: Number(lowStock.count), items: lowStock.items.map((item) => item.name).join(", ") },
+          meta: { low_stock_products: Number(lowStock.count) },
+          attachments: [{ filename: 'low-stock.pdf', content: pdf, contentType: 'application/pdf' }],
         });
       }
       await markProcessed(storeId, action, { date: dateKey, count: Number(lowStock.count) });
     }
   }
 
-  if (channelEnabled(settings, "payment_due")) {
+  const remindCustomers = settings.email_payment_due_customer === true || settings.sms_payment_due_customer === true;
+  if (channelEnabled(settings, "payment_due") || remindCustomers) {
     const action = `scheduled_payment_due_${dateKey}`;
     if (!(await wasProcessed(storeId, action))) {
-      const due = await getPaymentDueSummary(storeId);
-      if (Number(due.count) > 0) {
+      const due = channelEnabled(settings, "payment_due") ? await getPaymentDueSummary(storeId) : { count: 0, total_due: 0 };
+      if (channelEnabled(settings, "payment_due") && Number(due.count) > 0) {
+        const pdf = buildTablePdf({
+          title: 'Customer payments due',
+          subtitle: `${due.customerCount} customers, ${money(due.total_due)} due`,
+          ...letterhead,
+          columns: [
+            { key: 'customer', label: 'Customer' },
+            { key: 'invoice', label: 'Invoice' },
+            { key: 'amount', label: 'Amount', halign: 'right' },
+            { key: 'due_date', label: 'Due date' },
+            { key: 'overdue_days', label: 'Overdue days', halign: 'right' },
+          ],
+          rows: due.customers.flatMap((customer) => customer.invoices.map((invoice) => ({
+            customer: customer.name,
+            invoice: invoice.invoice_number,
+            amount: money(invoice.amount_due),
+            due_date: formatBusinessDate(invoice.due_date),
+            overdue_days: String(invoice.overdue_days),
+          }))),
+        });
         await notifyStore({
           storeId,
           type: "payment_due",
           title: "Customer payments due",
-          message: t("credit_sale_payment_due_msg", { count: due.count }),
-          meta: { payments_due: due.count, total_due: Number(due.total_due).toLocaleString('en-US') },
+          message: `${t("credit_sale_payment_due_msg", { count: due.count })}\n\n${due.customerCount} customer(s), ${money(due.total_due)} due in total.`,
+          meta: { customers: due.customerCount, invoices: due.count, total_due: money(due.total_due) },
+          attachments: [{ filename: 'payments-due.pdf', content: pdf, contentType: 'application/pdf' }],
         });
       }
+      if (remindCustomers) await sendCustomerPaymentReminders(storeId, storeName, money);
       await markProcessed(storeId, action, { date: dateKey, count: Number(due.count), total_due: due.total_due });
     }
   }
@@ -394,13 +516,13 @@ async function processStore(storeId, rawSettings, dateKey, options = {}) {
       await notifyStore({
         storeId,
         type: "daily_summary",
-        title: t("daily_summary_title", {}, "en"),
+        title: `${storeName} — ${t("daily_summary_title", {}, "en")}`,
         message: t("daily_summary_sms", vars, "en"),
         roles: ["Owner"],
         localize: (recipient) => {
           const lang = langOf(recipient);
           return {
-            title: t("daily_summary_title", {}, lang),
+            title: `${storeName} — ${t("daily_summary_title", {}, lang)}`,
             email: t("daily_summary_email", vars, lang),
             sms: t("daily_summary_sms", vars, lang),
           };
@@ -409,12 +531,11 @@ async function processStore(storeId, rawSettings, dateKey, options = {}) {
           report_period: `${formatBusinessTime(summary.window_start)} - ${formatBusinessTime(summary.window_end)}`,
           sales_count: summary.sales_count,
           revenue: vars.revenue,
-          gross: vars.gross,
-          sales_returns: summary.returns_count,
-          returned_amount: vars.returned_amount,
           gross_profit: vars.profit,
           expenses: vars.expenses,
           net_profit: vars.net_profit,
+          sales_returns: summary.returns_count,
+          returned_amount: vars.returned_amount,
         },
         channels: ["inapp", "email", "sms"],
       });

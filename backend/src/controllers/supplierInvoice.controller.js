@@ -3,6 +3,7 @@ import { getLang } from '../utils/getLang.js';
 import { t } from '../utils/translate.js';
 import { respondWithError } from '../utils/response.js';
 import { getIO } from '../utils/socket.js';
+import { notifyStore, notifyParty } from '../services/notification.service.js';
 // =====================================================
 // UTILITY FUNCTIONS
 // =====================================================
@@ -770,6 +771,27 @@ export const createSupplierPayment = async (req, res) => {
             payment,
             message: 'supplier_payment_created'
         });
+
+        const paidText = Number(amount || 0).toLocaleString('en-US');
+        const supplierNote = `We paid ${paidText} (${payment_number}) by ${payment_method || 'the recorded method'}. This payment is on our records.`;
+        const supplierMeta = { payment_number, amount: paidText, payment_method: payment_method || '' };
+        notifyStore({
+            storeId,
+            type: 'supplier_payment',
+            title: 'Supplier payment',
+            message: supplierNote,
+            meta: supplierMeta,
+        }).catch(() => {});
+        pool.query('SELECT name, email, phone FROM suppliers WHERE id = $1 AND store_id = $2', [supplier_id, storeId])
+            .then((supplier) => notifyParty({
+                storeId,
+                type: 'supplier_payment_supplier',
+                to: supplier.rows[0],
+                title: 'Payment sent',
+                message: supplierNote,
+                meta: supplierMeta,
+            }))
+            .catch(() => {});
 
         res.status(201).json({
             success: true,

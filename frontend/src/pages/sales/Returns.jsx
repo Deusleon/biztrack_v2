@@ -71,7 +71,7 @@ export default function Returns() {
   const columns = [
     { key: 'return_number', label: t('return_number', lang), render: (r) => <span className="font-medium text-gray-900">{r.return_number || `#${String(r.id).slice(0, 8)}`}</span> },
     { key: 'invoice_number', label: t('invoice_number', lang), render: (r) => `#${r.original_invoice_number || r.invoice_number}` },
-    { key: 'created_at', label: t('date', lang), render: (r) => dateOnly(r.created_at) },
+    { key: 'created_at', label: t('date', lang), render: (r) => dateOnly(r.created_at, settings) },
     { key: 'customer_name', label: t('customer', lang), render: (r) => r.customer_name || t('walk_in', lang) },
     { key: 'total_refund', label: t('refund_amount', lang), align: 'right', render: (r) => money(r.total_refund ?? r.refund_amount ?? r.total_amount) },
     { key: 'status', label: t('status', lang), render: (r) => <StatusBadge value={r.status} /> },
@@ -122,7 +122,7 @@ export default function Returns() {
             <DetailGrid items={[
               [t('invoice_number', lang), (d.original_invoice_number || d.invoice_number) && `#${d.original_invoice_number || d.invoice_number}`],
               [t('customer', lang), d.customer_name || t('walk_in', lang)],
-              [t('date', lang), dateOnly(d.created_at)],
+              [t('date', lang), dateOnly(d.created_at, settings)],
               [t('status', lang), <StatusBadge value={d.status} />],
               [t('created_by', lang), d.created_by_name],
               [t('refund_method', lang), t(d.refund_method, lang)],

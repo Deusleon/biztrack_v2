@@ -3,7 +3,7 @@ import { getLang } from '../utils/getLang.js';
 import { t } from '../utils/translate.js';
 import { respondWithError } from '../utils/response.js';
 import { getIO } from '../utils/socket.js';
-import { notifyStore } from '../services/notification.service.js';
+import { notifyStore, notifyParty } from '../services/notification.service.js';
 // =====================================================
 // UTILITY FUNCTIONS
 // =====================================================
@@ -1393,6 +1393,16 @@ export const createGRN = async (req, res) => {
       message: "A goods received note was created",
       meta: { grn_number: grn.grn_number },
     }).catch(() => {});
+    pool.query("SELECT name, email, phone FROM suppliers WHERE id = $1 AND store_id = $2", [resolvedSupplierId, storeId])
+      .then((supplier) => notifyParty({
+        storeId,
+        type: "purchase_received_supplier",
+        to: supplier.rows[0],
+        title: "Goods received",
+        message: `We recorded goods received note ${grn.grn_number}. This receipt is on our records.`,
+        meta: { grn_number: grn.grn_number },
+      }))
+      .catch(() => {});
 
     res.status(201).json({
       success: true,

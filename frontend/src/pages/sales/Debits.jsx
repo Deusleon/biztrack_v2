@@ -11,7 +11,7 @@ import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { DataTable, Button, RowActions, ACTION_ICONS, NumberInput, Select, Input, Textarea } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { FilterBar, StatusBadge, DetailGrid, toPaging, dateOnly } from './common';
-import { formatCurrency, removeNumberFormatting } from '../../utils/numberUtils';
+import { formatCurrency, removeNumberFormatting, getMoneyInputProps} from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
 const fetchCredit = async ({ page, limit, search, status, startDate, endDate }) => {
@@ -32,6 +32,7 @@ export default function Debits() {
   const [busy, setBusy] = useState(false);
   const manage = can('manage_credit_sales');
   const money = (v) => formatCurrency(Number(v) || 0, settings);
+  const moneyInput = getMoneyInputProps(settings);
   const summary = list.summary || {};
 
   const view = async (c) => { try { setDetail(await salesService.creditDetails(c.id)); } catch (err) { showError(err.message); } };
@@ -63,7 +64,7 @@ export default function Debits() {
     { key: 'total_amount', label: t('total', lang), align: 'right', render: (c) => money(c.total_amount) },
     { key: 'amount_paid', label: t('amount_paid', lang), align: 'right', render: (c) => money(c.amount_paid) },
     { key: 'amount_due', label: t('amount_due', lang), align: 'right', render: (c) => <span className="text-red-600 font-medium">{money(c.amount_due)}</span> },
-    { key: 'due_date', label: t('due_date', lang), render: (c) => dateOnly(c.due_date) || '—' },
+    { key: 'due_date', label: t('due_date', lang), render: (c) => dateOnly(c.due_date, settings) || '—' },
     { key: 'status', label: t('status', lang), render: (c) => <StatusBadge value={c.status} /> },
     { key: 'created_by_name', label: t('created_by', lang), render: (c) => c.created_by_name || '—' },
   ];
@@ -98,8 +99,8 @@ export default function Debits() {
             <DetailGrid items={[
               [t('customer', lang), cs.customer_name],
               [t('phone', lang), cs.customer_phone],
-              [t('date', lang), dateOnly(cs.created_at)],
-              [t('due_date', lang), dateOnly(cs.due_date)],
+              [t('date', lang), dateOnly(cs.created_at, settings)],
+              [t('due_date', lang), dateOnly(cs.due_date, settings)],
               [t('created_by', lang), cs.created_by_name],
               [t('status', lang), <StatusBadge value={cs.status} />],
               [t('total', lang), money(cs.total_amount)],
@@ -116,7 +117,7 @@ export default function Debits() {
               <div className="border border-gray-200 rounded-md">
                 <h4 className="px-3 py-2.5 text-sm font-medium text-gray-500 bg-gray-50 border-b border-gray-100">{t('payments', lang)}</h4>
                 {(detail.payments || []).length === 0 && <p className="px-3 py-4 text-sm text-gray-400">{t('ui_nothing_yet', lang)}</p>}
-                <ul className="divide-y divide-gray-100 text-sm">{(detail.payments || []).map((p, i) => <li key={p.id || i} className="px-3 py-2.5 flex justify-between gap-3"><span className="text-gray-600">{dateOnly(p.created_at || p.payment_date)} · {t(p.payment_method, lang)}{p.received_by ? ` · ${t('recorded_by', lang)}: ${p.received_by}` : ''}</span><span className="font-medium">{money(p.amount)}</span></li>)}</ul>
+                <ul className="divide-y divide-gray-100 text-sm">{(detail.payments || []).map((p, i) => <li key={p.id || i} className="px-3 py-2.5 flex justify-between gap-3"><span className="text-gray-600">{dateOnly(p.created_at || p.payment_date, settings)} · {t(p.payment_method, lang)}{p.received_by ? ` · ${t('recorded_by', lang)}: ${p.received_by}` : ''}</span><span className="font-medium">{money(p.amount)}</span></li>)}</ul>
               </div>
             </div>
             <div className="flex justify-end"><Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button></div>
@@ -129,7 +130,7 @@ export default function Debits() {
           <form onSubmit={(e) => { e.preventDefault(); submit(); }} className="space-y-4">
             <p className="text-sm text-gray-600 text-left">#{panel.sale.invoice_number} · {panel.sale.customer_name} · {t('amount_due', lang)}: <b>{money(panel.sale.amount_due)}</b></p>
             {panel.kind === 'pay' ? (<>
-              <NumberInput label={t('amount_paid', lang)} required autoFocus value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} />
+              <NumberInput label={t('amount_paid', lang)} required autoFocus value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} {...moneyInput} />
               <Select label={t('payment_method', lang)} value={form.method} onChange={(e) => setForm((f) => ({ ...f, method: e.target.value }))} options={['cash', 'mobile_money', 'bank_transfer'].map((m) => ({ value: m, label: t(m, lang) }))} />
               <Input label={t('reference_number', lang)} value={form.reference} onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))} />
               <Textarea rows={2} label={t('notes', lang)} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />

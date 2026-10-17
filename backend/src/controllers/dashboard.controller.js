@@ -33,7 +33,7 @@ export const getDashboardStats = async (req, res) => {
     // (col >= X AND col < Y) so the (store_id, sales_date) index can be used;
     // the old col::date / DATE(col) forms forced a scan of the store's rows.
     const [
-      todayRes, yesterdayRes, monthRes, trendRes, recentSalesRes, topProductsRes, todayCogsRes, monthCogsRes, paymentBreakdownRes, todayExpensesRes, monthExpensesRes, last30dRevenueRes, last30dCogsRes, last30dExpensesRes, last3mStatsRes,
+      todayRes, yesterdayRes, monthRes, trendRes, recentSalesRes, topProductsRes, todayCogsRes, yesterdayCogsRes, monthCogsRes, paymentBreakdownRes, todayExpensesRes, yesterdayExpensesRes, monthExpensesRes, last30dRevenueRes, last30dCogsRes, last30dExpensesRes, last3mStatsRes,
     ] = await runQueries([
       // todayRes
       [`SELECT
@@ -114,6 +114,14 @@ export const getDashboardStats = async (req, res) => {
        WHERE im.store_id = $1
          AND im.note ILIKE 'Sold in invoice%'
          AND im.transaction_date >= CURRENT_DATE AND im.transaction_date < CURRENT_DATE + 1`, [storeId]],
+      // yesterdayCogsRes
+      [`SELECT
+         COALESCE(SUM(im.quantity * COALESCE(ib.cost_price, 0)), 0)::numeric AS cogs
+       FROM inventory_movements im
+       JOIN inventory_batches ib ON im.batch_id = ib.id
+       WHERE im.store_id = $1
+         AND im.note ILIKE 'Sold in invoice%'
+         AND im.transaction_date >= CURRENT_DATE - 1 AND im.transaction_date < CURRENT_DATE`, [storeId]],
       // monthCogsRes
       [`SELECT
          COALESCE(SUM(im.quantity * COALESCE(ib.cost_price, 0)), 0)::numeric AS cogs
@@ -122,7 +130,7 @@ export const getDashboardStats = async (req, res) => {
        WHERE im.store_id = $1
          AND im.note ILIKE 'Sold in invoice%'
          AND im.transaction_date >= DATE_TRUNC('month', CURRENT_DATE) AND im.transaction_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'`, [storeId]],
-      // paymentBreakdownRes
+      // paymentBreakdownRes (kept for API compatibility; dashboard UI shows monthly statistics instead)
       [`SELECT
          p.payment_method,
          COUNT(*)::int                             AS count,
@@ -137,6 +145,11 @@ export const getDashboardStats = async (req, res) => {
        FROM expenses
        WHERE store_id = $1
          AND expense_date >= CURRENT_DATE AND expense_date < CURRENT_DATE + 1`, [storeId]],
+      // yesterdayExpensesRes
+      [`SELECT COALESCE(SUM(amount), 0)::numeric AS total_expenses
+       FROM expenses
+       WHERE store_id = $1
+         AND expense_date >= CURRENT_DATE - 1 AND expense_date < CURRENT_DATE`, [storeId]],
       // monthExpensesRes
       [`SELECT COALESCE(SUM(amount), 0)::numeric AS total_expenses
        FROM expenses
@@ -188,7 +201,7 @@ export const getDashboardStats = async (req, res) => {
       success: true,
       data: {
         todayStats:      { ...todayRes.rows[0], cogs: todayCogsRes.rows[0].cogs, expenses: todayExpensesRes.rows[0].total_expenses },
-        yesterdayStats:  yesterdayRes.rows[0],
+        yesterdayStats:  { ...yesterdayRes.rows[0], cogs: yesterdayCogsRes.rows[0].cogs, expenses: yesterdayExpensesRes.rows[0].total_expenses },
         monthStats:      { ...monthRes.rows[0], cogs: monthCogsRes.rows[0].cogs, expenses: monthExpensesRes.rows[0].total_expenses },
         last30dStats:    {
           active_days: last30dRevenueRes.rows[0].active_days,

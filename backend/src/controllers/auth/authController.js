@@ -10,7 +10,7 @@ import { t } from '../../utils/translate.js';
 import { getIO } from '../../utils/socket.js';
 import { getUserPermissions } from '../../middlewares/checkPermission.js';
 import { getStoreSecurityPolicy, isPasswordExpired } from '../../utils/securityPolicy.js';
-import { notifyStore } from '../../services/notification.service.js';
+import { notifyStore, notifyParty } from '../../services/notification.service.js';
 import 'dotenv/config';
 // Register user
 export const register = async (req, res) => {
@@ -195,6 +195,14 @@ export const register = async (req, res) => {
             roles: ["Owner", "Manager"],
             excludeUserId: userId,
         }).catch(() => {});
+        pool.query('SELECT phone FROM users WHERE id = $1', [userId]).then((phoneRow) => notifyParty({
+            storeId,
+            type: 'new_user_user',
+            to: { name: full_name, email, phone: phoneRow.rows[0]?.phone },
+            title: 'Your account',
+            message: `Your account at ${storeName} was created and is waiting for approval.`,
+            meta: { store: storeName, email },
+        })).catch(() => {});
 
         // Final response
         res.status(201).json({

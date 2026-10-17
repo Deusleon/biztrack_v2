@@ -66,7 +66,7 @@ export default function StockTransfer() {
     { key: 'reference_number', label: t('reference', lang), render: (x) => <span className="font-medium text-gray-900">{x.reference_number}</span> },
     { key: 'direction', label: t('direction', lang), render: (x) => <span className={`px-2 py-0.5 rounded text-xs font-medium ${incoming(x) ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{t(incoming(x) ? 'incoming' : 'outgoing', lang)}</span> },
     { key: 'stores', label: t('stores', lang), render: (x) => `${x.source_store_name} → ${x.destination_store_name}` },
-    { key: 'created_at', label: t('date', lang), render: (x) => dateOnly(x.created_at) },
+    { key: 'created_at', label: t('date', lang), render: (x) => dateOnly(x.created_at, settings) },
     { key: 'items_count', label: t('items', lang), align: 'right' },
     { key: 'total_quantity', label: t('quantity', lang), align: 'right', render: (x) => formatNumberWithCommas(x.total_quantity) },
     { key: 'status', label: t('status', lang), render: (x) => <PStatus value={x.status} /> },
@@ -137,7 +137,7 @@ export default function StockTransfer() {
       <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="xl" title={`${t('stock_transfer', lang)} ${d?.reference_number || ''}`}>
         {d && (
           <div className="space-y-5 text-left">
-            <DetailGrid items={[[t('source_store', lang), d.source_store_name], [t('destination_store', lang), d.destination_store_name], [t('date', lang), dateOnly(d.created_at)], [t('status', lang), <PStatus key="s" value={d.status} />], [t('created_by', lang), d.created_by_name], [t('approved_by', lang), d.approved_by_name], [t('received_by', lang), d.received_by_name]]} />
+            <DetailGrid items={[[t('source_store', lang), d.source_store_name], [t('destination_store', lang), d.destination_store_name], [t('date', lang), dateOnly(d.created_at, settings)], [t('status', lang), <PStatus key="s" value={d.status} />], [t('created_by', lang), d.created_by_name], [t('approved_by', lang), d.approved_by_name], [t('received_by', lang), d.received_by_name]]} />
             <div className="overflow-x-auto border border-gray-200 rounded-md"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('quantity', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('received', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('batch_number', lang)}</th></tr></thead>
               <tbody>{(d.items || []).map((i) => <tr key={i.id} className="border-t border-gray-100"><td className="px-3 py-2.5 text-left">{i.product_name}</td><td className="px-3 py-2.5 text-right">{formatNumberWithCommas(i.quantity)} {t(i.product_unit, lang)}</td><td className="px-3 py-2.5 text-right">{i.received_quantity == null ? '—' : formatNumberWithCommas(i.received_quantity)}</td><td className="px-3 py-2.5">{i.batch_number || '—'}</td></tr>)}</tbody></table></div>
             <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-600"><p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{t('notes', lang)}</p>{d.notes || '—'}</div>

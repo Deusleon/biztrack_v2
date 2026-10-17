@@ -3,7 +3,7 @@ import { t } from '../utils/translate.js';
 import { getLang } from '../utils/getLang.js';
 import { respondWithError } from '../utils/response.js';
 import { getIO } from '../utils/socket.js';
-import { notifyStore } from '../services/notification.service.js';
+import { notifyStore, notifyOtherStore } from '../services/notification.service.js';
 // ==================== STOCK TRANSFER FUNCTIONS ====================
 
 /**
@@ -219,6 +219,13 @@ export const createStockTransfer = async (req, res) => {
       title: "Stock transfer created",
       message: "A stock transfer was created",
       meta: { transfer_id: transfer.id, destination_store: destStore.name },
+    }).catch(() => {});
+    notifyOtherStore({
+      actingStoreId: sourceStoreId,
+      otherStoreId: destination_store_id,
+      title: "Incoming stock transfer",
+      message: `A stock transfer was created for your store from ${sourceStoreName}.`,
+      meta: { transfer_id: transfer.id, from_store: sourceStoreName },
     }).catch(() => {});
 
     res.status(201).json({
@@ -921,6 +928,13 @@ export const approveTransfer = async (req, res) => {
       title: "Incoming stock transfer",
       message: "A stock transfer is on the way to your store",
       meta: { transfer_id: transferId },
+    }).catch(() => {});
+    notifyOtherStore({
+      actingStoreId: storeId,
+      otherStoreId: transfer.source_store_id,
+      title: "Stock transfer approved",
+      message: "A stock transfer from your store was approved and is on the way.",
+      meta: { transfer_id: transferId, reference_number: transfer.reference_number },
     }).catch(() => {});
 
     io.to(storeId).emit("transfer:approved", {

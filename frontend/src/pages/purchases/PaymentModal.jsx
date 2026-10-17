@@ -6,7 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { purchaseService } from '../../services/api';
-import { formatCurrency, removeNumberFormatting } from '../../utils/numberUtils';
+import { formatCurrency, removeNumberFormatting, getMoneyInputProps} from '../../utils/numberUtils';
 import { num } from './common';
 import { t } from '../../utils/i18n';
 
@@ -27,6 +27,7 @@ export default function PaymentModal({ isOpen, onClose, invoice: fixed, invoices
   const invoice = fixed || invoices.find((i) => i.id === invoiceId);
   const balance = num(invoice?.balance_due);
   const money = (v) => formatCurrency(num(v), settings);
+  const moneyInput = getMoneyInputProps(settings);
 
   useEffect(() => { if (isOpen) { setInvoiceId(fixed?.id || ''); setF({ amount: fixed ? String(num(fixed.balance_due)) : '', payment_method: 'cash', payment_date: today(), reference_number: '', bank_name: '', account_number: '', notes: '' }); } }, [isOpen, fixed]);
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
@@ -50,7 +51,7 @@ export default function PaymentModal({ isOpen, onClose, invoice: fixed, invoices
           : <Select label={t('invoice', lang)} required searchable value={invoiceId} onChange={(e) => { setInvoiceId(e.target.value); const i = invoices.find((x) => x.id === e.target.value); setF((x) => ({ ...x, amount: i ? String(num(i.balance_due)) : '' })); }} placeholder={t('select_invoice', lang)} options={invoices.map((i) => ({ value: i.id, label: `#${i.bill_number || i.supplier_invoice_number} · ${i.supplier_name} · ${money(i.balance_due)}` }))} />}
         {invoice && <p className="text-sm text-left">{t('balance_due', lang)}: <b className="text-red-600">{money(balance)}</b></p>}
         <div className="grid grid-cols-2 gap-3">
-          <NumberInput label={t('amount', lang)} required value={f.amount} onChange={set('amount')} />
+          <NumberInput label={t('amount', lang)} required value={f.amount} onChange={set('amount')} {...moneyInput} />
           <DatePicker label={t('payment_date', lang)} value={f.payment_date} onChange={set('payment_date')} />
           <Select label={t('payment_method', lang)} value={f.payment_method} onChange={set('payment_method')} options={METHODS.map((m) => ({ value: m, label: t(m, lang) }))} />
           <Input label={t('reference_number', lang)} value={f.reference_number} onChange={set('reference_number')} />

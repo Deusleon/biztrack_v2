@@ -109,7 +109,15 @@ export const sendGatewayTestEmail = async (gateway, to, purpose = 'user') => {
   }
 };
 
-async function sendViaGateway(gateway, { to, subject, html, purpose }) {
+function mailAttachments(files) {
+  return (files || []).filter((file) => file?.content).map((file) => ({
+    filename: file.filename || 'attachment.pdf',
+    content: file.content,
+    contentType: file.contentType || 'application/pdf',
+  }));
+}
+
+async function sendViaGateway(gateway, { to, subject, html, purpose, attachments }) {
   const transporter = buildGatewayTransporter(gateway);
   try {
     const info = await transporter.sendMail({
@@ -117,6 +125,7 @@ async function sendViaGateway(gateway, { to, subject, html, purpose }) {
       to,
       subject,
       html,
+      attachments: mailAttachments(attachments),
     });
     return { success: true, messageId: info.messageId };
   } catch (error) {
@@ -127,16 +136,23 @@ async function sendViaGateway(gateway, { to, subject, html, purpose }) {
   }
 }
 
-async function sendViaSendGrid({ to, subject, html }) {
+async function sendViaSendGrid({ to, subject, html, attachments }) {
   if (!SENDGRID_KEY.startsWith('SG.') || !process.env.EMAIL_FROM) {
     return { success: false, error: 'Email is not configured.' };
   }
   try {
+    const files = mailAttachments(attachments).map((file) => ({
+      content: Buffer.isBuffer(file.content) ? file.content.toString('base64') : String(file.content),
+      filename: file.filename,
+      type: file.contentType,
+      disposition: 'attachment',
+    }));
     const [response] = await sgMail.send({
       to,
       from: { email: process.env.EMAIL_FROM, name: 'BizTrack' },
       subject,
       html,
+      ...(files.length ? { attachments: files } : {}),
     });
     return { success: true, messageId: response.headers?.['x-message-id'] };
   } catch (error) {
@@ -149,11 +165,11 @@ async function sendViaSendGrid({ to, subject, html }) {
  * Sends one email. An active cPanel mailbox on the Integrations page is used first.
  * SendGrid is the fallback when that mailbox is not active.
  */
-const sendEmail = async ({ to, subject, html, purpose = 'user' }) => {
+const sendEmail = async ({ to, subject, html, purpose = 'user', attachments }) => {
   try {
     const gateway = await loadActiveGateway();
-    if (gateway) return await sendViaGateway(gateway, { to, subject, html, purpose });
-    return await sendViaSendGrid({ to, subject, html });
+    if (gateway) return await sendViaGateway(gateway, { to, subject, html, purpose, attachments });
+    return await sendViaSendGrid({ to, subject, html, attachments });
   } catch (error) {
     console.error('Email sending error:', error.message);
     return { success: false, error: error.message };

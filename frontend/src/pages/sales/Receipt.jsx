@@ -30,15 +30,18 @@ export default function Receipt() {
   useEffect(() => {
     if (!saleData || !settings) return undefined;
     let cancelled = false;
-    import('../../utils/receiptPdf').then(({ generateReceiptPDFUrl }) => {
+    import('../../utils/receiptPdf').then(async ({ generateReceiptPDFUrlAsync }) => {
       if (cancelled) return;
-      try { setUrl(generateReceiptPDFUrl(buildReceiptData({ sale: saleData, settings, cashierName: user?.name }), size)); } catch (e) { console.error('Receipt error:', e); setUrl(null); }
+      try {
+        const next = await generateReceiptPDFUrlAsync(buildReceiptData({ sale: saleData, settings, cashierName: user?.name }), size);
+        if (!cancelled) setUrl(next);
+      } catch (e) { console.error('Receipt error:', e); if (!cancelled) setUrl(null); }
     }).catch((e) => { console.error('Receipt error:', e); });
     return () => { cancelled = true; };
   }, [saleData, settings, size, user?.name]);
   useEffect(() => () => { if (url) URL.revokeObjectURL?.(url); }, [url]);
 
-  /** Straight to the printer through QZ Tray — no browser print window (the receipt size chosen above is used). */
+  /** Straight to the printer through QZ Tray — the only print action on this page. */
   const printQz = async () => {
     if (qzBusy || !saleData || !settings) return;
     setQzBusy(true);
@@ -46,8 +49,6 @@ export default function Receipt() {
     catch (err) { showError(err.message || t('print_failed', lang)); }
     finally { setQzBusy(false); }
   };
-
-  const print = () => { const f = document.getElementById('receipt-frame'); f?.contentWindow?.focus(); f?.contentWindow?.print(); };
 
   return (
     <MainLayout>
@@ -58,11 +59,16 @@ export default function Receipt() {
             {saleData?.invoice_number && <p className="text-sm text-gray-500 mt-0.5">#{saleData.invoice_number}</p>}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Select size="sm" value={size} onChange={(e) => setSize(e.target.value)} options={RECEIPT_SIZE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label, lang) }))} className="w-48" />
-            <Button variant="secondary" onClick={print} disabled={!url}>{t('print', lang)}</Button>
-            <Button variant="secondary" onClick={printQz} loading={qzBusy} disabled={!saleData || !settings}>{t('ui_print_qz', lang)}</Button>
+            <Select
+              size="sm"
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+              options={RECEIPT_SIZE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label, lang) }))}
+              className="w-64 min-w-[14rem] text-base"
+            />
+            <Button onClick={printQz} loading={qzBusy} disabled={!saleData || !settings || !url}>{t('print', lang)}</Button>
             {url && <a href={url} download={`receipt-${saleData?.invoice_number || 'sale'}.pdf`} className="px-4 py-2 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50">{t('download', lang)}</a>}
-            <Button onClick={() => navigate('/sales/invoice')}>{t('new_sale', lang)}</Button>
+            <Button variant="secondary" onClick={() => navigate('/sales/invoice')}>{t('new_sale', lang)}</Button>
           </div>
         </div>
         {!saleData && <div className="bg-white rounded shadow p-8 text-center text-sm text-gray-500">{t('no_receipt_data', lang)}</div>}
