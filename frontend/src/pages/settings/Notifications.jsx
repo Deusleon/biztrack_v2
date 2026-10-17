@@ -185,7 +185,6 @@ export default function Notifications() {
         </div>
         {!canManage && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 text-left">{t('view_only_mode', lang)}</p>}
         {!n && <Loader />}
-        {n && <p className="text-xs text-gray-500 text-left">{t('notification_channels_note', lang)}</p>}
         {n && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {columns.map((groups, index) => (
@@ -200,7 +199,7 @@ export default function Notifications() {
             ))}
           </div>
         )}
-        {canManage && (
+        {/* {canManage && (
           <div className="bg-white rounded shadow p-5 text-left space-y-2">
             <h2 className="text-sm font-semibold text-gray-800">{t('test_run_notifications', lang)}</h2>
             <p className="text-xs text-gray-500">{t('test_run_notifications_desc', lang)}</p>
@@ -209,7 +208,7 @@ export default function Notifications() {
               <Button variant="secondary" loading={running} onClick={() => testRun(true)}>{t('force_test_run', lang)}</Button>
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </MainLayout>
   );
