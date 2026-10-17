@@ -5,13 +5,13 @@ import authMiddleware from '../middlewares/authMiddleware.js';
 import { checkStorePermission } from '../middlewares/permissions.js';
 import * as aiController from '../controllers/ai.controller.js';
 router.get('/capabilities', authMiddleware, checkStorePermission(['ai_access']), aiController.getCapabilities);
-router.get('/audit-logs', authMiddleware, aiController.getAuditLogs);
+router.get('/audit-logs', authMiddleware, checkStorePermission(['ai_view_audit']), aiController.getAuditLogs);
 router.get('/provider-status', authMiddleware, checkStorePermission(['ai_access']), aiController.getProviderStatus);
-router.get('/business-summary', authMiddleware, checkStorePermission(['ai_access']), aiController.getBusinessSummary);
+router.get('/business-summary', authMiddleware, checkStorePermission(['ai_access', 'view_dashboard'], true), aiController.getBusinessSummary);
 router.get('/conversations', authMiddleware, checkStorePermission(['ai_access']), aiController.listConversations);
 router.get('/conversations/:id', authMiddleware, checkStorePermission(['ai_access']), aiController.getConversation);
 router.delete('/conversations/:id', authMiddleware, checkStorePermission(['ai_access']), aiController.deleteConversation);
-router.post('/chat', authMiddleware, checkStorePermission(['ai_access']), aiController.chat);
-router.post('/explain', authMiddleware, checkStorePermission(['ai_access']), aiController.explainReport);
+router.post('/chat', authMiddleware, checkStorePermission(['ai_chat', 'ai_access']), aiController.chat);
+router.post('/explain', authMiddleware, checkStorePermission(['ai_explain_reports']), aiController.explainReport);
 
 export default router;

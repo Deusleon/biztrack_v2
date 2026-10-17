@@ -55,7 +55,7 @@ export default function Subscription() {
   const [checkout, setCheckout] = useState(null);       // { plan, phone, name, email }
   const [paying, setPaying] = useState(null);           // { transactionId, amount, currency } waiting for the phone prompt
   const [busy, setBusy] = useState(false);
-  const canPay = can('view_subscription');
+  const canPay = can('manage_subscription') || isDeveloper;
 
   const load = useCallback(async () => { try { const [p, s, h] = await Promise.all([subscriptionService.plans(), subscriptionService.me(), subscriptionService.history()]); setPlans(p); setSub(s); setHistory(h); } catch (err) { showError(err.message); } finally { setLoading(false); } }, [currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]);

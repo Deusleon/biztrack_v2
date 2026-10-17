@@ -2,7 +2,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import { itemForPath, canOpen } from '../utils/navigation';
+import { guardForPath, canOpen } from '../utils/navigation';
 import useDeveloperAccess from '../hooks/useDeveloperAccess';
 import PasswordExpired from '../pages/PasswordExpired';
 import NoAccess from '../pages/NoAccess';
@@ -20,7 +20,7 @@ const LOCKED_OK = ['/subscription', '/profile', '/user-manual', '/support/admin'
  * (The server checks every action again; this only stops people landing on screens that would just fail.)
  */
 export default function ProtectedRoute() {
-  const { isAuthenticated, user, can, permissions, loading } = useAuth();
+  const { isAuthenticated, user, can, permsReady, loading } = useAuth();
   const { locked } = useSubscription();
   const { isDeveloper, loading: developerLoading } = useDeveloperAccess();
   const { pathname } = useLocation();
@@ -37,9 +37,10 @@ export default function ProtectedRoute() {
     return <SubscriptionLocked />;
   }
 
-  const item = itemForPath(pathname);
-  if (item?.developerOnly && developerLoading) return <Loader full />;
-  // Wait until the server has said what this person may do (cached from last time or just fetched).
-  if (item && permissions.length > 0 && !canOpen(item, can, { developer: isDeveloper })) return <NoAccess />;
+  const item = guardForPath(pathname);
+  const needsGuard = !!(item && (item.permission || item.anyPermissions || item.developerOnly));
+  // An empty permission list used to skip this check, so a role with nothing assigned could still open every address.
+  if (needsGuard && (!permsReady || (item.developerOnly && developerLoading))) return <Loader full />;
+  if (needsGuard && !canOpen(item, can, { developer: isDeveloper })) return <NoAccess />;
   return <Outlet />;
 }

@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import MainLayout from '../../components/MainLayout';
-import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
@@ -184,7 +183,6 @@ function EmailGatewayCard({ saved, canEdit, lang, onSaved }) {
 
 /** Google Drive backup: status, history, run now; the developer account also sets the credentials and may restore. */
 export default function Integrations() {
-  const { can } = useAuth();
   const { currentStore } = useStore();
   const { showSuccess, showError } = useToast();
   const { lang } = useLanguage();
@@ -198,7 +196,7 @@ export default function Integrations() {
   const [busy, setBusy] = useState(null);
   const [restore, setRestore] = useState(null);       // { kind: 'drive'|'file', id?, name?, file?, typed }
   const fileRef = useRef(null);
-  const canManage = can('manage_integration');
+  const canManage = dev;
 
   const load = useCallback(async () => {
     try { const [s, h] = await Promise.all([backupService.status(), backupService.list(10)]); setStatus(s); setHistory(h.backups || []); } catch (err) { showError(err.message); }

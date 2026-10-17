@@ -93,7 +93,7 @@ router.get('/purchases/grn', verifyToken, checkPermission('view_grn_reports'), r
 router.get(
   '/inventory',
   verifyToken,
-  checkPermission('view_current_stock'),
+  checkPermission('view_inventory_reports'),
   reportController.getInventoryReport,
 );
 router.get('/inventory/stock-summary', verifyToken, checkPermission('view_stock_summary_reports'), reportController.getStockSummaryReport);
@@ -113,7 +113,7 @@ router.get('/inventory/below-alert', verifyToken, checkPermission('view_stock_be
 router.get(
   '/expenses',
   verifyToken,
-  checkPermission('view_supplier_payments'),
+  checkPermission('view_expense_reports'),
   reportController.getExpensesReport,
 );
 

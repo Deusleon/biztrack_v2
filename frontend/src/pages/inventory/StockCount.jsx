@@ -33,7 +33,7 @@ export default function StockCount() {
   const { showSuccess, showError } = useToast();
   const { lang } = useLanguage();
   const { currentStore } = useStore();
-  const canCount = can('create_stock_count'); const canHistory = can('view_stock_count');
+  const canCount = can('create_stock_count'); const canApply = can('approve_stock_count'); const canHistory = can('view_stock_count');
   const [tab, setTab] = useState(canCount ? 'count' : 'history');   // count | history | movements
   const [cats, setCats] = useState([]);
   const [counted, setCounted] = useState({});         // product_id → counted quantity typed so far (kept across pages)
@@ -79,7 +79,7 @@ export default function StockCount() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('stock_count', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_stock_count', lang)}</p></div>
-          {tab === 'count' && canCount && <Button disabled={entries.length === 0} onClick={() => setConfirm(true)}>{t('save_stock_count', lang)} ({entries.length})</Button>}
+          {tab === 'count' && canCount && canApply && <Button disabled={entries.length === 0} onClick={() => setConfirm(true)}>{t('save_stock_count', lang)} ({entries.length})</Button>}
         </div>
         <div className="flex gap-2 border-b border-gray-200">{[['count', canCount, 'count_stock'], ['history', canHistory, 'count_history'], ['movements', canHistory, 'stock_movements']].filter(([, ok]) => ok).map(([k, , label]) => <button key={k} type="button" onClick={() => setTab(k)} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === k ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{t(label, lang)}</button>)}</div>
 

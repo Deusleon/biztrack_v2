@@ -1,7 +1,7 @@
 // FILE PATH: frontend/src/pages/DefaultDashboard.jsx
 //
-// What a person sees on the Dashboard when their role does NOT include the money figures (view_dashboard / sales records /
-// sales reports). It is shown INSIDE the Dashboard page (which already draws the layout and the greeting), so nobody lands on
+// What a person sees on the Dashboard when their role does not include view_dashboard.
+// It is shown INSIDE the Dashboard page (which already draws the layout and the greeting), so nobody lands on
 // an "access denied" page. It offers only the shortcuts that the person's own permissions open — the same permissions the
 // menu uses, so nothing here leads to a closed door.
 import { Link } from 'react-router-dom';
@@ -37,13 +37,13 @@ export default function DefaultDashboard() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white p-4 rounded shadow flex items-start gap-3 text-left">
+      {/* <div className="bg-white p-4 rounded shadow flex items-start gap-3 text-left">
         <span className="shrink-0 mt-0.5 text-primary"><Svg d={ICON_PATHS.help} className="w-5 h-5" /></span>
         <div className="min-w-0">
           <p className="text-sm text-gray-700">{t('limited_dashboard_notice', lang)}</p>
           <p className="text-xs text-gray-400 mt-1">{dateLabel}</p>
         </div>
-      </div>
+      </div> */}
 
       <div className="bg-white p-5 rounded shadow">
         <h2 className="text-sm font-semibold text-gray-700 text-left">{t('quick_actions', lang)}</h2>

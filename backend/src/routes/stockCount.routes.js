@@ -33,7 +33,7 @@ router.get(
 router.post(
     '/save',
     verifyToken,
-    checkStorePermission(['create_stock_count']),
+    checkStorePermission(['create_stock_count', 'approve_stock_count'], true),
     validateSaveStockCount,
     validate,
     stockCountController.saveStockCount

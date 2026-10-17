@@ -56,8 +56,8 @@ export default function Dashboard() {
 
   const money = (v) => formatCurrency(num(v), settings);
 
-  // Everyone has a dashboard; only people who may see the money figures get the stats.
-  const canSeeStats = can('view_dashboard') || can('view_sales_records') || can('view_sales_reports');
+  // The money dashboard is view_dashboard only. Sales history or reports do not open it.
+  const canSeeStats = can('view_dashboard');
 
   const load = useCallback(async () => {
     if (!canSeeStats) { setLoading(false); return; }
@@ -116,10 +116,10 @@ export default function Dashboard() {
         {canSeeStats && (!loading || stats) && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Kpi title={t('todays_sales', lang)} value={money(today.revenue)} sub={`${num(today.sales_count)} ${t('sales', lang)}`} change={pct(today.revenue, yesterday.revenue)} to="/sales/history" />
-              <Kpi title={t('today_profit', lang)} value={money(todayProfit)} sub={t('today', lang)} change={pct(todayProfit, yesterdayProfit)} to="/reports/day-report" />
-              <Kpi title={t('amount_due', lang)} value={money(today.amount_due)} sub={t('today', lang)} to="/sales/debits" />
-              <Kpi title={t('expenses', lang)} value={money(month.expenses)} sub={t('this_month', lang)} to="/expenses" />
+              <Kpi title={t('todays_sales', lang)} value={money(today.revenue)} sub={`${num(today.sales_count)} ${t('sales', lang)}`} change={pct(today.revenue, yesterday.revenue)} to={can('view_sales_records') ? '/sales/history' : undefined} />
+              <Kpi title={t('today_profit', lang)} value={money(todayProfit)} sub={t('today', lang)} change={pct(todayProfit, yesterdayProfit)} to={can('view_sales_reports') ? '/reports/day-report' : undefined} />
+              <Kpi title={t('amount_due', lang)} value={money(today.amount_due)} sub={t('today', lang)} to={can('view_debits') ? '/sales/debits' : undefined} />
+              <Kpi title={t('expenses', lang)} value={money(month.expenses)} sub={t('this_month', lang)} to={can('view_expenses') ? '/expenses' : undefined} />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -162,7 +162,7 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-white p-5 rounded shadow">
-                <div className="flex justify-between items-center mb-3"><h2 className="text-sm font-semibold text-gray-700">{t('ui_recent_sales', lang)}</h2><Link to="/sales/history" className="text-xs text-primary hover:underline">{t('view_all', lang)}</Link></div>
+                <div className="flex justify-between items-center mb-3"><h2 className="text-sm font-semibold text-gray-700">{t('ui_recent_sales', lang)}</h2>{can('view_sales_records') && <Link to="/sales/history" className="text-xs text-primary hover:underline">{t('view_all', lang)}</Link>}</div>
                 {(stats?.recentSales || []).length === 0 && <p className="text-sm text-gray-400 text-left">{t('ui_nothing_yet', lang)}</p>}
                 <ul className="divide-y divide-gray-100">
                   {(stats?.recentSales || []).map((s, i) => (
@@ -171,7 +171,7 @@ export default function Dashboard() {
                 </ul>
               </div>
               <div className="bg-white p-5 rounded shadow">
-                <div className="flex justify-between items-center mb-3"><h2 className="text-sm font-semibold text-gray-700">{t('top_products', lang)}</h2><Link to="/inventory/products" className="text-xs text-primary hover:underline">{t('view_all', lang)}</Link></div>
+                <div className="flex justify-between items-center mb-3"><h2 className="text-sm font-semibold text-gray-700">{t('top_products', lang)}</h2>{can('view_products') && <Link to="/inventory/products" className="text-xs text-primary hover:underline">{t('view_all', lang)}</Link>}</div>
                 {(stats?.topProducts || []).length === 0 && <p className="text-sm text-gray-400 text-left">{t('ui_nothing_yet', lang)}</p>}
                 <ul className="divide-y divide-gray-100">
                   {(stats?.topProducts || []).map((p, i) => (

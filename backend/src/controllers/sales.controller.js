@@ -7,9 +7,15 @@ import { notifyStore, notifyParty } from '../services/notification.service.js';
 import * as smsService from '../utils/smsService.js';
 import getStoreSettings from '../utils/getStoreSettings.js';
 import { logActivity } from '../utils/activityLog.js';
+import { hasPermission } from '../middlewares/checkPermission.js';
 // =====================================================
 // HELPER FUNCTIONS
 // =====================================================
+
+function discountRequested(items, totalDiscount) {
+  if (Number(totalDiscount) > 0) return true;
+  return (Array.isArray(items) ? items : []).some((item) => Number(item?.discount || 0) > 0);
+}
 
 /**
  * Generate sequential invoice number for a store
@@ -782,6 +788,10 @@ export const recordSale = async (req, res) => {
   const userId = req.user.id;
   const productNames = {};
   const lang = getLang(req);
+
+  if (discountRequested(items, totalDiscount) && !(await hasPermission(userId, req.user.current_store_id || storeId, 'apply_discount'))) {
+    return res.status(403).json({ success: false, message: t('forbidden', lang) });
+  }
 
   const client = await pool.connect();
   try {
@@ -3442,6 +3452,9 @@ export const saveOrderChanges = async (req, res) => {
   const noteToSave = userNote && !/^order_modified_on_/i.test(userNote) ? userNote : '';
 
   const effectiveStoreId = storeId || req.user.current_store_id;
+  if (discountRequested(items, totalDiscount) && !(await hasPermission(userId, effectiveStoreId, 'apply_discount'))) {
+    return res.status(403).json({ success: false, message: t('forbidden', lang) });
+  }
   const client = await pool.connect();
   try {
     await client.query("BEGIN");

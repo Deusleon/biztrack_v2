@@ -45,7 +45,7 @@ const loadAll = async (fetchPage, max = 60) => {
 
 export default function Invoice() {
   const { currentStore } = useStore();
-  const { user } = useAuth();
+  const { user, can } = useAuth();
   const { showSuccess, showError, showWarning } = useToast();
   const { lang } = useLanguage();
   const { settings } = useStoreSettings();
@@ -53,7 +53,7 @@ export default function Invoice() {
   const { state } = useLocation();
   const editCode = state?.fromPendingOrder ? state.cartCode : null;     // opened from "Pending orders → Edit"
 
-  const discountEnabled = !!settings?.allowDiscount;
+  const discountEnabled = !!settings?.allowDiscount && can('apply_discount');
   const vatEnabled = !!settings?.allowVAT;
   const vatRate = removeNumberFormatting(settings?.defaultTaxRate) || 0;
   const sale = useSaleItems({ discountEnabled, vatEnabled, vatRate, settings });
@@ -168,7 +168,7 @@ export default function Invoice() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products.length]);
 
-  const cartItems = useCallback(() => rows.filter((i) => i.rawQuantity > 0).map((i) => ({ product_id: i.productId, quantity: i.rawQuantity, price: i.rawPrice, discount: i.rawDiscount || 0, discount_mode: sale.discountType === 'percentage' ? 'percentage' : 'amount', customer_id: customerId || null })), [rows, customerId, sale.discountType]);
+  const cartItems = useCallback(() => rows.filter((i) => i.rawQuantity > 0).map((i) => ({ product_id: i.productId, quantity: i.rawQuantity, price: i.rawPrice, discount: discountEnabled ? (i.rawDiscount || 0) : 0, discount_mode: sale.discountType === 'percentage' ? 'percentage' : 'amount', customer_id: customerId || null })), [rows, customerId, sale.discountType, discountEnabled]);
 
   // Keep a copy of the cart on the server (it is what a sale is made from) — a moment after the last change.
   useEffect(() => {
@@ -216,7 +216,7 @@ export default function Invoice() {
     const due = Math.max(0, total - paidNum);
     return {
       cart_code: cartCode, priceCategory: priceCategory || null, salesDate: toServerDate(saleDate),
-      items: rows.filter((i) => i.rawQuantity > 0).map((i) => ({ product_id: i.productId, quantity: i.rawQuantity, selling_price: i.rawPrice, discount: i.rawDiscount || 0 })),
+      items: rows.filter((i) => i.rawQuantity > 0).map((i) => ({ product_id: i.productId, quantity: i.rawQuantity, selling_price: i.rawPrice, discount: discountEnabled ? (i.rawDiscount || 0) : 0 })),
       customerId: customerId || null, customerName: customerName || customer?.name || null, customerPhone: customerPhone || customer?.phone || null,
       subTotal: subtotal, amountTax: totalVat, totalDiscount, discountMode: settings?.defaultDiscountType, amountTotal: total,
       amountPaid: paidNum, amountDue: due, amountChange: Math.max(0, paidNum - total), paymentMethod: method,

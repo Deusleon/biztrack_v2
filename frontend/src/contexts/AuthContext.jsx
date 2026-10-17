@@ -20,6 +20,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => (localStorage.getItem('accessToken') && !isTokenExpired(localStorage.getItem('accessToken')) ? readJson('user') : null));
   const [token, setToken] = useState(() => { const t = localStorage.getItem('accessToken'); return t && !isTokenExpired(t) ? t : null; });
   const [permissions, setPermissions] = useState(() => readJson(PERMS_KEY) || []);
+  const [permsReady, setPermsReady] = useState(() => readJson(PERMS_KEY) != null || !localStorage.getItem('accessToken'));
   const [loading, setLoading] = useState(true);
 
   const permMap = useRef(toMap(permissions));
@@ -27,7 +28,7 @@ export const AuthProvider = ({ children }) => {
 
   // ── clearing the session ───────────────────────────────────────────────────────────────────────
   const clearSession = useCallback(() => {
-    setUser(null); setToken(null); setPermissions([]);
+    setUser(null); setToken(null); setPermissions([]); setPermsReady(false);
     ['user', 'accessToken', PERMS_KEY].forEach((k) => localStorage.removeItem(k));
     try { delete window.__auth_user; } catch { /* ignore */ }
     disconnectSocket();
@@ -49,7 +50,7 @@ export const AuthProvider = ({ children }) => {
     if (res.user?.storeInfo?.store_id) localStorage.setItem('currentStoreId', res.user.storeInfo.store_id);
     const perms = Array.isArray(res.permissions) ? res.permissions : [];
     localStorage.setItem(PERMS_KEY, JSON.stringify(perms));
-    setToken(res.token); setUser(nextUser); setPermissions(perms);
+    setToken(res.token); setUser(nextUser); setPermissions(perms); setPermsReady(true);
     return res;
   };
 
@@ -70,7 +71,7 @@ export const AuthProvider = ({ children }) => {
       return next;
     });
     if (newToken) { setToken(newToken); localStorage.setItem('accessToken', newToken); }
-    if (Array.isArray(perms)) { setPermissions(perms); localStorage.setItem(PERMS_KEY, JSON.stringify(perms)); }
+    if (Array.isArray(perms)) { setPermissions(perms); setPermsReady(true); localStorage.setItem(PERMS_KEY, JSON.stringify(perms)); }
   };
 
   /** After a password change the server hands back a fresh token and clears the "must change" flag. */
@@ -113,8 +114,10 @@ export const AuthProvider = ({ children }) => {
         if (cancelled) return;
         setPermissions(res.data);
         localStorage.setItem(PERMS_KEY, JSON.stringify(res.data));
+        setPermsReady(true);
       } catch {
         if (!cancelled && attempt < 3) setTimeout(() => load(attempt + 1), 1000 * 2 ** (attempt - 1));
+        else if (!cancelled) setPermsReady(true);
       }
     };
     load();
@@ -164,7 +167,7 @@ export const AuthProvider = ({ children }) => {
   const canAny = (...keys) => keys.flat().some((k) => can(k));
 
   const value = {
-    user, token, permissions, loading,
+    user, token, permissions, permsReady, loading,
     isAuthenticated: !!user && !!token,
     can, canAny,
     login, logout, updateUser, applyStoreSwitch,

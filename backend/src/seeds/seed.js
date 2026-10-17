@@ -374,10 +374,10 @@ async function seed() {
       'view_suppliers', 'create_suppliers', 'update_suppliers',
       'view_inventory', 'view_current_stock', 'view_current_stock_value', 'view_stock_value_history',
       'edit_batch', 'export_inventory_pdf',
-      'view_price_lists', 'manage_price_list',
-      'view_stock_adjustments', 'create_stock_adjustment',
-      'view_stock_counts', 'create_stock_count', 'approve_stock_count',
-      'view_stock_transfers', 'create_stock_transfer', 'approve_stock_transfer',
+      'view_price_list', 'manage_price_list',
+      'view_stock_adjustment', 'create_stock_adjustment',
+      'view_stock_count', 'create_stock_count', 'approve_stock_count',
+      'view_stock_transfer', 'create_stock_transfer', 'approve_stock_transfer',
       'view_imports_exports', 'import_products', 'import_stock', 'import_prices',
       'export_products', 'export_stock', 'export_prices',
       // Reports
@@ -399,7 +399,7 @@ async function seed() {
       'view_sales_records', 'view_sales_returns', 'create_sales_return',
       'view_debits', 'view_customers', 'create_customers',
       'view_credit_sales', 'manage_credit_sales',
-      'view_inventory', 'view_current_stock', 'view_price_lists',
+      'view_inventory', 'view_current_stock', 'view_price_list',
       'view_products', 'view_product_categories',
     ];
 

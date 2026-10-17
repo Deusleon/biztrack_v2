@@ -30,7 +30,7 @@ export default function Users() {
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [view, setView] = useState(null);
-  const canEdit = can('edit_users'); const canDelete = can('delete_users') || canEdit;
+  const canEdit = can('edit_users'); const canDelete = can('delete_users');
   useEffect(() => { roleService.getAll().then((r) => setRoles(r.data)).catch(() => showError(t('failed_to_fetch_roles', lang))); }, [currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = (k) => (e) => { setForm((f) => ({ ...f, [k]: e.target.value })); setErrors((x) => ({ ...x, [k]: undefined })); };
 

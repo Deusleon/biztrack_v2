@@ -1,4 +1,9 @@
 // FILE PATH: frontend/src/utils/navigation.js
+import { REPORT_GROUPS } from '../pages/reports/catalog';
+
+/** Every permission that opens one report inside a reports page. */
+const reportPerms = (group) => [...new Set(REPORT_GROUPS[group].reports.flatMap((r) => r.perms || [r.perm]))];
+
 /**
  * The whole menu in one place — every page of BizTrack, with the permission(s) that open it.
  * (Paths and permission names are exactly the ones BizTrack has always used, so nobody's access changes.)
@@ -46,13 +51,13 @@ export const NAV_SECTIONS = [
     { label: 'expenses', to: '/expenses', icon: 'wallet', permission: 'view_expenses' },
   ] },
   { key: 'reports', title: 'reports', items: [
-    { label: 'sales_reports', to: '/reports/sales', icon: 'chart', permission: 'view_sales_reports' },
+    { label: 'sales_reports', to: '/reports/sales', icon: 'chart', anyPermissions: reportPerms('sales') },
     { label: 'day_report', to: '/reports/day-report', icon: 'chart', permission: 'view_sales_reports' },
-    { label: 'purchases_reports', to: '/reports/purchases', icon: 'chart', permission: 'view_purchase_reports' },
-    { label: 'expenses_reports', to: '/reports/expenses', icon: 'chart', permission: 'view_supplier_payments' },
-    { label: 'profit_reports', to: '/reports/profit', icon: 'chart', permission: 'view_profit_reports' },
+    { label: 'purchases_reports', to: '/reports/purchases', icon: 'chart', anyPermissions: reportPerms('purchases') },
+    { label: 'expenses_reports', to: '/reports/expenses', icon: 'chart', permission: 'view_expense_reports' },
+    { label: 'profit_reports', to: '/reports/profit', icon: 'chart', anyPermissions: reportPerms('profit') },
     { label: 'net_profit_reports', to: '/reports/net-profit', icon: 'chart', permission: 'view_profit_reports' },
-    { label: 'inventory_reports', to: '/reports/inventory', icon: 'chart', permission: 'view_current_stock' },
+    { label: 'inventory_reports', to: '/reports/inventory', icon: 'chart', anyPermissions: reportPerms('inventory') },
   ] },
   { key: 'people', title: 'users', items: [
     { label: 'users', to: '/users/all', icon: 'users', permission: 'view_users' },
@@ -71,7 +76,7 @@ export const NAV_SECTIONS = [
     { label: 'configurations', to: '/settings/configurations', icon: 'cog', permission: 'view_configurations' },
     { label: 'uploads', to: '/settings/uploads', icon: 'upload', permission: 'view_uploads' },
     { label: 'bulk_operations', to: '/settings/bulk-operations', icon: 'layers', permission: 'view_bulk_operations' },
-    { label: 'integration', to: '/settings/integration', icon: 'link', permission: 'view_integration' },
+    { label: 'integration', to: '/settings/integration', icon: 'link', developerOnly: true },
     { label: 'security', to: '/settings/security', icon: 'shield', permission: 'view_security' },
     { label: 'tools', to: '/settings/tools', icon: 'cog', permission: 'view_tools' },
     { label: 'notifications', to: '/settings/notifications', icon: 'bell', permission: 'view_notifications' },
@@ -84,6 +89,18 @@ export const NAV_SECTIONS = [
     { label: 'user_manual', to: '/user-manual', icon: 'book' },
   ] },
 ];
+
+/** Pages that are not a menu row, with the permission that actually opens them. */
+const EXTRA_GUARDS = [
+  { to: '/purchases/orders/new', permission: 'create_purchase_orders' },
+  { to: '/purchases/orders/:id/edit', permission: 'update_purchase_orders' },
+  { to: '/sales/receipt', anyPermissions: ['create_invoice', 'view_sales_records'] },
+];
+
+const pathMatches = (pattern, pathname) => new RegExp(`^${pattern.replace(/:[^/]+/g, '[^/]+')}$`).test(pathname);
+
+/** The permission door for this address. A more specific page wins over the menu row it sits under. */
+export const guardForPath = (pathname) => EXTRA_GUARDS.find((guard) => pathMatches(guard.to, pathname)) || itemForPath(pathname);
 
 export const canOpen = (item, can, extras = {}) => {
   if (item.developerOnly && !extras.developer) return false;

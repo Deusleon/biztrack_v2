@@ -23,6 +23,6 @@ router.get('/:store_id/users', checkStorePermission(['view_users', 'edit_users']
 router.put('/:id', checkStorePermission(['edit_users']), storeUserController.updateStoreUserRole);
 
 // DELETE: Remove a user from a store
-router.delete('/:id', checkStorePermission(['delete_users', 'edit_users']), storeUserController.removeUserFromStore);
+router.delete('/:id', checkStorePermission(['delete_users']), storeUserController.removeUserFromStore);
 
 export default router;

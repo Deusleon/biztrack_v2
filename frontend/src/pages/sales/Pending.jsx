@@ -42,7 +42,7 @@ export default function Pending() {
   const [confirm, setConfirm] = useState({ isOpen: false });
   const [cancel, setCancel] = useState(null);
   const [reason, setReason] = useState('');
-  const manage = can('manage_pending_invoices') || can('create_invoice');
+  const manage = can('manage_pending_invoices');
   const money = (v) => formatCurrency(Number(v) || 0, settings);
 
   const remove = async () => {
