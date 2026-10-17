@@ -1,104 +1,127 @@
-// A small PDF table writer. Uses the standard Courier and Helvetica fonts
-// so the file needs no embedded font, and columns stay aligned.
+// Report PDF used by notification emails. Same navy header, table and footer
+// as the reports exported from the app.
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-const PAGE_W = 595;
-const PAGE_H = 842;
-const MARGIN = 40;
-const LINE = 12;
+const NAVY = [30, 58, 95];
+const WHITE = [255, 255, 255];
+const VALUE = [31, 41, 55];
+const LABEL = [107, 114, 128];
+const LINE = [229, 231, 235];
+const ZEBRA = [250, 251, 252];
 
-function pdfText(value) {
-  return String(value ?? '')
-    .replace(/[^\x20-\x7E]/g, ' ')
-    .replace(/\\/g, '\\\\')
-    .replace(/\(/g, '\\(')
-    .replace(/\)/g, '\\)');
-}
+const BUSINESS_TIMEZONE = process.env.BUSINESS_TIMEZONE || 'Africa/Dar_es_Salaam';
 
-function clip(value, width) {
-  const text = String(value ?? '');
-  return text.length > width ? `${text.slice(0, Math.max(0, width - 1))}…`.replace('…', '.') : text;
-}
-
-function pad(value, width) {
-  const text = clip(value, width);
-  return text.length >= width ? text : text + ' '.repeat(width - text.length);
+function generatedOn() {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: BUSINESS_TIMEZONE,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date());
 }
 
 /**
- * @param {{ title: string, subtitle?: string, columns: { key: string, label: string, width: number }[], rows: object[] }} doc
+ * @param {{ title: string, subtitle?: string, businessName?: string, address?: string, phone?: string, email?: string, columns: { key: string, label: string, halign?: string }[], rows: object[] }} doc
  * @returns {Buffer}
  */
-export function buildTablePdf({ title, subtitle = '', columns, rows }) {
-  const header = columns.map((col) => pad(col.label, col.width)).join('  ');
-  const body = rows.map((row) => columns.map((col) => pad(row[col.key], col.width)).join('  '));
-  const firstLines = 6;
-  const perPage = Math.floor((PAGE_H - MARGIN * 2 - firstLines * LINE) / LINE);
-  const pages = [];
-  if (body.length === 0) pages.push([]);
-  for (let i = 0; i < body.length; i += perPage) pages.push(body.slice(i, i + perPage));
+export function buildTablePdf({
+  title,
+  subtitle = '',
+  businessName = 'BizTrack',
+  address = '',
+  phone = '',
+  email = '',
+  columns,
+  rows,
+}) {
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 9;
+  const store = businessName || 'BizTrack';
 
-  const streams = pages.map((lines, index) => {
-    const commands = [
-      'BT',
-      '/F1 14 Tf',
-      `${MARGIN} ${PAGE_H - MARGIN - 14} Td`,
-      `(${pdfText(title)}) Tj`,
-      '/F1 10 Tf',
-      `0 -18 Td`,
-      `(${pdfText(subtitle)}) Tj`,
-      `0 -16 Td`,
-      `(${pdfText(index > 0 ? `Page ${index + 1} of ${pages.length}` : '')}) Tj`,
-      '/F2 9 Tf',
-      '0 -20 Td',
-      `(${pdfText(header)}) Tj`,
-      '0 -8 Td',
-      `(${pdfText('-'.repeat(Math.min(header.length, 96)))}) Tj`,
-    ];
-    lines.forEach((line) => {
-      commands.push('0 -12 Td');
-      commands.push(`(${pdfText(line)}) Tj`);
-    });
-    commands.push('ET');
-    return commands.join('\n');
+  doc.setProperties({
+    title,
+    subject: `${title} - ${store}`,
+    author: store,
   });
 
-  return assemblePdf(streams);
-}
+  const drawHeader = () => {
+    doc.setFillColor(...NAVY);
+    doc.rect(0, 0, pageWidth, 26, 'F');
+    doc.setFillColor(...WHITE);
+    doc.triangle(0, 0, 9, 0, 0, 20, 'F');
 
-function assemblePdf(streams) {
-  const objects = [];
-  const add = (body) => {
-    objects.push(body);
-    return objects.length;
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text(store, margin, 9);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    const contacts = [address, phone ? `Phone: ${phone}` : '', email ? `Email: ${email}` : ''].filter(Boolean);
+    let y = 14;
+    contacts.slice(0, 2).forEach((line) => {
+      doc.text(String(line).slice(0, 70), margin, y);
+      y += 4;
+    });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(String(title).toUpperCase(), pageWidth - margin, 8, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    if (subtitle) doc.text(String(subtitle), pageWidth - margin, 13, { align: 'right' });
+    doc.text(`Generated: ${generatedOn()}`, pageWidth - margin, subtitle ? 17.5 : 13, { align: 'right' });
   };
 
-  const fontBold = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
-  const fontMono = add('<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>');
-  const pageIds = [];
-  streams.forEach((stream) => {
-    const contentId = add(`<< /Length ${Buffer.byteLength(stream, 'latin1')} >>\nstream\n${stream}\nendstream`);
-    const pageId = add(
-      `<< /Type /Page /Parent PAGES 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] `
-      + `/Contents ${contentId} 0 R /Resources << /Font << /F1 ${fontBold} 0 R /F2 ${fontMono} 0 R >> >> >>`,
-    );
-    pageIds.push(pageId);
-  });
-  const pagesId = add(`<< /Type /Pages /Count ${pageIds.length} /Kids [${pageIds.map((id) => `${id} 0 R`).join(' ')}] >>`);
-  const catalogId = add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+  drawHeader();
 
-  let pdf = '%PDF-1.4\n';
-  const offsets = [0];
-  objects.forEach((body, index) => {
-    const id = index + 1;
-    offsets[id] = Buffer.byteLength(pdf, 'latin1');
-    pdf += `${id} 0 obj\n${body.replace('Parent PAGES 0 R', `Parent ${pagesId} 0 R`)}\nendobj\n`;
+  autoTable(doc, {
+    startY: 32,
+    head: [columns.map((col) => col.label)],
+    body: rows.map((row) => columns.map((col) => row[col.key] ?? '')),
+    styles: {
+      font: 'helvetica',
+      fontSize: 9,
+      overflow: 'linebreak',
+      cellPadding: { top: 1.4, right: 1.6, bottom: 1.4, left: 1.6 },
+      textColor: VALUE,
+      lineColor: LINE,
+      lineWidth: 0.15,
+      valign: 'middle',
+    },
+    headStyles: {
+      fillColor: NAVY,
+      textColor: WHITE,
+      fontStyle: 'bold',
+      fontSize: 9,
+      cellPadding: { top: 1.6, right: 1.6, bottom: 1.6, left: 1.6 },
+    },
+    alternateRowStyles: { fillColor: ZEBRA },
+    columnStyles: Object.fromEntries(columns.map((col, index) => [index, col.halign ? { halign: col.halign } : {}])),
+    margin: { top: 16, right: margin, bottom: 16, left: margin },
+    showHead: 'everyPage',
   });
-  const xrefAt = Buffer.byteLength(pdf, 'latin1');
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += '0000000000 65535 f \n';
-  for (let id = 1; id <= objects.length; id += 1) {
-    pdf += `${String(offsets[id]).padStart(10, '0')} 00000 n \n`;
+
+  const pages = doc.internal.getNumberOfPages();
+  for (let page = 1; page <= pages; page += 1) {
+    doc.setPage(page);
+    const footerY = pageHeight - 12;
+    doc.setDrawColor(...LINE);
+    doc.setLineWidth(0.3);
+    doc.line(margin, footerY, pageWidth - margin, footerY);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...LABEL);
+    doc.text(`${store}`, margin, footerY + 5);
+    doc.text('Powered by BizTrack', pageWidth / 2, footerY + 5, { align: 'center' });
+    doc.text(`Page ${page} / ${pages}`, pageWidth - margin, footerY + 5, { align: 'right' });
   }
-  pdf += `trailer << /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefAt}\n%%EOF`;
-  return Buffer.from(pdf, 'latin1');
+
+  return Buffer.from(doc.output('arraybuffer'));
 }

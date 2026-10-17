@@ -1,7 +1,7 @@
 // path: backend/services/notificationScheduler.js
 import pool from '../config/db.js';
 import { t } from '../utils/translate.js';
-import { notifyStore, DEFAULT_NOTIFICATION_SETTINGS } from './notification.service.js';
+import { notifyStore, notifyParty, DEFAULT_NOTIFICATION_SETTINGS } from './notification.service.js';
 import { buildTablePdf } from '../utils/simplePdf.js';
 // All schedule decisions use THIS timezone, never the server's local clock.
 // The server can be in the US, Australia, anywhere — notifications still go
@@ -144,35 +144,15 @@ async function getPaymentDueSummary(storeId) {
   return { count: result.rows.length, customerCount: customers.length, total_due: total, customers };
 }
 
-function esc(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-function paymentDueHtml(customers, money) {
-  return customers.map((customer) => {
-    const rows = customer.invoices.map((invoice) => `
-      <tr>
-        <td style="padding:6px 8px;border-bottom:1px solid #E5E7EB;font-size:13px;">${esc(invoice.invoice_number)}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #E5E7EB;font-size:13px;text-align:right;">${esc(money(invoice.amount_due))}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #E5E7EB;font-size:13px;">${esc(formatBusinessDate(invoice.due_date))}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #E5E7EB;font-size:13px;text-align:right;">${esc(invoice.overdue_days)}</td>
-      </tr>`).join('');
-    return `
-      <p style="margin:18px 0 6px;font-size:14px;font-weight:bold;color:#111827;">${esc(customer.name)}</p>
-      <p style="margin:0 0 6px;font-size:12px;color:#6B7280;">Amount due ${esc(money(customer.total))}</p>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #E5E7EB;">
-        <tr style="background:#F9FAFB;">
-          <th align="left" style="padding:6px 8px;font-size:12px;color:#6B7280;">Invoice</th>
-          <th align="right" style="padding:6px 8px;font-size:12px;color:#6B7280;">Amount</th>
-          <th align="left" style="padding:6px 8px;font-size:12px;color:#6B7280;">Due date</th>
-          <th align="right" style="padding:6px 8px;font-size:12px;color:#6B7280;">Overdue days</th>
-        </tr>
-        ${rows}
-      </table>`;
-  }).join('');
+async function storeLetterhead(storeName, location) {
+  const system = await pool.query('SELECT settings FROM system_settings LIMIT 1').catch(() => ({ rows: [] }));
+  const info = system.rows[0]?.settings?.businessInfo || {};
+  return {
+    businessName: info.businessName || storeName,
+    address: info.address || location || '',
+    phone: info.phone || '',
+    email: info.email || '',
+  };
 }
 
 
@@ -383,6 +363,51 @@ function formatBusinessTime(date) {
   return `${values.year}-${values.month}-${values.day} ${values.hour}:${values.minute}`;
 }
 
+const NEAR_DUE_DAYS = 3;
+
+async function sendCustomerPaymentReminders(storeId, storeName, money) {
+  const result = await pool.query(
+    `SELECT c.id, c.name, c.email, c.phone,
+            cs.invoice_number, cs.amount_due,
+            ((cs.due_date AT TIME ZONE $2)::date - (NOW() AT TIME ZONE $2)::date)::int AS days_until_due
+     FROM credit_sales cs
+     JOIN customers c ON c.id = cs.customer_id
+     WHERE cs.store_id = $1
+       AND cs.status NOT IN ('paid', 'cancelled')
+       AND cs.amount_due > 0
+       AND cs.due_date IS NOT NULL
+       AND (cs.due_date AT TIME ZONE $2)::date <= (NOW() AT TIME ZONE $2)::date + $3::int
+       AND (NULLIF(c.email, '') IS NOT NULL OR NULLIF(c.phone, '') IS NOT NULL)
+     ORDER BY c.name, cs.due_date`,
+    [storeId, BUSINESS_TIMEZONE, NEAR_DUE_DAYS],
+  );
+  const groups = new Map();
+  for (const row of result.rows) {
+    let customer = groups.get(row.id);
+    if (!customer) {
+      customer = { name: row.name, email: row.email, phone: row.phone, invoices: [], total: 0 };
+      groups.set(row.id, customer);
+    }
+    const amount = Number(row.amount_due) || 0;
+    customer.total += amount;
+    customer.invoices.push({ invoice_number: row.invoice_number, amount, days: Number(row.days_until_due) || 0 });
+  }
+  for (const customer of groups.values()) {
+    const lines = customer.invoices.map((invoice) => {
+      const when = invoice.days < 0 ? `${Math.abs(invoice.days)} days overdue` : invoice.days === 0 ? 'due today' : `due in ${invoice.days} days`;
+      return `${invoice.invoice_number}: ${money(invoice.amount)} (${when})`;
+    });
+    await notifyParty({
+      storeId,
+      type: 'payment_due_customer',
+      to: customer,
+      title: 'Payment reminder',
+      message: `This is a reminder about the amount still due on your account.\n${lines.join('\n')}\nWe have these amounts on record. Please pay so your account stays up to date.`,
+      meta: { invoices: customer.invoices.length, total_due: money(customer.total) },
+    });
+  }
+}
+
 function channelEnabled(settings, type) {
   return ["inapp", "email", "sms"].some((channel) => settings[`${channel}_${type}`] === true);
 }
@@ -390,7 +415,9 @@ function channelEnabled(settings, type) {
 async function processStore(storeId, rawSettings, dateKey, options = {}) {
   const { endOverride = null } = options;
   const settings = { ...DEFAULT_NOTIFICATION_SETTINGS, ...(rawSettings || {}) };
-  const storeName = (await pool.query("SELECT name FROM stores WHERE id = $1", [storeId])).rows[0]?.name || "your business";
+  const storeRow = (await pool.query("SELECT name, location FROM stores WHERE id = $1", [storeId])).rows[0] || {};
+  const storeName = storeRow.name || "your business";
+  const letterhead = await storeLetterhead(storeName, storeRow.location);
   const money = (n) => Number(n || 0).toLocaleString("en-US");
 
   if (channelEnabled(settings, "low_stock")) {
@@ -403,12 +430,13 @@ async function processStore(storeId, rawSettings, dateKey, options = {}) {
         );
         const qty = (n) => Number(n || 0).toLocaleString("en-US");
         const pdf = buildTablePdf({
-          title: `${storeName} — Low stock`,
+          title: 'Low stock',
           subtitle: `${formattedValue} item(s) at or below reorder level`,
+          ...letterhead,
           columns: [
-            { key: 'name', label: 'Item', width: 36 },
-            { key: 'current_stock', label: 'Current stock', width: 16 },
-            { key: 'reorder_level', label: 'Reorder level', width: 16 },
+            { key: 'name', label: 'Item' },
+            { key: 'current_stock', label: 'Current stock', halign: 'right' },
+            { key: 'reorder_level', label: 'Reorder level', halign: 'right' },
           ],
           rows: lowStock.items.map((item) => ({
             name: item.name,
@@ -429,21 +457,22 @@ async function processStore(storeId, rawSettings, dateKey, options = {}) {
     }
   }
 
-  if (channelEnabled(settings, "payment_due")) {
+  const remindCustomers = settings.email_payment_due_customer === true || settings.sms_payment_due_customer === true;
+  if (channelEnabled(settings, "payment_due") || remindCustomers) {
     const action = `scheduled_payment_due_${dateKey}`;
     if (!(await wasProcessed(storeId, action))) {
-      const due = await getPaymentDueSummary(storeId);
-      if (Number(due.count) > 0) {
-        const many = due.customerCount > 20;
-        const pdf = many ? buildTablePdf({
-          title: `${storeName} — Customer payments due`,
+      const due = channelEnabled(settings, "payment_due") ? await getPaymentDueSummary(storeId) : { count: 0, total_due: 0 };
+      if (channelEnabled(settings, "payment_due") && Number(due.count) > 0) {
+        const pdf = buildTablePdf({
+          title: 'Customer payments due',
           subtitle: `${due.customerCount} customers, ${money(due.total_due)} due`,
+          ...letterhead,
           columns: [
-            { key: 'customer', label: 'Customer', width: 22 },
-            { key: 'invoice', label: 'Invoice', width: 14 },
-            { key: 'amount', label: 'Amount', width: 12 },
-            { key: 'due_date', label: 'Due date', width: 12 },
-            { key: 'overdue_days', label: 'Overdue', width: 8 },
+            { key: 'customer', label: 'Customer' },
+            { key: 'invoice', label: 'Invoice' },
+            { key: 'amount', label: 'Amount', halign: 'right' },
+            { key: 'due_date', label: 'Due date' },
+            { key: 'overdue_days', label: 'Overdue days', halign: 'right' },
           ],
           rows: due.customers.flatMap((customer) => customer.invoices.map((invoice) => ({
             customer: customer.name,
@@ -452,17 +481,17 @@ async function processStore(storeId, rawSettings, dateKey, options = {}) {
             due_date: formatBusinessDate(invoice.due_date),
             overdue_days: String(invoice.overdue_days),
           }))),
-        }) : null;
+        });
         await notifyStore({
           storeId,
           type: "payment_due",
           title: "Customer payments due",
-          message: `${t("credit_sale_payment_due_msg", { count: due.count })}\n\n${due.customerCount} customer(s), ${money(due.total_due)} due in total.${many ? ' The full list is attached.' : ''}`,
-          detailHtml: many ? '' : paymentDueHtml(due.customers, money),
+          message: `${t("credit_sale_payment_due_msg", { count: due.count })}\n\n${due.customerCount} customer(s), ${money(due.total_due)} due in total.`,
           meta: { customers: due.customerCount, invoices: due.count, total_due: money(due.total_due) },
-          attachments: pdf ? [{ filename: 'payments-due.pdf', content: pdf, contentType: 'application/pdf' }] : undefined,
+          attachments: [{ filename: 'payments-due.pdf', content: pdf, contentType: 'application/pdf' }],
         });
       }
+      if (remindCustomers) await sendCustomerPaymentReminders(storeId, storeName, money);
       await markProcessed(storeId, action, { date: dateKey, count: Number(due.count), total_due: due.total_due });
     }
   }

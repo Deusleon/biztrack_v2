@@ -3,7 +3,7 @@ import { t } from '../utils/translate.js';
 import { getLang } from '../utils/getLang.js';
 import { respondWithError } from '../utils/response.js';
 import { getIO, emitToStore } from '../utils/socket.js';
-import { notifyStore } from '../services/notification.service.js';
+import { notifyStore, notifyParty } from '../services/notification.service.js';
 import * as smsService from '../utils/smsService.js';
 import getStoreSettings from '../utils/getStoreSettings.js';
 import { logActivity } from '../utils/activityLog.js';
@@ -180,31 +180,103 @@ async function checkCustomerCreditLimit(customerId, storeId, amount) {
   }
 }
 
-function notifyNewSale({ storeId, userId, lang, currency, invoiceNumber, amountTotal, saleType, customerName, roles }) {
-  const customer = customerName || "Walk-in";
-  let amount = String(amountTotal ?? "");
+function moneyText(amount, lang, currency) {
   try {
-    amount = new Intl.NumberFormat(lang === "sw" ? "sw-KE" : "en-US", {
+    return new Intl.NumberFormat(lang === "sw" ? "sw-KE" : "en-US", {
       style: "currency",
       currency: currency || "USD",
-    }).format(amountTotal);
-  } catch { /* keep the plain number if the currency code is not valid */ }
+    }).format(amount);
+  } catch {
+    return String(amount ?? "");
+  }
+}
+
+function notifyNewSale({ storeId, userId, lang, currency, invoiceNumber, amountTotal, saleType, customerName, customerEmail, customerPhone, roles }) {
+  const customer = customerName || "Walk-in";
+  const amount = moneyText(amountTotal, lang, currency);
   pool.query("SELECT name FROM users WHERE id = $1", [userId]).then((seller) => {
     const soldBy = seller.rows[0]?.name || "—";
+    const meta = { invoice_number: invoiceNumber, amount, sales_type: saleType, customer, sold_by: soldBy };
     notifyStore({
       storeId,
       type: "new_sale",
       title: "New sale",
       message: `Invoice ${invoiceNumber}: ${amount}. Type: ${saleType}. Customer: ${customer}. Sold by ${soldBy}.`,
-      meta: {
-        invoice_number: invoiceNumber,
-        amount,
-        sales_type: saleType,
-        customer,
-        sold_by: soldBy,
-      },
+      meta,
       ...(roles ? { roles } : {}),
     }).catch(() => { });
+    notifyParty({
+      storeId,
+      type: "new_sale_customer",
+      to: { name: customer, email: customerEmail, phone: customerPhone },
+      title: "Your purchase",
+      message: `Thank you. Invoice ${invoiceNumber} for ${amount} (${saleType}) is recorded. Sold by ${soldBy}.`,
+      meta,
+    }).catch(() => { });
+  }).catch(() => { });
+}
+
+async function customerById(storeId, customerId) {
+  if (!customerId) return null;
+  const result = await pool.query(
+    "SELECT name, email, phone FROM customers WHERE id = $1 AND store_id = $2",
+    [customerId, storeId],
+  );
+  return result.rows[0] || null;
+}
+
+async function customerByCart(storeId, cartCode) {
+  const result = await pool.query(
+    `SELECT cst.name, cst.email, cst.phone, po.order_number
+     FROM cart c
+     LEFT JOIN customers cst ON cst.id = c.customer_id
+     LEFT JOIN pending_orders po ON po.cart_code = c.cart_code
+     WHERE c.cart_code = $1 AND c.store_id = $2
+     LIMIT 1`,
+    [cartCode, storeId],
+  );
+  return result.rows[0] || null;
+}
+
+async function customerByInvoice(storeId, invoiceNumber) {
+  if (!invoiceNumber) return null;
+  const result = await pool.query(
+    `SELECT c.name, c.email, c.phone
+     FROM payments p
+     LEFT JOIN cart ct ON ct.cart_code = p.cart_code AND ct.store_id = p.store_id
+     LEFT JOIN customers c ON c.id = ct.customer_id
+     WHERE p.invoice_number = $1 AND p.store_id = $2
+     LIMIT 1`,
+    [invoiceNumber, storeId],
+  );
+  return result.rows[0]?.name || result.rows[0]?.email || result.rows[0]?.phone ? result.rows[0] : null;
+}
+
+function notifyReturnCustomer(storeId, invoiceNumber, title, message, meta) {
+  customerByInvoice(storeId, invoiceNumber).then((customer) => notifyParty({
+    storeId,
+    type: "sales_return_customer",
+    to: customer,
+    title,
+    message,
+    meta,
+  })).catch(() => { });
+}
+
+function notifyOrderPayment({ storeId, orderNumber, amount, amountDue, method, customer }) {
+  const paid = Number(amount || 0).toLocaleString("en-US");
+  const due = Number(amountDue || 0);
+  const settled = due <= 0.005 ? "The order is fully paid." : `Balance still due: ${due.toLocaleString("en-US")}.`;
+  const message = `Payment of ${paid} received for order ${orderNumber || ""}. ${settled}`;
+  const meta = { order: orderNumber || "", amount: paid, payment_method: method || "", balance_due: due.toLocaleString("en-US") };
+  notifyStore({ storeId, type: "order_payment", title: "Pending order payment", message, meta }).catch(() => { });
+  notifyParty({
+    storeId,
+    type: "order_payment_customer",
+    to: customer,
+    title: "Payment received",
+    message: `We received ${paid} for order ${orderNumber || ""}. ${settled} This payment is recorded.`,
+    meta,
   }).catch(() => { });
 }
 
@@ -1110,6 +1182,8 @@ export const recordSale = async (req, res) => {
       amountTotal,
       saleType,
       customerName: customerInfo?.name || customerName,
+      customerEmail: customerInfo?.email,
+      customerPhone: customerInfo?.phone || customerPhone,
       roles: ["Owner"],
     });
 
@@ -1464,6 +1538,18 @@ export const recordSalesOrderPayment = async (req, res) => {
     });
     
     await client.query("COMMIT");
+
+    const orderBuyer = order.customer_id
+      ? await customerById(storeId, order.customer_id)
+      : order.cart_code ? await customerByCart(storeId, order.cart_code) : null;
+    notifyOrderPayment({
+      storeId,
+      orderNumber: order.order_number,
+      amount,
+      amountDue: Math.max(0, newAmountDue),
+      method: paymentMethod,
+      customer: orderBuyer,
+    });
 
     res.json({
       success: true,
@@ -2009,6 +2095,14 @@ export const recordCreditPayment = async (req, res) => {
     
     await client.query("COMMIT");
 
+    const payer = await customerById(storeId, sale.customer_id);
+    const received = Number(amount || 0).toLocaleString("en-US");
+    const remaining = Math.max(0, newAmountDue).toLocaleString("en-US");
+    const debitMessage = `We received ${received} for invoice ${sale.invoice_number}. Remaining balance: ${remaining}. This payment is recorded on your account.`;
+    const debitMeta = { invoice_number: sale.invoice_number, amount: received, balance_due: remaining };
+    notifyStore({ storeId, type: "debit_paid", title: "Debit payment received", message: debitMessage, meta: { ...debitMeta, customer: payer?.name || "" } }).catch(() => { });
+    notifyParty({ storeId, type: "debit_paid_customer", to: payer, title: "Payment received", message: debitMessage, meta: debitMeta }).catch(() => { });
+
     res.json({
       success: true,
       message: "payment_recorded",
@@ -2467,6 +2561,13 @@ export const createSalesReturn = async (req, res) => {
       message: "A new sales return is awaiting review",
       meta: { return_number: returnNumber, invoice_number: invoiceNumber, amount: totalReturnAmount },
     }).catch(() => { });
+    notifyReturnCustomer(
+      storeId,
+      invoiceNumber,
+      "Your return",
+      `Return ${returnNumber} for invoice ${invoiceNumber} was recorded and is awaiting review. Amount: ${Number(totalReturnAmount || 0).toLocaleString("en-US")}.`,
+      { return_number: returnNumber, invoice_number: invoiceNumber, amount: totalReturnAmount },
+    );
 
     res.status(201).json({
       success: true,
@@ -3050,6 +3151,13 @@ export const approveSalesReturn = async (req, res) => {
       message: "A sales return was approved and completed",
       meta: { return_number: salesReturn.return_number, refund_amount: salesReturn.refund_amount },
     }).catch(() => { });
+    notifyReturnCustomer(
+      storeId,
+      salesReturn.original_invoice_number,
+      "Your return was approved",
+      `Return ${salesReturn.return_number} for invoice ${salesReturn.original_invoice_number} was approved. Refund: ${Number(salesReturn.refund_amount || 0).toLocaleString("en-US")}. This is recorded on your account.`,
+      { return_number: salesReturn.return_number, invoice_number: salesReturn.original_invoice_number },
+    );
 
     return res.json({
       success: true,
@@ -3112,6 +3220,13 @@ export const rejectSalesReturn = async (req, res) => {
       message: "A sales return was rejected",
       meta: { return_number: result.rows[0].return_number, reason: reason || "No reason provided" },
     }).catch(() => { });
+    notifyReturnCustomer(
+      storeId,
+      result.rows[0].original_invoice_number,
+      "Your return was not approved",
+      `Return ${result.rows[0].return_number} for invoice ${result.rows[0].original_invoice_number} was not approved. Reason: ${reason || "No reason provided"}.`,
+      { return_number: result.rows[0].return_number, invoice_number: result.rows[0].original_invoice_number },
+    );
 
     res.json({
       success: true,
@@ -3268,6 +3383,18 @@ export const saveOrder = async (req, res) => {
     });
     
     await client.query("COMMIT");
+
+    if (paidAmount > 0) {
+      const buyer = await customerByCart(storeId, cart_code);
+      notifyOrderPayment({
+        storeId,
+        orderNumber: orderResult.rows[0].order_number,
+        amount: paidAmount,
+        amountDue: dueAmount,
+        method: paymentMethod,
+        customer: buyer,
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -3620,7 +3747,17 @@ export const saveOrderPayments = async (req, res) => {
       },
       ip: req.ip,
     });
-    
+
+    const buyer = await customerByCart(storeId, cart_code);
+    notifyOrderPayment({
+      storeId,
+      orderNumber: buyer?.order_number,
+      amount: amount_paid,
+      amountDue: dueAmt,
+      method: payment_method,
+      customer: buyer,
+    });
+
     res.json({
       success: true,
       paymentDatas: payment.rows,
@@ -4082,6 +4219,8 @@ export const sellPendingOrder = async (req, res) => {
       amountTotal,
       saleType,
       customerName: customerInfo?.name || firstRow.customer_name,
+      customerEmail: customerInfo?.email,
+      customerPhone: customerInfo?.phone || firstRow.customer_phone,
     });
 
     res.status(201).json({
