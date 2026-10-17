@@ -77,15 +77,22 @@ export default function Dashboard() {
   const todayProfit = profitOf(today);
   const yesterdayProfit = profitOf(yesterday);
 
+  // Chart days arrive as YYYY-MM-DD. Build that calendar day in local time, then apply Settings → Date format.
+  const chartDate = useCallback((v) => {
+    const m = String(v ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return v ? formatDateOnly(v, settings) : '';
+    return formatDateOnly(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0), settings);
+  }, [settings]);
+
   const trend = useMemo(() => (stats?.revenueTrend || []).map((r) => {
     const day = r.day || r.date || r.label;
     return {
       ...r,
       day,
-      label: day ? formatDateOnly(day, settings) : (r.label || ''),
+      label: day ? chartDate(day) : (r.label || ''),
       revenue: num(r.revenue ?? r.total ?? r.amount),
     };
-  }), [stats?.revenueTrend, settings]);
+  }), [stats?.revenueTrend, chartDate]);
 
   const monthRows = [
     { label: t('revenue', lang), value: money(month.revenue) },
@@ -122,12 +129,18 @@ export default function Dashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={trend}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                      <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" minTickGap={8} />
+                      <XAxis dataKey="day" tickFormatter={chartDate} tick={{ fontSize: 11 }} interval="preserveStartEnd" minTickGap={8} />
                       <YAxis tick={{ fontSize: 11 }} width={60} tickFormatter={(v) => money(v)} />
-                      <Tooltip
-                        formatter={(v) => [money(v), t('revenue', lang)]}
-                        labelFormatter={(label) => label}
-                      />
+                      <Tooltip content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const day = payload[0]?.payload?.day;
+                        return (
+                          <div className="bg-white border border-gray-200 rounded shadow-sm px-3 py-2 text-left text-xs">
+                            <p className="text-gray-500">{chartDate(day)}</p>
+                            <p className="mt-1 text-gray-900"><span className="text-gray-600">{t('revenue', lang)}: </span><span className="font-medium">{money(payload[0].value)}</span></p>
+                          </div>
+                        );
+                      }} />
                       <Line type="monotone" dataKey="revenue" name={t('revenue', lang)} stroke="var(--color-primary)" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -136,9 +149,9 @@ export default function Dashboard() {
 
               <div className="bg-white p-5 rounded shadow">
                 <h2 className="text-sm font-semibold text-gray-700 text-left mb-3">{t('monthly_statistics', lang)}</h2>
-                <ul className="space-y-2">
+                <ul className="divide-y divide-gray-100">
                   {monthRows.map((row) => (
-                    <li key={row.label} className="flex justify-between text-sm">
+                    <li key={row.label} className="py-2 flex justify-between text-sm gap-3">
                       <span className="text-gray-600">{row.label}</span>
                       <span className="font-medium">{row.value}</span>
                     </li>

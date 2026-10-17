@@ -34,6 +34,13 @@ export default function History() {
   const [editDate, setEditDate] = useState(null); // { invoice, value }
   const [savingDate, setSavingDate] = useState(false);
   const money = (v) => formatCurrency(Number(v) || 0, settings);
+  // The date picker needs the local calendar day. Slicing an ISO timestamp takes the UTC day, which is the previous evening here.
+  const calendarDay = (v) => {
+    if (!v) return '';
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return String(v).slice(0, 10);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
   const canEditDate = can('edit_sales_date');
 
   const open = async (s, then) => {
@@ -111,7 +118,7 @@ export default function History() {
         <DataTable columns={columns} data={list.rows} loading={list.loading} rowId="invoice_number" emptyMessage={list.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={list.pagination} onPageChange={list.setPage}
           renderActions={(s) => <RowActions actions={[
             { label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(s) },
-            { label: t('edit_sales_date', lang), icon: ACTION_ICONS.edit, onClick: () => setEditDate({ invoice: s.invoice_number, value: dateOnly(s.sales_date || s.created_at) }), hidden: !canEditDate },
+            { label: t('edit_sales_date', lang), icon: ACTION_ICONS.edit, onClick: () => setEditDate({ invoice: s.invoice_number, value: calendarDay(s.sales_date || s.created_at) }), hidden: !canEditDate },
             { label: t('receipt', lang), icon: ACTION_ICONS.print, onClick: () => receipt(s) },
             { label: t('delivery_note', lang), icon: ACTION_ICONS.download, onClick: () => deliveryNote(s) },
             { label: t('sales_return', lang), icon: ACTION_ICONS.edit, onClick: () => navigate('/sales/returns', { state: { invoiceNumber: s.invoice_number } }), hidden: !can('create_sales_return') },
@@ -172,7 +179,7 @@ export default function History() {
               </div>
             </div>
             <div className="flex flex-wrap justify-end gap-2 pt-1 border-t border-gray-100">
-              {canEditDate && <Button variant="secondary" onClick={() => setEditDate({ invoice: pay.invoice_number, value: dateOnly(pay.sales_date || pay.created_at) })}>{t('edit_sales_date', lang)}</Button>}
+              {canEditDate && <Button variant="secondary" onClick={() => setEditDate({ invoice: pay.invoice_number, value: calendarDay(pay.sales_date || pay.created_at) })}>{t('edit_sales_date', lang)}</Button>}
               <Button variant="secondary" onClick={() => { const s = { invoice_number: pay.invoice_number, customer_name: pay.customer_name, customer_phone: pay.customer_phone }; setDetail(null); navigate('/sales/receipt', { state: { saleData: { ...d, invoice_number: s.invoice_number, items: d.items, paymentInfo: d.payment, customerInfo: { name: s.customer_name, phone: s.customer_phone } } } }); }}>{t('receipt', lang)}</Button>
               <Button variant="secondary" onClick={() => deliveryNote({ invoice_number: pay.invoice_number, customer_name: pay.customer_name, customer_phone: pay.customer_phone, cashier_name: pay.cashier_name })}>{t('delivery_note', lang)}</Button>
               <Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button>

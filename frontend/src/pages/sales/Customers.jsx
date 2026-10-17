@@ -97,18 +97,20 @@ export default function Customers() {
     { key: 'email', label: t('email', lang), render: (r) => r.email || <span className="text-gray-400">—</span> },
     { key: 'customer_type', label: t('customer_type', lang), render: (r) => typeName(r.customer_type) || <span className="text-gray-400">—</span> },
     { key: 'credit_limit', label: t('credit_limit', lang), align: 'right', render: (r) => money(r.credit_limit) },
-    { key: 'current_balance', label: t('current_balance', lang), align: 'right', render: (r) => <span className={Number(r.current_balance) > 0 ? 'text-red-600 font-medium' : ''}>{money(r.current_balance)}</span> },
+    { key: 'amount_owed', label: t('amount_owed', lang), align: 'right', render: (r) => <span className={Number(r.amount_owed) > 0 ? 'text-red-600 font-medium' : ''}>{money(r.amount_owed)}</span> },
+    { key: 'credit_balance', label: t('credit_balance', lang), align: 'right', render: (r) => <span className={Number(r.credit_balance) < 0 ? 'text-red-600 font-medium' : ''}>{money(r.credit_balance)}</span> },
   ];
 
   // What the exports print: the same columns, as text, with the money already formatted.
   const exportRows = useMemo(() => list.rows.map((r, i) => ({
     index: `${(list.pagination.currentPage - 1) * list.pagination.limit + i + 1}.`,
     name: r.name, phone: r.phone || '', email: r.email || '', customer_type: typeName(r.customer_type),
-    credit_limit: money(r.credit_limit), current_balance: money(r.current_balance), address: r.address || '',
+    credit_limit: money(r.credit_limit), amount_owed: money(r.amount_owed), credit_balance: money(r.credit_balance), address: r.address || '',
   })), [list.rows, types, settings]); // eslint-disable-line react-hooks/exhaustive-deps
   const exportColumns = [
     { key: 'index', title: 'no.', width: '50px' }, { key: 'name', title: 'customer_name' }, { key: 'phone', title: 'phone' },
     { key: 'email', title: 'email' }, { key: 'customer_type', title: 'customer_type' }, { key: 'credit_limit', title: 'credit_limit' },
+    { key: 'amount_owed', title: 'amount_owed' }, { key: 'credit_balance', title: 'credit_balance' },
   ];
 
   const canView = can('view_customers');
@@ -173,7 +175,8 @@ export default function Customers() {
               [t('customer_type', lang), typeName(view.customer_type)],
               [t('credit_due_days', lang), view.credit_due_days],
               [t('credit_limit', lang), money(view.credit_limit)],
-              [t('current_balance', lang), money(view.current_balance)],
+              [t('amount_owed', lang), money(view.amount_owed)],
+              [t('credit_balance', lang), money(view.credit_balance)],
             ]} />
             <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-left">
               <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{t('address', lang)}</p>
