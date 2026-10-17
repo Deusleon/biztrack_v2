@@ -60,7 +60,7 @@ export default function Receipt() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Select
-              size="sm"
+              size=""
               value={size}
               onChange={(e) => setSize(e.target.value)}
               options={RECEIPT_SIZE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label, lang) }))}
