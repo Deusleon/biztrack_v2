@@ -11,11 +11,12 @@
  * Failures are thrown by utils/api.js as an object with a readable `.message`.
  */
 import api from '../utils/api';
+import { readSession } from '../utils/sessionStore';
 
 const lang = () => { try { const chosen = localStorage.getItem('lang'); if (chosen === 'en' || chosen === 'sw') return chosen; const preferred = window.__auth_user?.preferred_language; return preferred === 'en' || preferred === 'sw' ? preferred : 'en'; } catch { return 'en'; } };
 
 /** Store the person is working in (set by StoreContext). Most BizTrack routes carry it in the URL. */
-export const currentStoreId = () => localStorage.getItem('currentStoreId');
+export const currentStoreId = () => readSession('currentStoreId');
 
 const pageOf = (p = {}) => ({
   currentPage: p.page ?? 1,
@@ -264,6 +265,8 @@ export const userAdminService = {
   /** id = the person's USER id; { role, status } */
   update: async (userId, data) => asOne(await api.put(`/store-users/${userId}`, data), 'user'),
   remove: async (userId) => asDone(await api.delete(`/store-users/${userId}`)),
+  /** Developer only. allow = true keeps this account signed in on more than one device. */
+  sessions: async (userId, allow) => asDone(await api.put(`/store-users/${userId}/sessions`, { allow_multiple_sessions: allow })),
 };
 export const permissionService = {
   /** → { modules: { Module: { Submodule: [{ id, name, description, is_allowed }] } } } */

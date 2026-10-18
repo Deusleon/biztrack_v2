@@ -16,7 +16,7 @@ Kila mtumiaji ana akaunti yake yenye barua pepe na nenosiri.
 3. Weka nenosiri lako.
 4. Bofya [[Login]].
 
-> NOTE: Ukipewa akaunti na msimamizi wa duka lako, tumia barua pepe na nenosiri alilokupatia. Unaweza kulibadilisha baadaye kwenye [[My Profile]] → [[Change Password]].
+> NOTE: Ukipewa akaunti na msimamizi wa duka lako, tumia barua pepe na nenosiri alilokupatia. Unaweza kulibadilisha baadaye kwenye [[My Profile]] → [[Change Password]]. Akaunti hubaki imeingia kwenye kifaa kimoja. Ikifunguliwa mahali pengine, kifaa hiki kinatolewa mara moja na ukurasa wa kuingia unakuambia sababu.
 > WARNING: Kulinda akaunti, kuingia husimama kwa dakika chache baada ya nenosiri kukosewa mara 10 kwa barua pepe ile ile ndani ya dakika 15. Ujumbe unakuambia muda wa kusubiri. Kuingia kwa usahihi hakuhesabiwi dhidi yako, na watu wengine hawaathiriwi. Ukisahau nenosiri, tumia [[Forgot password?]] badala ya kubahatisha.
 
 ## 1.3  Kujisajili Akaunti Mpya
@@ -62,12 +62,13 @@ Menyu kuu iko upande wa kushoto wa skrini. Inakupeleka kila sehemu ya mfumo: [[D
 
 - Kwenye kompyuta: bofya mshale juu ya menyu kubana au kupanua majina ya vipengele.
 - Kwenye simu au kompyuta kibao: gusa alama ya menyu (≡) juu kushoto kufungua menyu kama droo.
-- Bofya sehemu kama [[Sales]] kufungua orodha ya kurasa zake (kwa mfano [[Invoice]], [[Pending Orders]], [[Sales History]]).
-- Juu ya kila ukurasa kuna kengele ya arifa, alama ya msaada ([[Help & support]]), kitufe cha kufunga skrini, na menyu ya wasifu wako.
+- [[Dashboard]], [[User Guide]], [[BizTrack AI]] na [[Subscription]] kila moja iko kwenye mstari wake, ikilingana na majina ya sehemu nyingine. [[Subscription]] na Ongeza usajili vinapopatikana vyote, vinafunguka pamoja. [[Help & support]] na dawati la msaada vinafunguka pamoja vinapopatikana vyote. Kikiwepo kimoja tu, kinabaki mstari mmoja.
+- Fungua sehemu moja kwa wakati. Inafunguka taratibu, na sehemu unayofanyia kazi hubaki wazi. Jina la sehemu linatumia utepe mwepesi kwa upana wote wa menyu. Kurasa zilizo ndani zinatumia utepe mweusi zaidi, pia kwa upana wote, wenye pembe za mraba, ili zitofautiane.
+- Juu ya kila ukurasa kuna [[Reload]], kengele ya arifa, alama ya msaada ([[Help & support]]), kitufe cha kufunga skrini, na menyu ya wasifu wako. Pakia upya huonyesha upya ukurasa, ikiwemo BizTrack ikiwa imesakinishwa kama programu.
 
 ## 1.7  Kuchagua Duka
 
-Ikiwa biashara yako ina maduka mengi, tumia kichagua-duka juu ya ukurasa. Data zote unazoziona — bidhaa, mauzo, ripoti — ni za duka ulilochagua.
+Ikiwa biashara yako ina maduka mengi, unapoingia BizTrack inafungua duka chaguo-msingi lililowekwa chini ya [[Settings]] → [[Configurations]]. Data zote unazoziona — bidhaa, mauzo, ripoti — ni za duka ulilochagua. Unaweza kubadilisha duka baadaye kwa kichagua-duka juu ya ukurasa.
 
 1. Bofya jina la duka la sasa.
 2. Chagua duka lingine kutoka kwenye orodha.
@@ -82,7 +83,7 @@ Kulinda data ya biashara yako, BizTrack hufunga kikao chako ukiwa umekaa bila ku
 1. Weka nenosiri lako kwenye skrini iliyofungwa.
 2. Bofya [[Unlock]] kurudi kwenye ukurasa ulioufanyia kazi.
 
-> NOTE: Ukipenda kuondoka kabisa, bofya [[Sign out instead]] kwenye skrini iliyofungwa, au [[Sign out]] kwenye menyu ya wasifu wako.
+> NOTE: Ukipenda kuondoka kabisa, bofya [[Sign out instead]] kwenye skrini iliyofungwa, au [[Sign out]] kwenye menyu ya wasifu wako. Kutoka kunaishia akaunti hiyo tu. Akaunti nyingine zilizo wazi, kwenye kifaa hiki au kingine, zinabaki zimeingia.
 
 ## 1.9  Kusakinisha BizTrack Kama Programu
 

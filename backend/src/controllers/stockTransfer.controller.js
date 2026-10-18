@@ -213,19 +213,20 @@ export const createStockTransfer = async (req, res) => {
       },
     });
 
+    const transferVars = { reference: transfer.reference_number || transfer.id, destination: destStore.name, from_store: sourceStoreName };
     notifyStore({
       storeId: sourceStoreId,
       type: "stock_transfer",
       title: "Stock transfer created",
-      message: "A stock transfer was created",
-      meta: { transfer_id: transfer.id, destination_store: destStore.name },
+      note: "transfer_created",
+      vars: transferVars,
     }).catch(() => {});
     notifyOtherStore({
       actingStoreId: sourceStoreId,
       otherStoreId: destination_store_id,
       title: "Incoming stock transfer",
-      message: `A stock transfer was created for your store from ${sourceStoreName}.`,
-      meta: { transfer_id: transfer.id, from_store: sourceStoreName },
+      note: "transfer_incoming",
+      vars: transferVars,
     }).catch(() => {});
 
     res.status(201).json({
@@ -922,19 +923,21 @@ export const approveTransfer = async (req, res) => {
       transferId,
     });
 
+    const sourceName = (await pool.query("SELECT name FROM stores WHERE id = $1", [transfer.source_store_id])).rows[0]?.name || "";
+    const approvedTransfer = { reference: transfer.reference_number || transferId, store: sourceName };
     notifyStore({
       storeId: transfer.destination_store_id,
       type: "stock_transfer",
       title: "Incoming stock transfer",
-      message: "A stock transfer is on the way to your store",
-      meta: { transfer_id: transferId },
+      note: "transfer_incoming",
+      vars: approvedTransfer,
     }).catch(() => {});
     notifyOtherStore({
       actingStoreId: storeId,
       otherStoreId: transfer.source_store_id,
       title: "Stock transfer approved",
-      message: "A stock transfer from your store was approved and is on the way.",
-      meta: { transfer_id: transferId, reference_number: transfer.reference_number },
+      note: "transfer_approved",
+      vars: approvedTransfer,
     }).catch(() => {});
 
     io.to(storeId).emit("transfer:approved", {

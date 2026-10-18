@@ -151,7 +151,7 @@ function RouteGuard({ children }) {
 }
 
 function App() {
-  const paths = [...new Set([...NAV_SECTIONS.flatMap((s) => s.items.map((i) => i.to)), ...EXTRA_ROUTES])].filter((p) => p !== '/dashboard');
+  const paths = [...new Set([...NAV_SECTIONS.flatMap((s) => s.items.map((i) => i.to)), ...EXTRA_ROUTES])].filter((p) => p && p !== '/dashboard');
 
   return (
     <BrowserRouter>

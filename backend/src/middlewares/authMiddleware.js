@@ -44,6 +44,16 @@ const verifyToken = async (req, res, next) => {
 
     const lang = user.preferred_language || fallbackLang;
 
+    // Another sign-in replaced this one. One account stays on one device unless the developer allows more.
+    if (!user.allow_multiple_sessions && (!decoded.sid || decoded.sid !== user.session_id)) {
+      return res.status(401).json({
+        code: 'SESSION_REPLACED',
+        message: lang === 'sw'
+          ? 'Akaunti hii imeingia kwenye kifaa kingine. Tafadhali ingia tena.'
+          : 'This account was signed in on another device. Please sign in again.',
+      });
+    }
+
     // The password was changed or reset after this token was issued: the session is over.
     if (decoded.pwa !== undefined && decoded.pwa < stampOf(user.password_changed_at)) {
       return res.status(401).json({ code: 'SESSION_EXPIRED', message: lang === 'sw' ? 'Nenosiri lako lilibadilishwa. Tafadhali ingia tena.' : 'Your password was changed. Please sign in again.' });

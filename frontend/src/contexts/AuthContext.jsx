@@ -3,11 +3,12 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { authService } from '../services/api';
 import { isTokenExpired } from '../utils/jwt';
 import { connectSocket, getSocket, disconnectSocket } from '../lib/socket';
+import { readSession, writeSession, clearAuthSession, setLoginNotice } from '../utils/sessionStore';
 
 const AuthContext = createContext(null);
 
 const PERMS_KEY = 'cachedPermissions';
-const readJson = (key) => { try { const v = JSON.parse(localStorage.getItem(key) || 'null'); return v; } catch { return null; } };
+const readJson = (key) => { try { const v = JSON.parse(readSession(key) || 'null'); return v; } catch { return null; } };
 
 /** { name → true } for every allowed permission, from the server's flat list. */
 const toMap = (perms) => {
@@ -17,10 +18,10 @@ const toMap = (perms) => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => (localStorage.getItem('accessToken') && !isTokenExpired(localStorage.getItem('accessToken')) ? readJson('user') : null));
-  const [token, setToken] = useState(() => { const t = localStorage.getItem('accessToken'); return t && !isTokenExpired(t) ? t : null; });
+  const [user, setUser] = useState(() => (readSession('accessToken') && !isTokenExpired(readSession('accessToken')) ? readJson('user') : null));
+  const [token, setToken] = useState(() => { const t = readSession('accessToken'); return t && !isTokenExpired(t) ? t : null; });
   const [permissions, setPermissions] = useState(() => readJson(PERMS_KEY) || []);
-  const [permsReady, setPermsReady] = useState(() => readJson(PERMS_KEY) != null || !localStorage.getItem('accessToken'));
+  const [permsReady, setPermsReady] = useState(() => readJson(PERMS_KEY) != null || !readSession('accessToken'));
   const [loading, setLoading] = useState(true);
 
   const permMap = useRef(toMap(permissions));
@@ -29,7 +30,7 @@ export const AuthProvider = ({ children }) => {
   // ── clearing the session ───────────────────────────────────────────────────────────────────────
   const clearSession = useCallback(() => {
     setUser(null); setToken(null); setPermissions([]); setPermsReady(false);
-    ['user', 'accessToken', PERMS_KEY].forEach((k) => localStorage.removeItem(k));
+    clearAuthSession();
     try { delete window.__auth_user; } catch { /* ignore */ }
     disconnectSocket();
   }, []);
@@ -45,11 +46,11 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     const res = await authService.login(credentials);
     const nextUser = { ...res.user, password_change_required: res.password_change_required ?? res.user?.password_change_required };
-    localStorage.setItem('accessToken', res.token);
-    localStorage.setItem('user', JSON.stringify(nextUser));
-    if (res.user?.storeInfo?.store_id) localStorage.setItem('currentStoreId', res.user.storeInfo.store_id);
+    writeSession('accessToken', res.token);
+    writeSession('user', JSON.stringify(nextUser));
+    if (res.user?.storeInfo?.store_id) writeSession('currentStoreId', res.user.storeInfo.store_id);
     const perms = Array.isArray(res.permissions) ? res.permissions : [];
-    localStorage.setItem(PERMS_KEY, JSON.stringify(perms));
+    writeSession(PERMS_KEY, JSON.stringify(perms));
     setToken(res.token); setUser(nextUser); setPermissions(perms); setPermsReady(true);
     return res;
   };
@@ -58,7 +59,7 @@ export const AuthProvider = ({ children }) => {
   const updateUser = (partial) => {
     setUser((prev) => {
       const next = { ...prev, ...partial };
-      try { localStorage.setItem('user', JSON.stringify(next)); } catch { /* ignore */ }
+      try { writeSession('user', JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
   };
@@ -67,20 +68,20 @@ export const AuthProvider = ({ children }) => {
   const applyStoreSwitch = ({ storeInfo, permissions: perms, token: newToken, security }) => {
     setUser((prev) => {
       const next = { ...prev, storeInfo, security: { ...prev?.security, ...security } };
-      localStorage.setItem('user', JSON.stringify(next));
+      writeSession('user', JSON.stringify(next));
       return next;
     });
-    if (newToken) { setToken(newToken); localStorage.setItem('accessToken', newToken); }
-    if (Array.isArray(perms)) { setPermissions(perms); setPermsReady(true); localStorage.setItem(PERMS_KEY, JSON.stringify(perms)); }
+    if (newToken) { setToken(newToken); writeSession('accessToken', newToken); }
+    if (Array.isArray(perms)) { setPermissions(perms); setPermsReady(true); writeSession(PERMS_KEY, JSON.stringify(perms)); }
   };
 
   /** After a password change the server hands back a fresh token and clears the "must change" flag. */
   const updateSessionAfterPasswordChange = useCallback(({ token: newToken, security } = {}) => {
-    if (newToken) { setToken(newToken); localStorage.setItem('accessToken', newToken); }
+    if (newToken) { setToken(newToken); writeSession('accessToken', newToken); }
     setUser((prev) => {
       if (!prev) return prev;
       const next = { ...prev, password_change_required: false, security: { ...prev.security, ...security } };
-      localStorage.setItem('user', JSON.stringify(next));
+      writeSession('user', JSON.stringify(next));
       return next;
     });
   }, []);
@@ -89,7 +90,7 @@ export const AuthProvider = ({ children }) => {
     setUser((prev) => {
       if (!prev) return prev;
       const next = { ...prev, security: { ...prev.security, ...security } };
-      localStorage.setItem('user', JSON.stringify(next));
+      writeSession('user', JSON.stringify(next));
       window.dispatchEvent(new CustomEvent('biztrack-security-settings-updated', { detail: next.security }));
       return next;
     });
@@ -97,7 +98,7 @@ export const AuthProvider = ({ children }) => {
 
   // ── boot: check the stored session once, then refresh permissions from the server ──────────────
   useEffect(() => {
-    const t = localStorage.getItem('accessToken');
+    const t = readSession('accessToken');
     if (!t || isTokenExpired(t)) { clearSession(); }
     setLoading(false);
   }, [clearSession]);
@@ -113,7 +114,7 @@ export const AuthProvider = ({ children }) => {
         const res = await authService.getPermissions();
         if (cancelled) return;
         setPermissions(res.data);
-        localStorage.setItem(PERMS_KEY, JSON.stringify(res.data));
+        writeSession(PERMS_KEY, JSON.stringify(res.data));
         setPermsReady(true);
       } catch {
         if (!cancelled && attempt < 3) setTimeout(() => load(attempt + 1), 1000 * 2 ** (attempt - 1));
@@ -134,12 +135,6 @@ export const AuthProvider = ({ children }) => {
     return () => clearTimeout(timer);
   }, [token, clearSession]);
 
-  useEffect(() => {
-    const onStorage = (e) => { if (e.key === 'accessToken' && !e.newValue) clearSession(); };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, [clearSession]);
-
   // Password expired on the server (428): mark the person so ProtectedRoute shows the change screen.
   useEffect(() => {
     const onRequired = () => setUser((prev) => (prev ? { ...prev, password_change_required: true } : prev));
@@ -150,10 +145,25 @@ export const AuthProvider = ({ children }) => {
   // ── real-time connection (new sales, low stock…); pages react through useLiveRefresh ──────────
   useEffect(() => {
     if (!user?.id || !storeId || !user.storeInfo?.role_name || !import.meta.env.VITE_SOCKET_URL) return undefined;
-    const socket = connectSocket({ userId: user.id, storeId: localStorage.getItem('currentStoreId') || storeId, role: user.storeInfo.role_name });
+    const socket = connectSocket({ userId: user.id, storeId: readSession('currentStoreId') || storeId, role: user.storeInfo.role_name });
     const onSecurity = (payload) => { if (payload?.security) updateSecuritySettings(payload.security); };
+    const onReplaced = (payload) => {
+      let mine = '';
+      let mineId = '';
+      try {
+        const decoded = JSON.parse(atob(readSession('accessToken').split('.')[1]));
+        mine = decoded.sid || '';
+        mineId = decoded.id || '';
+      } catch { mine = ''; }
+      if (payload?.userId && mineId && payload.userId !== mineId) return;
+      if (payload?.sid && mine && payload.sid === mine) return;
+      clearSession();
+      setLoginNotice('signed_in_elsewhere');
+      if (!window.location.pathname.startsWith('/login')) window.location.replace('/login');
+    };
     socket.on('storeSecurityUpdated', onSecurity);
-    return () => { getSocket()?.off('storeSecurityUpdated', onSecurity); };
+    socket.on('sessionReplaced', onReplaced);
+    return () => { getSocket()?.off('storeSecurityUpdated', onSecurity); getSocket()?.off('sessionReplaced', onReplaced); };
   }, [user?.id, storeId, user?.storeInfo?.role_name, updateSecuritySettings]);
 
   useEffect(() => {

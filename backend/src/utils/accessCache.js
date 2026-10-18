@@ -39,7 +39,7 @@ async function getUserRow(userId) {
   if (cached !== undefined) return cached;
 
   const { rows } = await pool.query(
-    'SELECT id, email, status, preferred_language, created_at, updated_at, password_changed_at FROM users WHERE id = $1',
+    'SELECT id, email, status, preferred_language, created_at, updated_at, password_changed_at, session_id, allow_multiple_sessions FROM users WHERE id = $1',
     [userId],
   );
   const row = rows[0] || null;

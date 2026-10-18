@@ -1,5 +1,5 @@
-import re, sys, io, json
-sys.path.insert(0,'/home/claude/guide')
+import re, sys, io, json, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from labels import apply
 from content import CH as CH16
 from reportlab.lib.pagesizes import A4
@@ -11,9 +11,14 @@ from reportlab.platypus import (BaseDocTemplate, PageTemplate, Frame, Paragraph,
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.fonts import addMapping
-D='/usr/share/fonts/truetype/crosextra/'
-for n,f in (('Carlito','Carlito-Regular'),('Carlito-Bold','Carlito-Bold'),('Carlito-Italic','Carlito-Italic'),('Carlito-BoldItalic','Carlito-BoldItalic')):
-    pdfmetrics.registerFont(TTFont(n,D+f+'.ttf'))
+ROOT=os.path.abspath(os.path.join(os.path.dirname(__file__),'..','..'))
+FONT_SETS=[
+    ('/usr/share/fonts/truetype/crosextra/', ('Carlito-Regular.ttf','Carlito-Bold.ttf','Carlito-Italic.ttf','Carlito-BoldItalic.ttf')),
+    (r'C:\Windows\Fonts\\', ('calibri.ttf','calibrib.ttf','calibrii.ttf','calibriz.ttf')),
+]
+D, FONT_FILES = next((d, files) for d, files in FONT_SETS if os.path.exists(os.path.join(d, files[0])))
+for n,f in zip(('Carlito','Carlito-Bold','Carlito-Italic','Carlito-BoldItalic'), FONT_FILES):
+    pdfmetrics.registerFont(TTFont(n, os.path.join(D, f)))
 addMapping('Carlito',0,0,'Carlito'); addMapping('Carlito',1,0,'Carlito-Bold'); addMapping('Carlito',0,1,'Carlito-Italic'); addMapping('Carlito',1,1,'Carlito-BoldItalic')
 import os
 MONO='Courier'
@@ -21,7 +26,7 @@ for cand in ('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf',):
     if os.path.exists(cand): pdfmetrics.registerFont(TTFont('DejaVuMono',cand)); MONO='DejaVuMono'
 W,H=A4
 TEAL=colors.Color(10/255,152/255,157/255); NAVY=colors.Color(0.0235,0.2314,0.4667); GREY=colors.Color(.45,.47,.5); LINE=colors.Color(.8,.82,.84); DARK=colors.Color(.13,.15,.18)
-LOGO='/home/claude/brand/full.png'; WM='/home/claude/brand/watermark.png'; ICON='/home/claude/v2/frontend/public/brand-emblem.png'
+LOGO=os.path.join(ROOT,'frontend','public','logo-full.png'); WM=os.path.join(ROOT,'frontend','public','logo-emblem.png'); ICON=os.path.join(ROOT,'frontend','public','brand-emblem.png')
 BODY=ParagraphStyle('b',fontName='Carlito',fontSize=10.5,leading=14.5,spaceAfter=6,textColor=DARK)
 H2=ParagraphStyle('h2',parent=BODY,fontName='Carlito-Bold',fontSize=15,leading=19,textColor=TEAL,spaceBefore=12,spaceAfter=6,keepWithNext=1)
 HB=ParagraphStyle('hb',parent=H2,fontSize=20,leading=24,spaceBefore=0)
@@ -59,6 +64,10 @@ This edition describes BizTrack Version 2 and replaces the October 2026 edition.
 - Reports with the usual columns, a Total row, charts, and exports to PDF, Excel and CSV (Chapter 7).
 - Integrations — your own email mailbox, SMS gateways and Google Drive backup (section 11.10).
 - Friendly error cards instead of blank screens (Chapter 15).
+- One signed-in device per account, with an immediate message when the account is opened somewhere else (section 1.2 and Chapter 16).
+- A menu that opens one section at a time, full width, with Dashboard, User Guide, BizTrack AI and Subscription on their own rows (section 1.6).
+- Signing out ends only that account, and sign-in opens the default store (sections 1.7 and 1.8).
+- Emails and text messages in the language of the account, and Reload on the top bar (Chapter 16).
 - A summary of all of this in Chapter 16.""",
 'sw':"""BizTrack inakusaidia kuendesha biashara yako yote mahali pamoja — mauzo, manunuzi, hisa, matumizi, wateja, wafanyakazi, SMS na ripoti — kwa duka moja au maduka mengi.
 
@@ -83,6 +92,10 @@ Toleo hili linaeleza BizTrack Toleo la 2 na linachukua nafasi ya toleo la Oktoba
 - Ripoti zenye safu za kawaida, safu ya Jumla, michoro, na kuhamisha kwa PDF, Excel na CSV (Sura ya 7).
 - Uunganishaji — kisanduku chako cha barua pepe, malango ya SMS na nakala rudufu ya Google Drive (sehemu ya 11.10).
 - Kadi za hitilafu zenye urafiki badala ya skrini tupu (Sura ya 15).
+- Kifaa kimoja kwa kila akaunti, na ujumbe wa mara moja akaunti ikifunguliwa mahali pengine (sehemu ya 1.2 na Sura ya 16).
+- Menyu inayofungua sehemu moja kwa wakati, kwa upana wote, Dashibodi, Muongozo wa Mtumiaji, BizTrack AI na Usajili vikiwa kwenye mistari yao (sehemu ya 1.6).
+- Kutoka kunaishia akaunti hiyo tu, na kuingia kunafungua duka chaguo-msingi (sehemu ya 1.7 na 1.8).
+- Barua pepe na ujumbe mfupi kwa lugha ya akaunti, na Pakia upya juu ya ukurasa (Sura ya 16).
 - Muhtasari wa haya yote katika Sura ya 16."""}
 QUICK={'en':[('Sales','Invoice • Pending Orders • Sales History • Sales Returns • Debits • Customers'),('Purchases','Purchase Orders • Goods Received • Suppliers • Supplier Invoices • Supplier Payments • Supplier Returns'),('Inventory','Products • Current Stock • Current Stock Value • Stock Value History • Price List • Stock Adjustment • Stock Count • Stock Transfer • Import / Export'),('Categories','Product Categories • Price Categories'),('Reports','Sales Reports • Day Report • Purchases Reports • Expenses Reports • Profit Reports • Net Profit Report • Inventory Reports'),('Expenses','Expenses'),('Users','Users • Roles • Permissions'),('Stores','Stores'),('Messaging','Recently Sent • All Contacts • Groups • Templates • Account & Top-up'),('Settings','Configurations • Uploads • Bulk Operations • Integrations • Security • Tools • Notifications • Appearance'),('Subscription','Subscription'),('BizTrack AI','BizTrack AI'),('User Guide','User Guide')]}
 def esc(s):
@@ -198,7 +211,14 @@ def build(lang,out,entries=None):
         cv.setFillColor(GREY); cv.setFont('Carlito',10); cv.drawCentredString(W/2,bb-3-40-16,L['cov_prep'])
     def body_page(cv,doc):
         cv.saveState()
-        wm=ImageReader(WM); iw,ih=wm.getSize(); ww=400; wh=ww*ih/iw
+        try:
+            from PIL import Image as PILImage
+            mark=PILImage.open(WM).convert('RGBA')
+            mark.putalpha(mark.split()[-1].point(lambda p: int(p*0.08)))
+            wm=ImageReader(mark)
+        except Exception:
+            wm=ImageReader(WM)
+        iw,ih=wm.getSize(); ww=400; wh=ww*ih/iw
         cv.drawImage(wm,(W-ww)/2,(H-wh)/2,width=ww,height=wh,mask='auto')
         cv.drawImage(ICON,57,H-48,width=26,height=26*631/878,mask='auto')
         cv.setFont('Carlito-Bold',11); cv.setFillColor(NAVY); cv.drawString(88,H-40,'BizTrack')
@@ -216,7 +236,7 @@ def build(lang,out,entries=None):
     S.append(PageBreak())
     # Contents
     S.append(Paragraph(L['contents'],HB)); S.append(Spacer(1,6))
-    src=open(f'/home/claude/guide/src/v2_{lang}.md',encoding='utf-8').read()
+    src=open(os.path.join(os.path.dirname(__file__), f'v2_{lang}.md'),encoding='utf-8').read()
     c16=ch16_md(lang)
     if not entries:
         entries=[]; cur=None
@@ -240,8 +260,9 @@ def build(lang,out,entries=None):
     S.append(t)
     return doc,S,warn
 if __name__=='__main__':
+    names={'en':'BizTrack_User_Guide.pdf','sw':'BizTrack_Muongozo_wa_Mtumiaji.pdf'}
     for lang in ('en','sw'):
-        out=f'/home/claude/guide/guide_{lang}.pdf'
+        out=os.path.join(ROOT,'frontend','public','manuals',names[lang])
         doc,S,warn=build(lang,out); doc.build(S)
         ents=doc.entries
         doc,S,warn=build(lang,out,ents); doc.build(S)

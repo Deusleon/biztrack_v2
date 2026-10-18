@@ -37,7 +37,7 @@ export function t(key, langOrReplacements, maybeReplacements) {
   let text = translations[lang]?.[key] || translations.en?.[key] || (mapped ? translations[lang]?.[mapped] || translations.en?.[mapped] : "") || readable;
 
   for (const [placeholder, value] of Object.entries(replacements)) {
-    text = text.replace(`{${placeholder}}`, value);
+    text = text.split(`{${placeholder}}`).join(value == null ? "" : String(value));
   }
 
   return text;

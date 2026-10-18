@@ -31,7 +31,10 @@ export function NotificationProvider({ children }) {
     const onNotify = (data) => {
       if (settings[`inapp_${data.type}`] === false) return;
       const key = TITLE_KEYS[data.type];
-      setNotifications((prev) => [{ id: `${data.type}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, type: data.type, title: key ? t(key) : data.title || data.type, message: data.message || '', meta: data.meta || {}, timestamp: data.timestamp || new Date().toISOString(), read: false }, ...prev.slice(0, MAX - 1)]);
+      const vars = { ...(data.vars || {}), name: user?.name || data.vars?.name || '' };
+      const title = data.note ? t(`note_${data.note}_title`, vars) : (key ? t(key) : data.title || data.type);
+      const message = data.note ? t(`note_${data.note}_sms`, vars) : (data.message || '');
+      setNotifications((prev) => [{ id: `${data.type}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, type: data.type, title, message, note: data.note || '', vars: data.vars || null, meta: data.meta || {}, timestamp: data.timestamp || new Date().toISOString(), read: false }, ...prev.slice(0, MAX - 1)]);
     };
     socket.on('inAppNotification', onNotify);
     return () => socket.off('inAppNotification', onNotify);

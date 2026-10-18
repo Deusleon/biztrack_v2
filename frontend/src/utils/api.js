@@ -1,6 +1,7 @@
 // FILE PATH: frontend/src/utils/api.js
 import axios from 'axios';
 import { t } from './i18n';
+import { readSession, clearAuthSession, setLoginNotice } from './sessionStore';
 
 // BizTrack's API lives under /api (not /api/v1).
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
@@ -33,9 +34,9 @@ const currentLang = () => {
 
 // Request: token, current store (every store-scoped route reads X-Store-ID) and language.
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
+  const token = readSession('accessToken');
   if (token && !isPublic(config.url)) config.headers.Authorization = `Bearer ${token}`;
-  const storeId = localStorage.getItem('currentStoreId');
+  const storeId = readSession('currentStoreId');
   if (storeId && !isPublic(config.url)) config.headers['X-Store-ID'] = storeId;
   config.headers['x-language'] = currentLang();
   return config;
@@ -76,11 +77,10 @@ api.interceptors.response.use(
     const url = error.config?.url || '';
 
     // 401 on a signed-in page: the session is over. (Not on login itself — that page shows its own message.)
-    if (status === 401 && !isPublic(url) && localStorage.getItem('accessToken')) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('user');
-      localStorage.removeItem('cachedPermissions');
-      if (!window.location.pathname.startsWith('/login')) window.location.href = '/login?error=unauthorized';
+    if (status === 401 && !isPublic(url) && readSession('accessToken')) {
+      clearAuthSession();
+      setLoginNotice(code === 'SESSION_REPLACED' ? 'signed_in_elsewhere' : 'unauthorized');
+      if (!window.location.pathname.startsWith('/login')) window.location.replace('/login');
     }
 
     // 428 = the password has expired and must be changed first.

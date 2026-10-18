@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { storeService, authService } from '../services/api';
+import { readSession, writeSession } from '../utils/sessionStore';
 
 const StoreContext = createContext(null);
 
@@ -18,8 +19,8 @@ export const StoreProvider = ({ children }) => {
   const [switching, setSwitching] = useState(false);
 
   const remember = (store) => {
-    localStorage.setItem('currentStoreId', store.id);
-    localStorage.setItem('currentStoreName', store.name);
+    writeSession('currentStoreId', store.id);
+    writeSession('currentStoreName', store.name);
   };
 
   const loadStores = useCallback(async () => {
@@ -29,8 +30,8 @@ export const StoreProvider = ({ children }) => {
       const list = res.data;
       setStores(list);
 
-      // Which one to open: the one used last → the store set as default → the first.
-      let chosen = list.find((s) => s.id === localStorage.getItem('currentStoreId')) || null;
+      // Which one to open: the store chosen for this sign-in → the store set as default → the first.
+      let chosen = list.find((s) => s.id === readSession('currentStoreId')) || null;
       if (!chosen) {
         try { const d = await storeService.getDefault(); chosen = list.find((s) => s.id === d.data?.id) || null; } catch { /* no default set */ }
       }

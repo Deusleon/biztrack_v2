@@ -393,17 +393,20 @@ async function sendCustomerPaymentReminders(storeId, storeName, money) {
     customer.invoices.push({ invoice_number: row.invoice_number, amount, days: Number(row.days_until_due) || 0 });
   }
   for (const customer of groups.values()) {
-    const lines = customer.invoices.map((invoice) => {
-      const when = invoice.days < 0 ? `${Math.abs(invoice.days)} days overdue` : invoice.days === 0 ? 'due today' : `due in ${invoice.days} days`;
-      return `${invoice.invoice_number}: ${money(invoice.amount)} (${when})`;
-    });
+    const lead = customer.invoices.slice().sort((a, b) => a.days - b.days)[0];
+    const note = lead.days < 0 ? 'payment_reminder_overdue' : lead.days === 0 ? 'payment_reminder_today' : 'payment_reminder_due';
     await notifyParty({
       storeId,
       type: 'payment_due_customer',
       to: customer,
       title: 'Payment reminder',
-      message: `This is a reminder about the amount still due on your account.\n${lines.join('\n')}\nWe have these amounts on record. Please pay so your account stays up to date.`,
-      meta: { invoices: customer.invoices.length, total_due: money(customer.total) },
+      note,
+      vars: {
+        invoice: lead.invoice_number,
+        amount: money(lead.amount),
+        balance: money(customer.total),
+        days: Math.abs(lead.days),
+      },
     });
   }
 }
@@ -448,8 +451,8 @@ async function processStore(storeId, rawSettings, dateKey, options = {}) {
           storeId,
           type: "low_stock",
           title: "Low stock alert",
-          message: t("product_low_stock_msg", { count: formattedValue }),
-          meta: { low_stock_products: Number(lowStock.count) },
+          note: "low_stock",
+          vars: { count: formattedValue },
           attachments: [{ filename: 'low-stock.pdf', content: pdf, contentType: 'application/pdf' }],
         });
       }
@@ -486,8 +489,8 @@ async function processStore(storeId, rawSettings, dateKey, options = {}) {
           storeId,
           type: "payment_due",
           title: "Customer payments due",
-          message: `${t("credit_sale_payment_due_msg", { count: due.count })}\n\n${due.customerCount} customer(s), ${money(due.total_due)} due in total.`,
-          meta: { customers: due.customerCount, invoices: due.count, total_due: money(due.total_due) },
+          note: "payments_due",
+          vars: { count: due.customerCount, invoices: due.count, total: money(due.total_due) },
           attachments: [{ filename: 'payments-due.pdf', content: pdf, contentType: 'application/pdf' }],
         });
       }

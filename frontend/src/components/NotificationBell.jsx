@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { t } from '../utils/i18n';
 import { timeAgo } from '../utils/timeAgo';
@@ -12,6 +13,7 @@ const GO = { new_sale: '/sales/history', purchase_received: '/purchases/goods-re
 export default function NotificationBell() {
   const { notifications, unreadCount, markAllRead, markRead, clearAll } = useNotifications();
   const { lang } = useLanguage();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -28,7 +30,12 @@ export default function NotificationBell() {
           <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between"><span className="text-sm font-semibold text-gray-800">{t('notifications', lang)}</span><span className="flex gap-3 text-xs"><button type="button" className="text-primary hover:underline disabled:opacity-40" disabled={unreadCount === 0} onClick={markAllRead}>{t('mark_all_read', lang)}</button><button type="button" className="text-gray-500 hover:underline disabled:opacity-40" disabled={notifications.length === 0} onClick={clearAll}>{t('clear', lang)}</button></span></div>
           <ul className="max-h-96 overflow-auto divide-y divide-gray-100">
             {notifications.length === 0 && <li className="px-4 py-8 text-center text-sm text-gray-400">{t('no_notifications', lang)}</li>}
-            {notifications.map((n) => <li key={n.id}><button type="button" onClick={() => go(n)} className={`w-full text-left px-3 py-2.5 hover:bg-gray-50 ${n.read ? '' : 'bg-primary-10'}`}><p className="text-sm font-medium text-gray-800 flex items-center gap-2">{!n.read && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}{n.title}</p>{n.message && <p className="text-xs text-gray-600 mt-0.5">{n.message}</p>}<p className="text-[11px] text-gray-400 mt-0.5">{timeAgo(n.timestamp)}</p></button></li>)}
+            {notifications.map((n) => {
+              const vars = { ...(n.vars || {}), name: user?.name || n.vars?.name || '' };
+              const title = n.note ? t(`note_${n.note}_title`, lang, vars) : n.title;
+              const message = n.note ? t(`note_${n.note}_sms`, lang, vars) : n.message;
+              return <li key={n.id}><button type="button" onClick={() => go(n)} className={`w-full text-left px-3 py-2.5 hover:bg-gray-50 ${n.read ? '' : 'bg-primary-10'}`}><p className="text-sm font-medium text-gray-800 flex items-center gap-2">{!n.read && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}{title}</p>{message && <p className="text-xs text-gray-600 mt-0.5">{message}</p>}<p className="text-[11px] text-gray-400 mt-0.5">{timeAgo(n.timestamp)}</p></button></li>;
+            })}
           </ul>
         </div>
       )}

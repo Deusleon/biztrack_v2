@@ -16,7 +16,7 @@ export const NAV_SECTIONS = [
   { key: 'main', items: [
     { label: 'dashboard', to: '/dashboard', icon: 'home' },
   ] },
-  { key: 'sales', title: 'sales', items: [
+  { key: 'sales', title: 'sales', icon: 'cart', items: [
     { label: 'invoice_sale', to: '/sales/invoice', icon: 'cart', permission: 'create_invoice' },
     { label: 'pending_orders', to: '/sales/pending', icon: 'clock', permission: 'view_pending_invoices' },
     { label: 'sales_history', to: '/sales/history', icon: 'receipt', permission: 'view_sales_records' },
@@ -24,7 +24,7 @@ export const NAV_SECTIONS = [
     { label: 'debits', to: '/sales/debits', icon: 'cash', permission: 'view_debits' },
     { label: 'customers', to: '/sales/customers', icon: 'users', permission: 'view_customers' },
   ] },
-  { key: 'purchases', title: 'purchases', items: [
+  { key: 'purchases', title: 'purchases', icon: 'truck', items: [
     { label: 'purchase_orders', to: '/purchases/orders', icon: 'receipt', permission: 'view_purchase_orders' },
     { label: 'goods_received', to: '/purchases/goods-received', icon: 'truck', permission: 'view_grn' },
     { label: 'suppliers', to: '/purchases/suppliers', icon: 'truck', permission: 'view_suppliers' },
@@ -32,7 +32,7 @@ export const NAV_SECTIONS = [
     { label: 'supplier_payments', to: '/purchases/payments', icon: 'cash', permission: 'view_supplier_payments' },
     { label: 'supplier_returns', to: '/purchases/returns', icon: 'undo', permission: 'view_supplier_returns' },
   ] },
-  { key: 'inventory', title: 'inventory', items: [
+  { key: 'inventory', title: 'inventory', icon: 'box', items: [
     { label: 'products', to: '/inventory/products', icon: 'box', permission: 'view_products' },
     { label: 'current_stock', to: '/inventory/current-stock', icon: 'layers', permission: 'view_current_stock' },
     { label: 'current_stock_value', to: '/inventory/stock-value', icon: 'cash', permission: 'view_current_stock_value' },
@@ -43,14 +43,14 @@ export const NAV_SECTIONS = [
     { label: 'stock_transfer', to: '/inventory/stock-transfer', icon: 'swap', permission: 'view_stock_transfer' },
     { label: 'import_export', to: '/inventory/import-export', icon: 'upload', permission: 'view_imports_exports' },
   ] },
-  { key: 'categories', title: 'categories', items: [
+  { key: 'categories', title: 'categories', icon: 'tag', items: [
     { label: 'product_categories', to: '/categories/products', icon: 'tag', permission: 'view_product_categories' },
     { label: 'price_categories', to: '/categories/prices', icon: 'cash', permission: 'view_price_categories' },
   ] },
-  { key: 'expenses', title: 'expenses', items: [
+  { key: 'expenses', title: 'expenses', icon: 'wallet', items: [
     { label: 'expenses', to: '/expenses', icon: 'wallet', permission: 'view_expenses' },
   ] },
-  { key: 'reports', title: 'reports', items: [
+  { key: 'reports', title: 'reports', icon: 'chart', items: [
     { label: 'sales_reports', to: '/reports/sales', icon: 'chart', anyPermissions: reportPerms('sales') },
     { label: 'day_report', to: '/reports/day-report', icon: 'chart', permission: 'view_sales_reports' },
     { label: 'purchases_reports', to: '/reports/purchases', icon: 'chart', anyPermissions: reportPerms('purchases') },
@@ -59,20 +59,20 @@ export const NAV_SECTIONS = [
     { label: 'net_profit_reports', to: '/reports/net-profit', icon: 'chart', permission: 'view_profit_reports' },
     { label: 'inventory_reports', to: '/reports/inventory', icon: 'chart', anyPermissions: reportPerms('inventory') },
   ] },
-  { key: 'people', title: 'users', items: [
+  { key: 'people', title: 'users', icon: 'users', items: [
     { label: 'users', to: '/users/all', icon: 'users', permission: 'view_users' },
     { label: 'roles', to: '/users/roles', icon: 'shield', permission: 'view_roles' },
     { label: 'permissions', to: '/users/permissions', icon: 'key', permission: 'manage_permissions' },
     { label: 'stores', to: '/stores', icon: 'store', permission: 'view_stores' },
   ] },
-  { key: 'messaging', title: 'messaging', items: [
+  { key: 'messaging', title: 'messaging', icon: 'chat', items: [
     { label: 'recently_sent', to: '/messaging/recent', icon: 'chat', anyPermissions: ['view_messaging', 'manage_messaging'] },
     { label: 'all_contacts', to: '/messaging/contacts', icon: 'users', anyPermissions: ['view_messaging', 'manage_contacts'] },
     { label: 'groups', to: '/messaging/groups', icon: 'users', anyPermissions: ['view_messaging', 'manage_groups'] },
     { label: 'templates', to: '/messaging/templates', icon: 'document', anyPermissions: ['view_messaging', 'manage_templates'] },
     { label: 'account_and_topup', to: '/messaging/account', icon: 'cash', anyPermissions: ['view_messaging', 'manage_messaging_account'] },
   ] },
-  { key: 'settings', title: 'settings', items: [
+  { key: 'settings', title: 'settings', icon: 'cog', items: [
     { label: 'configurations', to: '/settings/configurations', icon: 'cog', permission: 'view_configurations' },
     { label: 'uploads', to: '/settings/uploads', icon: 'upload', permission: 'view_uploads' },
     { label: 'bulk_operations', to: '/settings/bulk-operations', icon: 'layers', permission: 'view_bulk_operations' },
@@ -82,11 +82,19 @@ export const NAV_SECTIONS = [
     { label: 'notifications', to: '/settings/notifications', icon: 'bell', permission: 'view_notifications' },
     { label: 'appearance', to: '/settings/appearance', icon: 'palette', permission: 'view_appearance' },
   ] },
-  { key: 'account', title: 'account', items: [
+  { key: 'subscription', title: 'subscription', icon: 'card', items: [
     { label: 'subscription', to: '/subscription', icon: 'card', permission: 'view_subscription' },
     { label: 'extend_subscription', to: '/subscription/manual', icon: 'card', developerOnly: true },
+  ] },
+  { key: 'ai', title: 'biztrack_ai', icon: 'sparkle', items: [
     { label: 'biztrack_ai', to: '/biztrack-ai', icon: 'sparkle', permission: 'ai_access' },
+  ] },
+  { key: 'guide', title: 'user_manual', icon: 'book', items: [
     { label: 'user_manual', to: '/user-manual', icon: 'book' },
+  ] },
+  { key: 'help', title: 'help_and_support', icon: 'help', items: [
+    { label: 'help_and_support', icon: 'help', action: 'help' },
+    { label: 'support_desk', to: '/support/admin', icon: 'help', supportOnly: true },
   ] },
 ];
 
@@ -113,6 +121,7 @@ export const canOpen = (item, can, extras = {}) => {
 export const itemForPath = (pathname) => {
   let best = null;
   for (const s of NAV_SECTIONS) for (const it of s.items) {
+    if (!it.to) continue;
     if (pathname === it.to || pathname.startsWith(`${it.to}/`)) { if (!best || it.to.length > best.to.length) best = it; }
   }
   return best;

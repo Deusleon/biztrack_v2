@@ -13,6 +13,7 @@ import { Input, Select, DataTable, ConfirmModal, Button, RowActions, ACTION_ICON
 import FormModal from '../../components/ui/FormModal';
 import { dateOnly, DetailGrid } from '../sales/common';
 import { t } from '../../utils/i18n';
+import useDeveloperAccess from '../../hooks/useDeveloperAccess';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -31,6 +32,7 @@ export default function Users() {
   const [confirm, setConfirm] = useState(null);
   const [view, setView] = useState(null);
   const canEdit = can('edit_users'); const canDelete = can('delete_users');
+  const { isDeveloper } = useDeveloperAccess();
   useEffect(() => { roleService.getAll().then((r) => setRoles(r.data)).catch(() => showError(t('failed_to_fetch_roles', lang))); }, [currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = (k) => (e) => { setForm((f) => ({ ...f, [k]: e.target.value })); setErrors((x) => ({ ...x, [k]: undefined })); };
 
@@ -52,6 +54,7 @@ export default function Users() {
     } catch (err) { showError(err.message); } finally { setSaving(false); }
   };
   const remove = async () => { try { const r = await userAdminService.remove(confirm.id); showSuccess(r.message); list.reload(); } catch (err) { showError(err.message); } setConfirm(null); };
+  const setSessions = async (u) => { try { const r = await userAdminService.sessions(u.id, !u.allow_multiple_sessions); showSuccess(r.message); list.reload(); } catch (err) { showError(err.message); } };
 
   const columns = [
     { key: 'name', label: t('full_name', lang), render: (u) => <span className="font-medium text-gray-900">{u.name}{u.id === me?.id && <span className="ml-2 text-xs text-gray-400">({t('you', lang)})</span>}</span> },
@@ -75,6 +78,7 @@ export default function Users() {
             { label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => setView(u) },
             { label: t('edit', lang), icon: ACTION_ICONS.edit, onClick: () => openEdit(u), hidden: !canEdit || u.id === me?.id },
             { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ id: u.id, name: u.name }), hidden: !canDelete || u.id === me?.id },
+            { label: u.allow_multiple_sessions ? t('one_device_only', lang) : t('allow_multiple_devices', lang), icon: u.allow_multiple_sessions ? ACTION_ICONS.device : ACTION_ICONS.devices, onClick: () => setSessions(u), hidden: !isDeveloper },
           ]} />} />
       </div>
       <FormModal isOpen={!!view} onClose={() => setView(null)} size="xl" title={view?.name || t('user', lang)}>

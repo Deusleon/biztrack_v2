@@ -1,6 +1,7 @@
-import json,re
-EN=json.load(open('/home/claude/v2/frontend/src/lang/en.json',encoding='utf-8'))
-SW=json.load(open('/home/claude/v2/frontend/src/lang/sw.json',encoding='utf-8'))
+import json,re,os
+ROOT=os.path.abspath(os.path.join(os.path.dirname(__file__),'..','..'))
+EN=json.load(open(os.path.join(ROOT,'frontend','src','lang','en.json'),encoding='utf-8'))
+SW=json.load(open(os.path.join(ROOT,'frontend','src','lang','sw.json'),encoding='utf-8'))
 _idx={}
 for k,v in EN.items():
     if isinstance(v,str): _idx.setdefault(v.strip().lower(),[]).append(k)

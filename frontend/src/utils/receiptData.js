@@ -1,5 +1,6 @@
 // FILE PATH: frontend/src/utils/receiptData.js
 import { t } from './i18n';
+import { readSession } from './sessionStore';
 
 /**
  * Builds the object utils/receiptPdf.js draws from — the same shape BizTrack always used.
@@ -11,7 +12,7 @@ export const buildReceiptData = ({ sale = {}, settings = {}, cashierName, storeI
   const cust = sale.customerInfo || { name: pay.customer_name, phone: pay.customer_phone };
   const rawItems = sale.items || [];
   const items = rawItems.map((i) => ({ id: i.product_id || i.id, name: i.name || i.product_name, quantity: i.quantity, price: i.price, discount: i.discount }));
-  const resolvedStoreId = storeId || settings.storeId || localStorage.getItem('currentStoreId') || '';
+  const resolvedStoreId = storeId || settings.storeId || readSession('currentStoreId') || '';
   return {
     businessInfo: {
       name: settings.businessName || 'BizTrack',

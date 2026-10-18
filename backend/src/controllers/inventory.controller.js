@@ -1361,8 +1361,8 @@ export const createStockAdjustment = async (req, res) => {
       storeId,
       type: "stock_adjustment",
       title: "Stock adjusted",
-      message: "Inventory quantity was adjusted",
-      meta: { product: product.name, adjustment_type, quantity, reason },
+      note: "stock_adjusted",
+      vars: { product: product.name, adjustment_type, quantity, reason: reason || "—" },
     }).catch(() => {});
 
     res.status(201).json({
@@ -1752,8 +1752,8 @@ export const createBatchwiseStockAdjustment = async (req, res) => {
       storeId,
       type: "stock_adjustment",
       title: "Stock adjusted",
-      message: "Inventory quantity was adjusted",
-      meta: { product: product.name, adjustment_type, quantity, reason },
+      note: "stock_adjusted",
+      vars: { product: product.name, adjustment_type, quantity, reason: reason || "—" },
     }).catch(() => {});
 
     res.status(201).json({

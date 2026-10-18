@@ -52,6 +52,8 @@ export default function MainLayout({ children }) {
     catch (err) { showError(err.message); }
   };
 
+  const [reloading, setReloading] = useState(false);
+  const reloadApp = () => { setReloading(true); window.location.reload(); };
   const signOut = async () => { await logout(); navigate('/login', { replace: true }); };
   const initials = (user?.name || '?').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
 
@@ -59,9 +61,9 @@ export default function MainLayout({ children }) {
     <div className="min-h-screen bg-gray-100">
       <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen((o) => !o)} closeSidebar={closeSidebar} isCollapsed={collapsed} onHelp={() => { setSidebarOpen(false); setHelpOpen(true); }} />
 
-      <div className={`transition-all duration-300 min-h-screen min-w-0 flex flex-col ${collapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+      <div className={`transition-all duration-300 min-h-screen min-w-0 flex flex-col overflow-x-hidden ${collapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <header className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200 print:hidden safe-top">
-          <div className="flex items-center justify-between px-4 h-14 gap-3">
+          <div className="flex items-center justify-between px-2 sm:px-4 h-14 gap-1.5 sm:gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded text-gray-600 hover:bg-gray-100" aria-label={t('ui_menu', lang)}><Svg d={ICON_PATHS.menu} /></button>
               <button onClick={toggleCollapse} className="hidden lg:block p-2 rounded text-gray-600 hover:bg-gray-100" title={collapsed ? t('ui_expand_menu', lang) : t('ui_collapse_menu', lang)} aria-label={t('ui_menu', lang)}><Svg d={ICON_PATHS.menu} /></button>
@@ -75,19 +77,22 @@ export default function MainLayout({ children }) {
                   disabled={switching}
                   title={t('switch_store', lang)}
                   placeholder={t('select_store', lang)}
-                  className="w-40 sm:w-56"
+                  className="w-28 sm:w-56"
                   options={stores.map((s) => ({ value: s.id, label: s.name }))}
                 />
               ) : (
-                <span className="text-sm font-medium text-gray-700 truncate">{currentStore?.name}</span>
+                <span className="text-sm font-medium text-gray-700 truncate max-w-[7rem] sm:max-w-[14rem]">{currentStore?.name}</span>
               )}
               {switching && <span className="text-xs text-gray-500">{t('ui_switching_store', lang)}</span>}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.5 sm:gap-2">
+              <button type="button" onClick={reloadApp} disabled={reloading} className="p-2 rounded text-gray-600 hover:bg-gray-100 disabled:opacity-50" title={t('ui_reload', lang)} aria-label={t('ui_reload', lang)}>
+                <svg className={`w-5 h-5 ${reloading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v6h6M20 20v-6h-6M20 9a8 8 0 00-14.9-2M4 15a8 8 0 0014.9 2" /></svg>
+              </button>
               <NotificationBell />
-              <button type="button" onClick={() => setHelpOpen(true)} className="p-2 rounded text-gray-600 hover:bg-gray-100" title={t('help_and_support', lang)} aria-label={t('help_and_support', lang)}><Svg d={ICON_PATHS.help} className="w-5 h-5" /></button>
-              <button type="button" onClick={forceLock} className="p-2 rounded text-gray-600 hover:bg-gray-100" title={t('lock_screen', lang)} aria-label={t('lock_screen', lang)}><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 11V8a4 4 0 10-8 0v3m-1 0h10a1 1 0 011 1v7a1 1 0 01-1 1H7a1 1 0 01-1-1v-7a1 1 0 011-1z" /></svg></button>
+              <button type="button" onClick={() => setHelpOpen(true)} className="hidden sm:block p-2 rounded text-gray-600 hover:bg-gray-100" title={t('help_and_support', lang)} aria-label={t('help_and_support', lang)}><Svg d={ICON_PATHS.help} className="w-5 h-5" /></button>
+              <button type="button" onClick={forceLock} className="hidden sm:block p-2 rounded text-gray-600 hover:bg-gray-100" title={t('lock_screen', lang)} aria-label={t('lock_screen', lang)}><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 11V8a4 4 0 10-8 0v3m-1 0h10a1 1 0 011 1v7a1 1 0 01-1 1H7a1 1 0 01-1-1v-7a1 1 0 011-1z" /></svg></button>
               <button
                 onClick={() => setLang(lang === 'sw' ? 'en' : 'sw')}
                 className="text-xs font-semibold border border-gray-300 rounded px-2 py-1.5 text-gray-700 hover:bg-gray-50"
@@ -108,7 +113,8 @@ export default function MainLayout({ children }) {
                       <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                     </div>
                     <Link to="/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" role="menuitem"><Svg d={ICON_PATHS.user} className="w-4 h-4" />{t('profile', lang)}</Link>
-                    <button onClick={() => { setMenuOpen(false); setHelpOpen(true); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left" role="menuitem">{t('help_and_support', lang)}</button>
+                    <button onClick={() => { setMenuOpen(false); setHelpOpen(true); }} className="sm:hidden w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left" role="menuitem">{t('help_and_support', lang)}</button>
+                    <button onClick={() => { setMenuOpen(false); forceLock(); }} className="sm:hidden w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left" role="menuitem">{t('lock_screen', lang)}</button>
                     <button onClick={signOut} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left" role="menuitem"><Svg d={ICON_PATHS.logout} className="w-4 h-4" />{t('sign_out', lang)}</button>
                   </div>
                 )}
@@ -118,7 +124,7 @@ export default function MainLayout({ children }) {
         </header>
 
         <InstallBanner />
-        <main className="flex-1 min-w-0 px-4 py-3 print:p-0">{children}</main>
+        <main className="flex-1 min-w-0 overflow-x-auto px-3 sm:px-4 py-3 print:p-0">{children}</main>
       </div>
           <SupportWidget isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
 </div>

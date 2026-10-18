@@ -3,6 +3,7 @@ import { t } from '../utils/translate.js';
 import sendEmail from '../utils/emailService.js';
 import * as smsService from '../utils/smsService.js';
 import { emitInAppNotification } from '../utils/socket.js';
+import getStoreSettings from '../utils/getStoreSettings.js';
 const DEFAULT_NOTIFICATION_SETTINGS = Object.freeze({
   inapp_low_stock: true,
   inapp_new_sale: true,
@@ -162,6 +163,9 @@ function buildEmailHtml({
   actionUrl = null,
   actionLabel = "View Details",
   footerNote = null,
+  addressed = false,
+  badge = "Notification",
+  closing = "",
 }) {
   const B = EMAIL_BRAND;
   const safeTitle = escapeHtml(humanize(title));
@@ -243,7 +247,7 @@ function buildEmailHtml({
                     ${B.name}
                   </td>
                   <td align="right" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#C7D2E0;">
-                    Notification
+                    ${escapeHtml(badge || "Notification")}
                   </td>
                 </tr>
               </table>
@@ -253,9 +257,7 @@ function buildEmailHtml({
           <!-- Body -->
           <tr>
             <td style="padding:32px;font-family:Arial,Helvetica,sans-serif;color:${B.text};">
-              <p style="margin:0 0 18px;font-size:14px;line-height:1.6;">
-                Hello ${safeName},
-              </p>
+              ${addressed ? "" : `<p style="margin:0 0 18px;font-size:14px;line-height:1.6;">Hello ${safeName},</p>`}
 
               ${storeName ? `<p style="margin:0 0 8px;font-size:17px;line-height:1.35;font-weight:bold;color:${B.heading};">${escapeHtml(storeName)}</p>` : ""}
 
@@ -298,7 +300,7 @@ function buildEmailHtml({
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;">
           <tr>
             <td align="center" style="padding:16px 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:${B.faint};">
-              This is an automated message &mdash; please do not reply directly to this email.
+              ${escapeHtml(closing || "This is an automated message. Please do not reply directly to this email.")}
             </td>
           </tr>
         </table>
@@ -321,6 +323,37 @@ function fitSms(text) {
   return clean.length > 306 ? `${clean.slice(0, 303)}...` : clean;
 }
 
+function langOf(value) {
+  return String(value || "en").toLowerCase().startsWith("sw") ? "sw" : "en";
+}
+
+async function storeVoice(storeId) {
+  try {
+    const settings = await getStoreSettings(storeId);
+    const ops = settings.operations || {};
+    return { lang: langOf(ops.defaultLanguage), currency: ops.defaultCurrency || "TZS" };
+  } catch {
+    return { lang: "en", currency: "TZS" };
+  }
+}
+
+function phrases(note, lang, vars) {
+  return {
+    title: t(`note_${note}_title`, vars, lang),
+    body: t(`note_${note}_body`, vars, lang),
+    sms: t(`note_${note}_sms`, vars, lang),
+  };
+}
+
+function letterOptions(lang) {
+  return {
+    addressed: true,
+    badge: t("note_email_badge", {}, lang),
+    closing: t("note_email_closing", {}, lang),
+    footerNote: t("note_email_footer", {}, lang),
+  };
+}
+
 async function notifyStore({
   storeId,
   type,
@@ -338,6 +371,8 @@ async function notifyStore({
   channels = ["inapp", "email", "sms"],
   actionUrl = null,
   actionLabel = undefined,
+  note,
+  vars = {},
 }) {
   if (!storeId || !type) return { skipped: true, reason: "missing_store_or_type" };
 
@@ -350,6 +385,8 @@ async function notifyStore({
   if (!enabledChannels.length) return { skipped: true, reason: "disabled_by_settings" };
 
   const result = { inapp: false, email: { sent: 0, failed: 0 }, sms: { sent: 0, failed: 0 } };
+  const voice = note ? await storeVoice(storeId) : { lang: "en", currency: "TZS" };
+  const shared = { currency: voice.currency, store: storeName, ...vars };
 
   const needsPeople = enabledChannels.includes("email") || enabledChannels.includes("sms") || (enabledChannels.includes("inapp") && typeof localize === "function");
   let recipients = [];
@@ -362,18 +399,31 @@ async function notifyStore({
 
   if (enabledChannels.includes("inapp")) {
     const local = recipients[0] && typeof localize === "function" ? localize(recipients[0]) || {} : {};
-    await emitInAppNotification(storeId, type, { title: local.title || title, message: local.sms || message, meta });
+    const spoken = note ? phrases(note, voice.lang, shared) : null;
+    await emitInAppNotification(storeId, type, {
+      title: local.title || spoken?.title || title,
+      message: local.sms || spoken?.sms || message,
+      note: note || undefined,
+      vars: note ? shared : undefined,
+      meta,
+    });
     result.inapp = true;
   }
 
   if (enabledChannels.includes("email") || enabledChannels.includes("sms")) {
+    if (!needsPeople) {
+      recipients = await getRecipients(storeId, { roles, recipientUserIds, excludeUserId });
+    }
     if (enabledChannels.includes("email")) {
       const emailRecipients = recipients.filter((recipient) => recipient.email);
       const deliveries = await Promise.allSettled(
         emailRecipients.map((recipient) => {
+          const lang = langOf(recipient.preferred_language || voice.lang);
           const local = typeof localize === "function" ? localize(recipient) || {} : {};
-          const emailTitle = local.title || title || type;
-          const emailBody = `${local.email || emailMessage || message || title || type}${attachments?.length ? "\n\nThe full list is in the attached document. Please open the attachment to see it." : ""}`;
+          const spoken = note ? phrases(note, lang, { ...shared, name: recipient.name || "" }) : null;
+          const emailTitle = spoken?.title || local.title || title || type;
+          const attachmentNote = attachments?.length ? `\n\n${t("note_see_attachment", {}, lang)}` : "";
+          const emailBody = `${spoken?.body || local.email || emailMessage || message || title || type}${attachmentNote}`;
           return sendEmail({
             to: recipient.email,
             subject: `BizTrack: ${humanize(emailTitle)}${storeName && !String(emailTitle).includes(storeName) ? ` — ${storeName}` : ""}`,
@@ -381,11 +431,12 @@ async function notifyStore({
               recipientName: recipient.name,
               title: emailTitle,
               message: emailBody,
-              meta,
+              meta: note ? {} : meta,
               storeName,
               detailHtml,
               actionUrl,
               actionLabel,
+              ...(note ? letterOptions(lang) : {}),
             }),
             attachments,
           });
@@ -402,8 +453,10 @@ async function notifyStore({
 
       const deliveries = await Promise.allSettled(
         smsRecipients.map((recipient) => {
+          const lang = langOf(recipient.preferred_language || voice.lang);
           const local = typeof localize === "function" ? localize(recipient) || {} : {};
-          const smsText = fitSms(local.sms || smsMessage || message || title || type);
+          const spoken = note ? phrases(note, lang, { ...shared, name: recipient.name || "" }) : null;
+          const smsText = fitSms(spoken?.sms || local.sms || smsMessage || message || title || type);
           return smsService.send(recipient.phone, smsText, { storeId, purpose: "system" });
         }),
       );
@@ -430,37 +483,43 @@ async function storeNameOf(storeId) {
 }
 
 /** Email or SMS to one customer, supplier, or user, when that party's box is on. */
-async function notifyParty({ storeId, type, to, title, message, meta = {} }) {
+async function notifyParty({ storeId, type, to, title, message, meta = {}, note, vars = {}, lang }) {
   if (!storeId || !type || !to) return { skipped: true };
   const settings = await getNotificationSettings(storeId);
   const emailOn = settings[`email_${type}`] === true && to.email;
   const smsOn = settings[`sms_${type}`] === true && to.phone;
   if (!emailOn && !smsOn) return { skipped: true, reason: "disabled_by_settings" };
   const storeName = await storeNameOf(storeId);
+  const voice = await storeVoice(storeId);
+  const language = langOf(lang || voice.lang);
+  const shared = { currency: voice.currency, store: storeName, name: to.name || "", ...vars };
+  const spoken = note ? phrases(note, language, shared) : null;
   const result = { email: false, sms: false };
   if (emailOn) {
     const sent = await sendEmail({
       to: to.email,
-      subject: `BizTrack: ${humanize(title)}${storeName ? ` — ${storeName}` : ""}`,
+      subject: `BizTrack: ${humanize(spoken?.title || title)}${storeName ? ` — ${storeName}` : ""}`,
       html: buildEmailHtml({
         recipientName: to.name,
-        title,
-        message,
-        meta,
+        title: spoken?.title || title,
+        message: spoken?.body || message,
+        meta: note ? {} : meta,
         storeName,
+        ...(note ? letterOptions(language) : {}),
       }),
     });
     result.email = sent?.success !== false;
   }
   if (smsOn) {
-    const sent = await smsService.send(to.phone, fitSms(storeName ? `${storeName}: ${message}` : message), { storeId, purpose: "system" });
+    const text = spoken?.sms || message;
+    const sent = await smsService.send(to.phone, fitSms(note ? text : (storeName ? `${storeName}: ${text}` : text)), { storeId, purpose: "system" });
     result.sms = sent?.success === true;
   }
   return result;
 }
 
 /** Tell the other store, using the acting store's "other store" boxes. */
-async function notifyOtherStore({ actingStoreId, otherStoreId, title, message, meta = {} }) {
+async function notifyOtherStore({ actingStoreId, otherStoreId, title, message, meta = {}, note, vars = {} }) {
   if (!actingStoreId || !otherStoreId || actingStoreId === otherStoreId) return { skipped: true };
   const settings = await getNotificationSettings(actingStoreId);
   const emailOn = settings.email_stock_transfer_store === true;
@@ -468,21 +527,43 @@ async function notifyOtherStore({ actingStoreId, otherStoreId, title, message, m
   const inappOn = settings.inapp_stock_transfer_store === true;
   if (!emailOn && !smsOn && !inappOn) return { skipped: true, reason: "disabled_by_settings" };
   const storeName = await storeNameOf(actingStoreId);
-  if (inappOn) await emitInAppNotification(otherStoreId, "stock_transfer", { title, message, meta });
+  const voice = note ? await storeVoice(otherStoreId) : { lang: "en", currency: "TZS" };
+  const shared = { currency: voice.currency, store: storeName, ...vars };
+  const spoken = note ? phrases(note, voice.lang, shared) : null;
+  if (inappOn) {
+    await emitInAppNotification(otherStoreId, "stock_transfer", {
+      title: spoken?.title || title,
+      message: spoken?.sms || message,
+      note: note || undefined,
+      vars: note ? shared : undefined,
+      meta,
+    });
+  }
   const people = emailOn || smsOn ? await getRecipients(otherStoreId) : [];
   if (emailOn) {
-    await Promise.allSettled(people.filter((p) => p.email).map((p) => sendEmail({
-      to: p.email,
-      subject: `BizTrack: ${humanize(title)}${storeName ? ` — ${storeName}` : ""}`,
-      html: buildEmailHtml({ recipientName: p.name, title, message, meta, storeName }),
-    })));
+    await Promise.allSettled(people.filter((p) => p.email).map((p) => {
+      const lang = langOf(p.preferred_language || voice.lang);
+      const letter = note ? phrases(note, lang, { ...shared, name: p.name || "" }) : null;
+      return sendEmail({
+        to: p.email,
+        subject: `BizTrack: ${humanize(letter?.title || title)}${storeName ? ` — ${storeName}` : ""}`,
+        html: buildEmailHtml({
+          recipientName: p.name,
+          title: letter?.title || title,
+          message: letter?.body || message,
+          meta: note ? {} : meta,
+          storeName,
+          ...(note ? letterOptions(lang) : {}),
+        }),
+      });
+    }));
   }
   if (smsOn) {
-    await Promise.allSettled(people.filter((p) => p.phone).map((p) => smsService.send(
-      p.phone,
-      fitSms(storeName ? `${storeName}: ${message}` : message),
-      { storeId: actingStoreId, purpose: "system" },
-    )));
+    await Promise.allSettled(people.filter((p) => p.phone).map((p) => {
+      const lang = langOf(p.preferred_language || voice.lang);
+      const letter = note ? phrases(note, lang, { ...shared, name: p.name || "" }) : null;
+      return smsService.send(p.phone, fitSms(letter?.sms || message), { storeId: actingStoreId, purpose: "system" });
+    }));
   }
   return { sent: true };
 }

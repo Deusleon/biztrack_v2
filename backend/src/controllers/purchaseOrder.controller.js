@@ -1386,12 +1386,13 @@ export const createGRN = async (req, res) => {
       message: "grn_created",
     });
 
+    const goodsVars = { order: grn.grn_number };
     notifyStore({
       storeId,
       type: "purchase_received",
       title: "Purchase received",
-      message: "A goods received note was created",
-      meta: { grn_number: grn.grn_number },
+      note: "goods_received",
+      vars: goodsVars,
     }).catch(() => {});
     pool.query("SELECT name, email, phone FROM suppliers WHERE id = $1 AND store_id = $2", [resolvedSupplierId, storeId])
       .then((supplier) => notifyParty({
@@ -1399,8 +1400,8 @@ export const createGRN = async (req, res) => {
         type: "purchase_received_supplier",
         to: supplier.rows[0],
         title: "Goods received",
-        message: `We recorded goods received note ${grn.grn_number}. This receipt is on our records.`,
-        meta: { grn_number: grn.grn_number },
+        note: "goods_received_supplier",
+        vars: { ...goodsVars, supplier: supplier.rows[0]?.name || "" },
       }))
       .catch(() => {});
 

@@ -1,4 +1,8 @@
+import crypto from 'crypto';
 import pool from '../config/db.js';
+import { invalidateUserRow } from '../utils/accessCache.js';
+import { emitToUser } from '../utils/socket.js';
+import { isDeveloper } from '../middlewares/developerOnly.js';
 import * as _n9 from 'bcryptjs';
 const bcrypt = _n9.default ?? _n9;
 import { logActivity } from '../utils/activityLog.js';
@@ -216,6 +220,7 @@ export const getStoreUsers = async (req, res) => {
                 u.email,
                 u.preferred_language,
                 u.status,
+                u.allow_multiple_sessions,
                 u.created_at,
                 su.role_id,
                 r.name AS role_name,
@@ -233,12 +238,14 @@ export const getStoreUsers = async (req, res) => {
         );
 
         // 3) Arrange data in a required format 
+        const developer = isDeveloper(req.user);
         const usersData = usersResult.rows.map((row) => ({
             id: row.id,
             name: row.name,
             email: row.email,
             preferred_language: row.preferred_language,
             status: row.status,
+            ...(developer ? { allow_multiple_sessions: !!row.allow_multiple_sessions } : {}),
             created_at: row.created_at,
             storeInfo: {
                 role_id: row.role_id,
@@ -442,6 +449,39 @@ export const removeUserFromStore = async (req, res) => {
         res.status(200).json({ message: t('store_user_removed', lang) });
     } catch (err) {
         console.error('Remove store user error:', err.message);
+        res.status(500).json({ message: t('server_error', lang) });
+    }
+};
+
+// Developer only: one device, or several devices, for this account.
+export const setUserSessions = async (req, res) => {
+    const { id } = req.params;
+    const allow = req.body?.allow_multiple_sessions === true;
+    const lang = req.user.lang || 'en';
+    const storeId = req.user.current_store_role?.store_id;
+    try {
+        const member = await pool.query(
+            'SELECT 1 FROM store_users WHERE user_id = $1 AND store_id = $2',
+            [id, storeId],
+        );
+        if (!member.rows.length) return res.status(404).json({ message: t('user_not_found', lang) });
+        if (allow) {
+            await pool.query('UPDATE users SET allow_multiple_sessions = true, updated_at = NOW() WHERE id = $1', [id]);
+        } else {
+            const nextSession = crypto.randomUUID();
+            await pool.query(
+                'UPDATE users SET allow_multiple_sessions = false, session_id = $2, updated_at = NOW() WHERE id = $1',
+                [id, nextSession],
+            );
+            emitToUser(id, 'sessionReplaced', { sid: nextSession, userId: id });
+        }
+        invalidateUserRow(id);
+        const message = lang === 'sw'
+            ? (allow ? 'Akaunti hii sasa inaweza kuingia kwenye vifaa zaidi ya kimoja.' : 'Akaunti hii sasa inaingia kwenye kifaa kimoja. Vifaa vilivyo wazi vitaombwa kuingia tena.')
+            : (allow ? 'This account can now stay signed in on more than one device.' : 'This account now stays on one device. Open sessions will be asked to sign in again.');
+        res.status(200).json({ allow_multiple_sessions: allow, message });
+    } catch (err) {
+        console.error('Set user sessions error:', err.message);
         res.status(500).json({ message: t('server_error', lang) });
     }
 };

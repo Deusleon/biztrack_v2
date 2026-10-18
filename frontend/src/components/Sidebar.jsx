@@ -11,8 +11,8 @@ import BrandMark from './BrandMark';
 import useDeveloperAccess from '../hooks/useDeveloperAccess';
 import { supportService } from '../services/api';
 
-const NavIcon = ({ name }) => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+const NavIcon = ({ name, className = 'w-6 h-6' }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={ICON_PATHS[name] || ICON_PATHS.box} />
   </svg>
 );
@@ -36,7 +36,7 @@ const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed, onHelp }) =
   // Phones: the drawer covers the page. Choosing a page (or landing on one) puts it away.
   useEffect(() => { closeSidebar?.(); }, [location.pathname, closeSidebar]);
 
-  const allPaths = NAV_SECTIONS.flatMap((s) => s.items.map((i) => i.to));
+  const allPaths = NAV_SECTIONS.flatMap((s) => s.items.map((i) => i.to).filter(Boolean));
   const isActive = (path) => {
     if (location.pathname === path) return true;
     if (!location.pathname.startsWith(`${path}/`)) return false;
@@ -54,17 +54,27 @@ const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed, onHelp }) =
     return () => el.removeEventListener('scroll', onScroll);
   }, []);
 
-  // A lapsed store keeps Subscription, the user guide, and — for the developer — Extend subscription.
+  // A lapsed store keeps Subscription, the user guide, help, and — for the developer — Extend subscription.
+  const allowed = (item) => {
+    if (item.supportOnly && !supportDesk) return false;
+    if (locked) return item.action === 'help' || ['/subscription', '/user-manual'].includes(item.to) || (item.to === '/subscription/manual' && isDeveloper);
+    return canOpen(item, can, { developer: isDeveloper });
+  };
   const visible = NAV_SECTIONS
-    .map((s) => ({ ...s, items: s.items.filter((i) => (locked ? ['/subscription', '/user-manual'].includes(i.to) || (i.to === '/subscription/manual' && isDeveloper) : canOpen(i, can, { developer: isDeveloper }))) }))
+    .map((s) => ({ ...s, items: s.items.filter(allowed) }))
     .filter((s) => s.items.length > 0);
+
+  const activeKey = visible.find((section) => section.title && section.items.some((item) => isActive(item.to)))?.key || '';
+  const [openKey, setOpenKey] = useState(activeKey);
+  useEffect(() => { setOpenKey(activeKey); }, [activeKey]);
+  const onSection = (key) => setOpenKey((current) => (current === key ? (key === activeKey ? key : activeKey) : key));
 
   const initials = (user?.name || '?').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
 
   return (
     <>
       {isOpen && <div className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden" onClick={toggleSidebar} />}
-      <aside className={`fixed top-0 left-0 z-30 h-screen transition-all duration-300 ease-in-out print:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 ${isCollapsed ? 'lg:w-20' : 'lg:w-64'} w-64`}>
+      <aside className={`fixed top-0 left-0 z-30 h-screen transition-all duration-300 ease-in-out print:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 ${isCollapsed ? 'lg:w-20 sidebar-icons' : 'lg:w-64'} w-64`}>
         <div className="h-full flex flex-col gradient-primary-dark text-white shadow-2xl sidebar-edge">
           <div className={`flex items-center border-b border-primary-dark transition-all duration-300 ${isCollapsed ? 'lg:justify-center p-4 lg:py-2.5 lg:px-4' : 'justify-between p-4'}`}>
             <div className={`flex items-center space-x-3 ${isCollapsed ? 'lg:space-x-0' : ''}`}>
@@ -79,42 +89,50 @@ const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed, onHelp }) =
             </button>
           </div>
 
-          <nav ref={navRef} className="flex-1 overflow-y-auto py-6 px-3 space-y-6 scrollbar-thin scrollbar-thumb-primary-dark scrollbar-track-transparent">
-            {visible.map((section) => (
+          <nav ref={navRef} className="flex-1 overflow-y-auto py-4 px-1.5 space-y-1 scrollbar-thin scrollbar-thumb-primary-dark scrollbar-track-transparent">
+            {visible.map((section) => {
+              const group = section.items.length > 1;
+              const open = group && openKey === section.key;
+              const linkClass = (active) => `nav-link w-full flex items-center gap-2 px-4 py-2.5 text-xs text-left font-semibold uppercase tracking-wider ${active ? 'is-open' : ''} ${isCollapsed ? 'lg:justify-center' : ''}`;
+              if (!group) {
+                const item = section.items[0];
+                const label = t(item.label, lang);
+                const active = item.to ? isActive(item.to) : false;
+                const inner = (<><NavIcon name={section.icon || item.icon} className="w-4 h-4 flex-shrink-0" /><span className={`truncate ${isCollapsed ? 'lg:hidden' : ''}`}>{label}</span></>);
+                if (item.action === 'help') {
+                  return <button key={section.key} type="button" onClick={onHelp} title={isCollapsed ? label : ''} className={linkClass(false)}>{inner}</button>;
+                }
+                return <Link key={section.key} to={item.to} title={isCollapsed ? label : ''} className={linkClass(active)}>{inner}</Link>;
+              }
+              return (
               <div key={section.key}>
-                {section.title && (
-                  <h3 className={`px-4 mb-2 text-xs text-left font-semibold text-white opacity-70 uppercase tracking-wider ${isCollapsed ? 'lg:hidden' : ''}`}>{t(section.title, lang)}</h3>
-                )}
-                <div className="space-y-1">
-                  {section.items.map((item) => (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      title={isCollapsed ? t(item.label, lang) : ''}
-                      className={`flex items-center py-2.5 text-sm font-medium rounded transition-all duration-200 ${isCollapsed ? 'lg:justify-center lg:px-2 px-4' : 'px-4'} ${isActive(item.to) ? 'bg-white text-primary-dark shadow-lg' : 'text-white opacity-90 hover:bg-primary-dark hover:opacity-100'}`}
-                    >
-                      <span className={isCollapsed ? 'lg:mr-0 mr-3' : 'mr-3'}><NavIcon name={item.icon} /></span>
-                      <span className={isCollapsed ? 'lg:hidden' : ''}>{t(item.label, lang)}</span>
-                      {isActive(item.to) && !isCollapsed && <span className="ml-auto w-2 h-2 bg-primary rounded-full" />}
-                    </Link>
-                  ))}
+                <button type="button" onClick={() => onSection(section.key)} aria-expanded={open} className={`nav-section-btn w-full flex items-center justify-between gap-2 px-4 py-2.5 text-xs text-left font-semibold uppercase tracking-wider ${open ? 'is-open' : ''} ${isCollapsed ? 'lg:hidden' : ''}`}>
+                  <span className="flex items-center gap-2 min-w-0">
+                    <NavIcon name={section.icon || 'box'} className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate">{t(section.title, lang)}</span>
+                  </span>
+                  <svg className={`w-3.5 h-3.5 flex-shrink-0 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                <div className={`nav-panel ${open ? 'open' : ''}`}>
+                  <div className="nav-clip">
+                <div className="nav-well">
+                  {section.items.map((item) => {
+                    const label = t(item.label, lang);
+                    const row = `nav-item flex items-center gap-2 py-2 text-sm font-medium ${isCollapsed ? 'lg:justify-center lg:px-2 pl-8 pr-4' : 'pl-8 pr-4'} ${item.to && isActive(item.to) ? 'is-current' : ''}`;
+                    const inner = (<><NavIcon name={item.icon} className="w-4 h-4 flex-shrink-0" /><span className={isCollapsed ? 'lg:hidden' : ''}>{label}</span></>);
+                    if (item.action === 'help') {
+                      return <button key={item.label} type="button" onClick={onHelp} title={isCollapsed ? label : ''} className={`w-full text-left ${row}`}>{inner}</button>;
+                    }
+                    return <Link key={item.to} to={item.to} title={isCollapsed ? label : ''} className={row}>{inner}</Link>;
+                  })}
+                </div>
+                  </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </nav>
 
-          <div className={`border-t border-primary-dark ${isCollapsed ? 'lg:px-2' : ''}`}>
-            {supportDesk && (
-              <Link to="/support/admin" title={t('support_desk', lang)} className={`w-full flex items-center py-3 text-sm font-medium text-white opacity-90 hover:bg-primary-dark hover:opacity-100 ${isCollapsed ? 'lg:justify-center lg:px-2 px-4' : 'px-7'}`}>
-                <span className={isCollapsed ? 'lg:mr-0 mr-3' : 'mr-3'}><NavIcon name="help" /></span>
-                <span className={isCollapsed ? 'lg:hidden' : ''}>{t('support_desk', lang)}</span>
-              </Link>
-            )}
-            <button type="button" onClick={onHelp} title={t('help_and_support', lang)} className={`w-full flex items-center py-3 text-sm font-medium text-white opacity-90 hover:bg-primary-dark hover:opacity-100 ${isCollapsed ? 'lg:justify-center lg:px-2 px-4' : 'px-7'}`}>
-              <span className={isCollapsed ? 'lg:mr-0 mr-3' : 'mr-3'}><NavIcon name="help" /></span>
-              <span className={isCollapsed ? 'lg:hidden' : ''}>{t('help_and_support', lang)}</span>
-            </button>
-          </div>
           <div className={`p-4 border-t border-primary-dark ${isCollapsed ? 'lg:px-2' : ''}`}>
             <Link to="/profile" className={`flex items-center rounded bg-primary-dark bg-opacity-50 p-3 space-x-3 hover:bg-opacity-70 ${isCollapsed ? 'lg:flex-col lg:space-x-0 lg:space-y-2 lg:p-2' : ''}`}>
               {user?.avatar_url

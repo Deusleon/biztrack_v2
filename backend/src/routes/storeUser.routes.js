@@ -6,6 +6,7 @@ import * as storeUserController from '../controllers/storeUser.controller.js';
 import authMiddleware from '../middlewares/authMiddleware.js';
 import invalidateAccessOnWrite from '../middlewares/invalidateAccessOnWrite.js';
 import { checkStorePermission } from '../middlewares/permissions.js';
+import { developerOnly } from '../middlewares/developerOnly.js';
 // All routes below require authentication
 router.use(authMiddleware);
 router.use(invalidateAccessOnWrite);
@@ -18,6 +19,9 @@ router.post('/create-user', checkStorePermission(['edit_users']), storeUserContr
 
 // GET: Get all users in a specific store
 router.get('/:store_id/users', checkStorePermission(['view_users', 'edit_users']), storeUserController.getStoreUsers);
+
+// PUT: Developer chooses one device or several for this account
+router.put('/:id/sessions', developerOnly, storeUserController.setUserSessions);
 
 // PUT: Update a user's role in a store
 router.put('/:id', checkStorePermission(['edit_users']), storeUserController.updateStoreUserRole);

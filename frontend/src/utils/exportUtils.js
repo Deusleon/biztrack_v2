@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { t } from "./i18n";
+import { readSession } from "./sessionStore";
 import { formatNumberWithCommas } from "./numberUtils";
 import { formatDateLocalized } from "@/utils/formatDateLocalized";
 import { getStoreSettings } from "@/services/SettingsService";
@@ -117,9 +118,7 @@ const getStoreNameForExport = (businessInfo = null, settings = null) => {
     settings?.currentStoreName,
   ];
 
-  if (typeof localStorage !== "undefined") {
-    candidates.push(localStorage.getItem("currentStoreName"));
-  }
+  candidates.push(readSession("currentStoreName"));
 
   return candidates.find(
     (value) => value !== null && value !== undefined && String(value).trim() !== "",

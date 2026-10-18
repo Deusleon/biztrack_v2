@@ -163,7 +163,7 @@ async function notifyAllStores({ title, message, meta }) {
     const stores = await pool.query("SELECT store_id FROM store_settings");
     for (const row of stores.rows) {
       try {
-        await notifyStore({ storeId: row.store_id, type: "cloud_backup", title, message, meta });
+        await notifyStore({ storeId: row.store_id, type: "cloud_backup", title, message, meta, note: "cloud_backup", vars: meta || {} });
       } catch (err) {
         console.error(`Cloud backup notification failed for store ${row.store_id}:`, err.message);
       }

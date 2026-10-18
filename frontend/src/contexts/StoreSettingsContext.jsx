@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useStore } from "./StoreContext";
 import { getStoreSettings } from "../services/SettingsService";
+import { readSession } from "../utils/sessionStore";
 
 const StoreSettingsContext = createContext();
 
@@ -35,14 +36,14 @@ function readCache(storeId) {
  */
 export const StoreSettingsProvider = ({ children }) => {
   const { currentStore } = useStore();
-  const storeId = currentStore?.id || localStorage.getItem("currentStoreId");
+  const storeId = currentStore?.id || readSession("currentStoreId");
 
   const [settings, setSettings] = useState(() => readCache(storeId) ?? {});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchSettings = useCallback(async () => {
-    const currentStoreId = localStorage.getItem("currentStoreId");
+    const currentStoreId = readSession("currentStoreId");
 
     if (!currentStoreId) {
       setLoading(false);

@@ -209,4 +209,6 @@ export const ACTION_ICONS = {
   add: icon("M12 4v16m8-8H4"),
   members: icon("M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-8.13a4 4 0 11-6 0 4 4 0 016 0zm6 3a4 4 0 11-8 0 4 4 0 018 0z"),
   send: icon("M12 19l9 2-9-18-9 18 9-2zm0 0v-8"),
+  devices: icon("M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"),
+  device: icon("M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"),
 };

@@ -506,6 +506,78 @@ main .flex-wrap:has(> div.w-14.h-14) { flex-wrap: nowrap; }
   margin-left: 0;
 }
 
+/* Sidebar sections ease open. The heading and the pages inside it sit on different shades, edge to edge. */
+.nav-section-btn,
+.nav-link {
+  color: #fff;
+  opacity: 0.72;
+  border-radius: 0;
+  transition: background-color 280ms ease, opacity 280ms ease;
+}
+.nav-section-btn:hover,
+.nav-section-btn.is-open,
+.nav-link:hover,
+.nav-link.is-open {
+  opacity: 1;
+}
+.nav-section-btn:hover,
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.nav-section-btn.is-open,
+.nav-link.is-open {
+  background: rgba(255, 255, 255, 0.1);
+}
+.nav-section-btn.is-open:hover,
+.nav-link.is-open:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+.nav-item {
+  color: #fff;
+  opacity: 0.9;
+  transition: background-color 180ms ease, opacity 180ms ease;
+}
+.nav-item:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.14);
+}
+.nav-item.is-current {
+  background: #fff;
+  color: var(--color-primary-dark, #1e3a5f);
+  opacity: 1;
+}
+.nav-item.is-current:hover {
+  background: #f3f4f6;
+}
+.nav-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 320ms ease;
+}
+.nav-panel.open {
+  grid-template-rows: 1fr;
+}
+.nav-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+.nav-well {
+  margin-top: 0;
+  padding: 0.25rem 0;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.22);
+}
+@media (min-width: 1024px) {
+  .sidebar-icons .nav-panel {
+    grid-template-rows: 1fr;
+  }
+  .sidebar-icons .nav-well {
+    margin-top: 0;
+    padding: 0;
+    background: transparent;
+  }
+}
+
 /* Dark color scheme. Accent colours stay on the sidebar; the page surface flips.
    Screen-only so printed receipts and reports stay on white paper. */
 @media screen {

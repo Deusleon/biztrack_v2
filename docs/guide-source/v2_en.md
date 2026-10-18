@@ -16,7 +16,7 @@ Every user has their own account with an email address and a password.
 3. Enter your password.
 4. Click [[Login]].
 
-> NOTE: If your store administrator gave you an account, use the email and password they provided. You can change the password later under [[My Profile]] → [[Change Password]].
+> NOTE: If your store administrator gave you an account, use the email and password they provided. You can change the password later under [[My Profile]] → [[Change Password]]. An account stays signed in on one device. When it is signed in somewhere else, this device is signed out at once and the sign-in page tells you why.
 > WARNING: To protect accounts, sign-in pauses for a few minutes after 10 wrong passwords for the same email within 15 minutes. The message tells you how long to wait. Signing in correctly never counts against you, and other people are not affected. If you have forgotten the password, use [[Forgot password?]] instead of guessing.
 
 ## 1.3  Registering a New Account
@@ -62,12 +62,13 @@ The main menu is on the left of the screen. It takes you to every part of the sy
 
 - On a computer: click the arrow above the menu to collapse or expand the menu labels.
 - On a phone or tablet: tap the menu icon (≡) at the top left to open the menu as a slide-out drawer.
-- Click a section such as [[Sales]] to open its list of pages (for example [[Invoice]], [[Pending Orders]], [[Sales History]]).
-- At the top of every page you will find the bell for notifications, the help icon ([[Help & support]]), the button to lock the screen, and your profile menu.
+- [[Dashboard]], [[User Guide]], [[BizTrack AI]] and [[Subscription]] each sit on their own row, lined up with the other section names. When both [[Subscription]] and Extend subscription are available, they open together. [[Help & support]] and the support desk open together when both are available. With only one of them, it stays a single row.
+- Open one section at a time. It eases open, and the section you are working in stays open. The section name uses a light band across the full width of the menu. The pages inside it use a darker band, also full width, with square corners, so they are easy to tell apart.
+- At the top of every page you will find [[Reload]], the bell for notifications, the help icon ([[Help & support]]), the button to lock the screen, and your profile menu. Reload refreshes the page, including when BizTrack is installed as an app.
 
 ## 1.7  Selecting a Store
 
-If your business has more than one store, use the store selector at the top of the page. All the data you see — products, sales, reports — belongs to the store you have selected.
+If your business has more than one store, BizTrack opens the default store set under [[Settings]] → [[Configurations]] when you sign in. All the data you see — products, sales, reports — belongs to the store you have selected. You can change store afterwards with the selector at the top of the page.
 
 1. Click the name of the current store.
 2. Choose a different store from the list.
@@ -82,7 +83,7 @@ To protect your business data, BizTrack locks your session when you have been in
 1. Enter your password on the lock screen.
 2. Click [[Unlock]] to return to the page you were working on.
 
-> NOTE: If you prefer to leave completely, click [[Sign out instead]] on the lock screen, or [[Sign out]] in your profile menu.
+> NOTE: If you prefer to leave completely, click [[Sign out instead]] on the lock screen, or [[Sign out]] in your profile menu. Signing out ends only that account. Other accounts that are still open, on this device or another, stay signed in.
 
 ## 1.9  Installing BizTrack as an App
 

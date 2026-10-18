@@ -277,8 +277,8 @@ export const runCloudBackup = async (req, res) => {
       storeId,
       type: 'cloud_backup',
       title: 'Cloud backup completed',
-      message: 'Store data was backed up successfully',
-      meta: { tables: Object.keys(data).length, created_at: payload.createdAt },
+      note: 'cloud_backup',
+      vars: { tables: Object.keys(data).length },
       roles: ['Owner', 'Manager'],
     }).catch(() => {});
     return res.status(200).json({ message: 'Cloud backup completed', tables: Object.keys(data).length, createdAt: payload.createdAt });

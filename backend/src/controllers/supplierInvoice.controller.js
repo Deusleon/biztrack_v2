@@ -773,25 +773,29 @@ export const createSupplierPayment = async (req, res) => {
         });
 
         const paidText = Number(amount || 0).toLocaleString('en-US');
-        const supplierNote = `We paid ${paidText} (${payment_number}) by ${payment_method || 'the recorded method'}. This payment is on our records.`;
-        const supplierMeta = { payment_number, amount: paidText, payment_method: payment_method || '' };
+        let balanceLeft = '0';
+        if (supplier_invoice_id) {
+            const settled = await pool.query('SELECT total_amount, amount_paid FROM supplier_invoices WHERE id = $1', [supplier_invoice_id]);
+            const row = settled.rows[0];
+            if (row) balanceLeft = Math.max(0, Number(row.total_amount) - Number(row.amount_paid)).toLocaleString('en-US');
+        }
+        const supplierRow = await pool.query('SELECT name, email, phone FROM suppliers WHERE id = $1 AND store_id = $2', [supplier_id, storeId]);
+        const supplierVars = { invoice: payment_number, amount: paidText, balance: balanceLeft, supplier: supplierRow.rows[0]?.name || '', method: payment_method || '' };
         notifyStore({
             storeId,
             type: 'supplier_payment',
             title: 'Supplier payment',
-            message: supplierNote,
-            meta: supplierMeta,
+            note: 'supplier_payment',
+            vars: supplierVars,
         }).catch(() => {});
-        pool.query('SELECT name, email, phone FROM suppliers WHERE id = $1 AND store_id = $2', [supplier_id, storeId])
-            .then((supplier) => notifyParty({
-                storeId,
-                type: 'supplier_payment_supplier',
-                to: supplier.rows[0],
-                title: 'Payment sent',
-                message: supplierNote,
-                meta: supplierMeta,
-            }))
-            .catch(() => {});
+        notifyParty({
+            storeId,
+            type: 'supplier_payment_supplier',
+            to: supplierRow.rows[0],
+            title: 'Payment sent',
+            note: 'supplier_payment_supplier',
+            vars: supplierVars,
+        }).catch(() => {});
 
         res.status(201).json({
             success: true,

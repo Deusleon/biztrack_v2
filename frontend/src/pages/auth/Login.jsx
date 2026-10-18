@@ -4,8 +4,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Input, Button } from '../../components/ui';
+import Icon from '../../components/ui/Icon';
 import AuthShell from '../../components/AuthShell';
 import { t } from '../../utils/i18n';
+import { takeLoginNotice } from '../../utils/sessionStore';
 
 export default function Login() {
   const { login, isAuthenticated } = useAuth();
@@ -19,8 +21,11 @@ export default function Login() {
 
   // Said by the server / the app when a session ended on its own.
   useEffect(() => {
-    const reason = new URLSearchParams(location.search).get('error');
-    if (reason === 'session_expired' || reason === 'unauthorized') showError(t('session_expired', lang));
+    const fromUrl = new URLSearchParams(location.search).get('error');
+    const reason = takeLoginNotice() || fromUrl;
+    if (reason === 'signed_in_elsewhere') showError(t('signed_in_elsewhere', lang));
+    else if (reason === 'session_expired' || reason === 'unauthorized') showError(t('session_expired', lang));
+    if (fromUrl) navigate('/login', { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -51,7 +56,7 @@ export default function Login() {
         <Input
           type={showPassword ? 'text' : 'password'} label={t('password', lang)} required autoComplete="current-password"
           placeholder={t('enter_password', lang)} value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-          rightIcon={<button type="button" onClick={() => setShowPassword((s) => !s)} className="text-gray-400 hover:text-gray-600 text-xs pointer-events-auto" tabIndex={-1}>{showPassword ? '🙈' : '👁'}</button>}
+          rightIcon={<button type="button" onClick={() => setShowPassword((s) => !s)} className="text-gray-400 hover:text-gray-600 pointer-events-auto" aria-label={t(showPassword ? 'hide_password' : 'show_password', lang)} tabIndex={-1}><Icon name={showPassword ? 'eyeOff' : 'eye'} className="w-5 h-5" /></button>}
         />
         <div className="text-right"><Link to="/forgot-password" className="text-sm text-primary hover:underline">{t('forgot_password', lang)}</Link></div>
         <Button type="submit" loading={saving} className="w-full justify-center">{saving ? t('logging_in', lang) : t('login', lang)}</Button>

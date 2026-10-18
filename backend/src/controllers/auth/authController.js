@@ -7,10 +7,11 @@ const jwt = _n15.default ?? _n15;
 import crypto from 'crypto';
 import sendEmail from '../../utils/emailService.js';
 import { t } from '../../utils/translate.js';
-import { getIO } from '../../utils/socket.js';
+import { getIO, emitToUser } from '../../utils/socket.js';
 import { getUserPermissions } from '../../middlewares/checkPermission.js';
 import { getStoreSecurityPolicy, isPasswordExpired } from '../../utils/securityPolicy.js';
 import { notifyStore, notifyParty } from '../../services/notification.service.js';
+import { invalidateUserRow } from '../../utils/accessCache.js';
 import 'dotenv/config';
 // Register user
 export const register = async (req, res) => {
@@ -190,8 +191,8 @@ export const register = async (req, res) => {
             storeId,
             type: "new_user",
             title: "New user registered",
-            message: `${full_name} registered and is awaiting access approval`,
-            meta: { user_name: full_name, email },
+            note: "new_user",
+            vars: { user: full_name, email },
             roles: ["Owner", "Manager"],
             excludeUserId: userId,
         }).catch(() => {});
@@ -200,8 +201,8 @@ export const register = async (req, res) => {
             type: 'new_user_user',
             to: { name: full_name, email, phone: phoneRow.rows[0]?.phone },
             title: 'Your account',
-            message: `Your account at ${storeName} was created and is waiting for approval.`,
-            meta: { store: storeName, email },
+            note: 'new_user_welcome',
+            vars: { email },
         })).catch(() => {});
 
         // Final response
@@ -328,7 +329,7 @@ export const login = async (req, res) => {
         const userResult = await pool.query(
             `SELECT id, name, email, password, preferred_language, status, is_verified,
                     created_at, updated_at, avatar_url, failed_login_attempts,
-                    account_locked_until, password_changed_at
+                    account_locked_until, password_changed_at, session_id, allow_multiple_sessions
              FROM users WHERE LOWER(email) = $1`,
             [normalizedEmail]
         );
@@ -347,12 +348,17 @@ export const login = async (req, res) => {
             JOIN stores s ON su.store_id = s.id
             WHERE su.user_id = $1 AND su.status = true
             ORDER BY su.joined_at ASC NULLS LAST
-            LIMIT 1
         `, [user.id]);
 
         let currentStoreRole = null;
-        if (storeRoleResult.rows.length > 0) {
-            const row = storeRoleResult.rows[0];
+        let row = storeRoleResult.rows[0] || null;
+        if (storeRoleResult.rows.length > 1) {
+            const settingsResult = await pool.query('SELECT settings FROM system_settings LIMIT 1');
+            const defaultStoreId = settingsResult.rows[0]?.settings?.systemDefaults?.defaultStore || null;
+            const match = defaultStoreId && storeRoleResult.rows.find((membership) => membership.store_id === defaultStoreId);
+            if (match) row = match;
+        }
+        if (row) {
             currentStoreRole = {
                 store_id: row.store_id,
                 store_name: row.store_name,
@@ -450,9 +456,18 @@ export const login = async (req, res) => {
         }
 
         const passwordChangeRequired = isPasswordExpired(user, security);
+        const previousSession = user.session_id || null;
+        const sessionId = user.allow_multiple_sessions && user.session_id ? user.session_id : crypto.randomUUID();
+        await pool.query(
+            `UPDATE users SET session_id = $1, updated_at = NOW() WHERE id = $2 AND (session_id IS DISTINCT FROM $1)`,
+            [sessionId, user.id],
+        );
+        invalidateUserRow(user.id);
+        if (sessionId !== previousSession) emitToUser(user.id, 'sessionReplaced', { sid: sessionId, userId: user.id });
 
         const accessToken = jwt.sign({
             id: user.id,
+            sid: sessionId,
             pwa: stampOf(user.password_changed_at),
             email: user.email,
             status: user.status,
@@ -463,7 +478,7 @@ export const login = async (req, res) => {
             expiresIn: '7d'
         });
 
-        const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET, {
+        const refreshToken = jwt.sign({ id: user.id, sid: sessionId }, process.env.JWT_REFRESH_SECRET, {
             expiresIn: '7d'
         });
 
@@ -540,7 +555,7 @@ export const refreshToken = async (req, res) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
         const userResult = await pool.query(
-            `SELECT id, email, status, created_at, updated_at, password_changed_at
+            `SELECT id, email, status, created_at, updated_at, password_changed_at, session_id, allow_multiple_sessions
              FROM users WHERE id = $1`,
             [decoded.id]
         );
@@ -567,10 +582,19 @@ export const refreshToken = async (req, res) => {
         } : null;
         const security = await getStoreSecurityPolicy(currentStoreRole?.store_id);
         const passwordChangeRequired = isPasswordExpired(user, security);
+        if (!user.allow_multiple_sessions && (!decoded.sid || decoded.sid !== user.session_id)) {
+            return res.status(401).json({
+                code: 'SESSION_REPLACED',
+                message: lang === 'sw'
+                    ? 'Akaunti hii imeingia kwenye kifaa kingine. Tafadhali ingia tena.'
+                    : 'This account was signed in on another device. Please sign in again.',
+            });
+        }
 
         const newAccessToken = jwt.sign(
             {
                 id: user.id,
+                sid: user.session_id || decoded.sid,
                 pwa: stampOf(user.password_changed_at),
                 email: user.email,
                 current_store_role: currentStoreRole,
@@ -640,13 +664,27 @@ export const verifyPassword = async (req, res) => {
 export const logout = (req, res) => {
     const lang = req.headers['x-language'] || 'en';
 
-    // Clear the refresh token cookie by setting it expired
-    res.clearCookie('refreshToken', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        path: '/'
-    });
+    // The refresh cookie is shared by this browser. Clear it only when it belongs to the
+    // account that is signing out, so another account open in another tab keeps its session.
+    let cookieUser = null;
+    let caller = null;
+    try {
+        const token = req.cookies?.refreshToken;
+        if (token) cookieUser = jwt.verify(token, process.env.JWT_REFRESH_SECRET)?.id || null;
+    } catch { cookieUser = null; }
+    try {
+        const header = req.headers.authorization || '';
+        const bearer = header.startsWith('Bearer ') ? header.slice(7) : '';
+        if (bearer) caller = jwt.decode(bearer)?.id || null;
+    } catch { caller = null; }
+    if (!cookieUser || !caller || String(cookieUser) === String(caller)) {
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            path: '/'
+        });
+    }
 
     return res.status(200).json({ message: t('logout_success', lang) });
 };
@@ -699,6 +737,7 @@ export const switchStore = async (req, res) => {
         const token = jwt.sign(
             {
                 id: userId,
+                sid: req.user.sid,
                 pwa: await passwordStamp(userId),
                 email: req.user.email,
                 status: req.user.status,

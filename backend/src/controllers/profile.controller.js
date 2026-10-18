@@ -137,9 +137,10 @@ export const changePassword = async (req, res) => {
       storeId: req.user.current_store_id,
       type: "user_activity",
       title: "Password changed",
-      message: "A user changed their account password",
-      meta: { user_id: userId, email: req.user.email },
+      note: "password_changed",
+      vars: { account: req.user.email || "" },
       roles: ["Owner", "Manager"],
+      excludeUserId: userId,
     }).catch(() => {});
 
     const security = await getStoreSecurityPolicy(req.user.current_store_id);
@@ -148,6 +149,7 @@ export const changePassword = async (req, res) => {
     const token = jwt.sign(
       {
         id: userId,
+        sid: req.user.sid,
         pwa: await passwordStamp(userId),
         email: req.user.email,
         status: req.user.status,
