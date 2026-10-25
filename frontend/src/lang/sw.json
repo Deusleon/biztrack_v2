@@ -3470,5 +3470,11 @@
   "msg_subscription_inactive": "Usajili wako hauko hai au umeisha. Tafadhali uongeze ili uendelee kutumia mfumo.",
   "msg_sent_to_recipients": "Imetumwa kwa {sent} kati ya {total} waliolengwa.",
   "msg_sent_to_contacts": "Imetumwa kwa {sent} kati ya {total} anwani.",
-  "msg_contacts_added": "Anwani {count} zimeongezwa kwenye kundi."
+  "msg_contacts_added": "Anwani {count} zimeongezwa kwenye kundi.",
+  "manual_stores_menu_title": "Maduka yana nafasi yake",
+  "manual_stores_menu_body": "- Maduka yako kwenye mstari wake kwenye menyu, yakilingana na Dashibodi na sehemu nyingine.\n- Hayako tena ndani ya Watumiaji.",
+  "manual_menu_lines_title": "Menyu iliyo wazi zaidi",
+  "manual_menu_lines_body": "- Mstari mwepesi unatenganisha jina la BizTrack na menyu, na kila sehemu na inayofuata.\n- Sehemu ya mwisho pia ina mstari chini yake.\n- Jina lako linabaki kwenye upau wa juu. Halirudiwi tena chini ya menyu.",
+  "manual_developer_devices_title": "Akaunti ya msanidi inaweza kubaki wazi kwenye vifaa zaidi ya kimoja",
+  "manual_developer_devices_body": "- Kila akaunti nyingine hubaki imeingia kwenye kifaa kimoja.\n- Akaunti ya msanidi inaweza kubaki imeingia kwenye vifaa zaidi ya kimoja, bila ruhusa ya ziada."
 }

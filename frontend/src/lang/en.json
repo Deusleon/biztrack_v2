@@ -3470,5 +3470,11 @@
   "msg_subscription_inactive": "Your subscription is inactive or expired. Please renew to continue using the system.",
   "msg_sent_to_recipients": "Sent to {sent} of {total} recipients.",
   "msg_sent_to_contacts": "Sent to {sent} of {total} contacts.",
-  "msg_contacts_added": "Added {count} contact(s) to the group."
+  "msg_contacts_added": "Added {count} contact(s) to the group.",
+  "manual_stores_menu_title": "Stores has its own place",
+  "manual_stores_menu_body": "- Stores sits on its own row in the menu, lined up with Dashboard and the other sections.\n- It is no longer inside Users.",
+  "manual_menu_lines_title": "A clearer menu",
+  "manual_menu_lines_body": "- A light line separates the BizTrack name from the menu, and each section from the next.\n- The last section has a line under it as well.\n- Your name stays in the top bar. It is no longer repeated at the bottom of the menu.",
+  "manual_developer_devices_title": "The developer account can stay open on more than one device",
+  "manual_developer_devices_body": "- Every other account stays signed in on one device.\n- The developer account can stay signed in on more than one device, without a separate allowance."
 }

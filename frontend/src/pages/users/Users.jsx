@@ -78,7 +78,7 @@ export default function Users() {
             { label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => setView(u) },
             { label: t('edit', lang), icon: ACTION_ICONS.edit, onClick: () => openEdit(u), hidden: !canEdit || u.id === me?.id },
             { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ id: u.id, name: u.name }), hidden: !canDelete || u.id === me?.id },
-            { label: u.allow_multiple_sessions ? t('one_device_only', lang) : t('allow_multiple_devices', lang), icon: u.allow_multiple_sessions ? ACTION_ICONS.device : ACTION_ICONS.devices, onClick: () => setSessions(u), hidden: !isDeveloper },
+            { label: u.allow_multiple_sessions ? t('one_device_only', lang) : t('allow_multiple_devices', lang), icon: u.allow_multiple_sessions ? ACTION_ICONS.device : ACTION_ICONS.devices, onClick: () => setSessions(u), hidden: !isDeveloper || u.id === me?.id },
           ]} />} />
       </div>
       <FormModal isOpen={!!view} onClose={() => setView(null)} size="xl" title={view?.name || t('user', lang)}>
