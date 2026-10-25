@@ -12,6 +12,7 @@ import { getUserPermissions } from '../../middlewares/checkPermission.js';
 import { getStoreSecurityPolicy, isPasswordExpired } from '../../utils/securityPolicy.js';
 import { notifyStore, notifyParty } from '../../services/notification.service.js';
 import { invalidateUserRow } from '../../utils/accessCache.js';
+import { mayUseManyDevices } from '../../middlewares/developerOnly.js';
 import 'dotenv/config';
 // Register user
 export const register = async (req, res) => {
@@ -457,7 +458,7 @@ export const login = async (req, res) => {
 
         const passwordChangeRequired = isPasswordExpired(user, security);
         const previousSession = user.session_id || null;
-        const sessionId = user.allow_multiple_sessions && user.session_id ? user.session_id : crypto.randomUUID();
+        const sessionId = mayUseManyDevices(user) && user.session_id ? user.session_id : crypto.randomUUID();
         await pool.query(
             `UPDATE users SET session_id = $1, updated_at = NOW() WHERE id = $2 AND (session_id IS DISTINCT FROM $1)`,
             [sessionId, user.id],
@@ -582,7 +583,7 @@ export const refreshToken = async (req, res) => {
         } : null;
         const security = await getStoreSecurityPolicy(currentStoreRole?.store_id);
         const passwordChangeRequired = isPasswordExpired(user, security);
-        if (!user.allow_multiple_sessions && (!decoded.sid || decoded.sid !== user.session_id)) {
+        if (!mayUseManyDevices(user) && (!decoded.sid || decoded.sid !== user.session_id)) {
             return res.status(401).json({
                 code: 'SESSION_REPLACED',
                 message: lang === 'sw'

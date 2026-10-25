@@ -7,6 +7,7 @@ import { enforceSubscriptionForRequest } from './subscriptionGuard.js';
 import { getStoreSecurityPolicy, isPasswordExpired } from '../utils/securityPolicy.js';
 import { addPhase } from '../utils/perf.js';
 import { getUserRow } from '../utils/accessCache.js';
+import { mayUseManyDevices } from './developerOnly.js';
 import 'dotenv/config';
 const PASSWORD_CHANGE_ALLOWED_PATHS = [
   '/api/profile',
@@ -44,8 +45,9 @@ const verifyToken = async (req, res, next) => {
 
     const lang = user.preferred_language || fallbackLang;
 
-    // Another sign-in replaced this one. One account stays on one device unless the developer allows more.
-    if (!user.allow_multiple_sessions && (!decoded.sid || decoded.sid !== user.session_id)) {
+    // Another sign-in replaced this one. One account stays on one device unless more were allowed.
+    // The developer account may stay open on more than one device without that allowance.
+    if (!mayUseManyDevices(user) && (!decoded.sid || decoded.sid !== user.session_id)) {
       return res.status(401).json({
         code: 'SESSION_REPLACED',
         message: lang === 'sw'

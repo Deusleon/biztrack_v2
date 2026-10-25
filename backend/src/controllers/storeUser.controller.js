@@ -465,8 +465,10 @@ export const setUserSessions = async (req, res) => {
             [id, storeId],
         );
         if (!member.rows.length) return res.status(404).json({ message: t('user_not_found', lang) });
-        if (allow) {
-            await pool.query('UPDATE users SET allow_multiple_sessions = true, updated_at = NOW() WHERE id = $1', [id]);
+        const account = await pool.query('SELECT email FROM users WHERE id = $1', [id]);
+        const developerAccount = isDeveloper({ email: account.rows[0]?.email });
+        if (allow || developerAccount) {
+            await pool.query('UPDATE users SET allow_multiple_sessions = $2, updated_at = NOW() WHERE id = $1', [id, allow]);
         } else {
             const nextSession = crypto.randomUUID();
             await pool.query(
@@ -476,9 +478,11 @@ export const setUserSessions = async (req, res) => {
             emitToUser(id, 'sessionReplaced', { sid: nextSession, userId: id });
         }
         invalidateUserRow(id);
-        const message = lang === 'sw'
-            ? (allow ? 'Akaunti hii sasa inaweza kuingia kwenye vifaa zaidi ya kimoja.' : 'Akaunti hii sasa inaingia kwenye kifaa kimoja. Vifaa vilivyo wazi vitaombwa kuingia tena.')
-            : (allow ? 'This account can now stay signed in on more than one device.' : 'This account now stays on one device. Open sessions will be asked to sign in again.');
+        const message = developerAccount
+            ? (lang === 'sw' ? 'Akaunti ya msanidi inaweza kubaki imeingia kwenye vifaa zaidi ya kimoja.' : 'The developer account can stay signed in on more than one device.')
+            : (lang === 'sw'
+                ? (allow ? 'Akaunti hii sasa inaweza kuingia kwenye vifaa zaidi ya kimoja.' : 'Akaunti hii sasa inaingia kwenye kifaa kimoja. Vifaa vilivyo wazi vitaombwa kuingia tena.')
+                : (allow ? 'This account can now stay signed in on more than one device.' : 'This account now stays on one device. Open sessions will be asked to sign in again.'));
         res.status(200).json({ allow_multiple_sessions: allow, message });
     } catch (err) {
         console.error('Set user sessions error:', err.message);

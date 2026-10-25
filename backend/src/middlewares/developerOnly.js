@@ -22,6 +22,11 @@ function isDeveloper(user) {
   return getDeveloperEmails().includes(String(user.email).trim().toLowerCase());
 }
 
+/** The developer account may stay signed in on more than one device without a separate allowance. */
+function mayUseManyDevices(user) {
+  return !!user?.allow_multiple_sessions || isDeveloper(user);
+}
+
 function developerOnly(req, res, next) {
   if (!isDeveloper(req.user)) {
     return respondWithError(req, res, 403, "forbidden");
@@ -29,5 +34,5 @@ function developerOnly(req, res, next) {
   next();
 }
 
-export { developerOnly, isDeveloper, getDeveloperEmails };
+export { developerOnly, isDeveloper, getDeveloperEmails, mayUseManyDevices };
 
