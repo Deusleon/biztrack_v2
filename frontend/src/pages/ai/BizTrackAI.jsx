@@ -1,29 +1,39 @@
 // FILE PATH: frontend/src/pages/ai/BizTrackAI.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import MainLayout from '../../components/MainLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStore } from '../../contexts/StoreContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { aiService } from '../../services/api';
-import { Button, ConfirmModal } from '../../components/ui';
+import { Button, ConfirmModal, Input } from '../../components/ui';
 import { t } from '../../utils/i18n';
 
 const PENDING = 'biztrackAiPendingQuestion';
-const strategy = (s, lang) => (s === 'native_function_calling' ? t('ai_native_tool_selection', lang) : s === 'controlled_routing' ? t('ai_controlled_tool_selection', lang) : null);
 
-function Bubble({ item, lang }) {
-  const user = item.role === 'user'; const label = strategy(item.toolSelectionStrategy, lang);
+function plain(text) {
+  return String(text || '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^\s*[*•-]\s+/gm, '');
+}
+
+function Bubble({ item, lang, onAction }) {
+  const user = item.role === 'user';
+  const sources = item.sources || item.metadata?.sources || [];
+  const actions = item.actions || item.metadata?.actions || [];
   return (
     <div className={`flex ${user ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[88%] rounded-xl px-4 py-3 text-sm leading-6 text-left ${user ? 'gradient-primary text-white' : 'bg-white border border-gray-200 text-gray-800'}`}>
-        <p className="whitespace-pre-wrap">{item.text}</p>
-        {!user && (item.toolsUsed?.length > 0 || item.source === 'fallback') && (
-          <div className="mt-3 pt-2 border-t border-gray-100 text-[11px] text-gray-500 flex flex-wrap gap-x-3 gap-y-1">
-            {item.toolsUsed?.length > 0 && <span>{t('ai_sources', lang)}: {item.toolsUsed.join(', ')}</span>}
-            {label && <span>• {label}</span>}
-            {item.source === 'fallback' && <span className="text-amber-600">• {t('ai_provider_offline', lang)}</span>}
-            {item.toolsDenied?.length > 0 && <span className="text-amber-600">• {t('ai_access_limited', lang)}</span>}
+        <p className="whitespace-pre-wrap">{plain(item.text)}</p>
+        {!user && (sources.length > 0 || actions.length > 0 || item.source === 'fallback' || item.toolsDenied?.length > 0) && (
+          <div className="mt-3 pt-2 border-t border-gray-100 space-y-2">
+            {sources.length > 0 && <p className="text-[11px] text-gray-500">{t('ai_sources', lang)}: {sources.map((source, index) => <span key={`${source.to}-${source.label}`}>{index > 0 ? ', ' : ''}<Link className="text-primary hover:underline" to={source.to}>{source.label}</Link></span>)}</p>}
+            {actions.length > 0 && <div className="flex flex-wrap gap-2">{actions.map((action) => <button key={action.id} type="button" onClick={() => onAction(action)} className="px-2.5 py-1 text-xs font-medium rounded border border-primary text-primary hover:bg-primary-10">{action.label}</button>)}</div>}
+            {item.source === 'fallback' && <p className="text-[11px] text-amber-600">{t('ai_provider_offline', lang)}</p>}
+            {item.toolsDenied?.length > 0 && <p className="text-[11px] text-amber-600">{t('ai_access_limited', lang)}</p>}
           </div>
         )}
       </div>
@@ -37,6 +47,7 @@ export default function BizTrackAI() {
   const { currentStore } = useStore();
   const { showError, showSuccess } = useToast();
   const { lang } = useLanguage();
+  const navigate = useNavigate();
   const [list, setList] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -51,11 +62,37 @@ export default function BizTrackAI() {
   const open = async (id) => { setActiveId(id); setSide(false); try { setMessages((await aiService.conversation(id))?.messages || []); } catch (err) { showError(err.message); } };
   const send = useCallback(async (q) => {
     const clean = String(q ?? '').trim(); if (!clean || sending) return;
-    setMessages((m) => [...m, { role: 'user', text: clean }]); setText(''); setSending(true);
-    try { const r = await aiService.ask({ message: clean, conversationId: activeId }); setActiveId(r.conversationId); setMessages((m) => [...m, { role: 'assistant', text: r.answer, toolsUsed: r.toolsUsed || [], toolsDenied: r.toolsDenied || [], toolSelectionStrategy: r.toolSelectionStrategy, source: r.source }]); loadList(); }
-    catch (err) { setMessages((m) => [...m, { role: 'assistant', text: err.message || t('ai_chat_failed', lang) }]); }
-    finally { setSending(false); }
+    setMessages((m) => [...m, { role: 'user', text: clean }, { role: 'assistant', text: '', provisional: true, sources: [], actions: [] }]);
+    setText(''); setSending(true);
+    const patch = (fn) => setMessages((m) => {
+      const next = [...m];
+      const last = next[next.length - 1];
+      if (!last || last.role !== 'assistant') return m;
+      next[next.length - 1] = fn(last);
+      return next;
+    });
+    const apply = (r) => { if (r?.conversationId) setActiveId(r.conversationId); patch((last) => ({ ...last, text: r.answer || last.text, sources: r.sources || last.sources, actions: r.actions || last.actions, source: r.source, toolsDenied: r.toolsDenied, provisional: false })); };
+    try {
+      const done = await aiService.askStream({
+        message: clean,
+        conversationId: activeId,
+        onEvent: (event) => {
+          if (event.type === 'figures') patch((last) => ({ ...last, text: event.answer || last.text, sources: event.sources || [], actions: event.actions || [], provisional: true }));
+          if (event.type === 'delta') patch((last) => ({ ...last, text: last.provisional ? event.text : `${last.text || ''}${event.text}`, provisional: false }));
+        },
+      });
+      if (done) apply(done);
+      loadList();
+    } catch (err) {
+      try { apply(await aiService.ask({ message: clean, conversationId: activeId })); loadList(); }
+      catch (again) { patch((last) => ({ ...last, text: again.message || err.message || t('ai_chat_failed', lang), provisional: false })); }
+    } finally { setSending(false); }
   }, [activeId, sending, loadList, lang]);
+  const openAction = (action) => {
+    if (action.draft?.kind === 'purchase') sessionStorage.setItem('biztrackAiPurchaseDraft', JSON.stringify(action.draft));
+    if (action.draft?.kind === 'sms') sessionStorage.setItem('biztrackAiSmsDraft', JSON.stringify(action.draft));
+    navigate(action.to);
+  };
 
   useEffect(() => { loadList(); aiService.capabilities().then(setCaps).catch(() => {}); }, [loadList]);
   // a question carried over from "Explain this report" / the Dashboard
@@ -82,11 +119,11 @@ export default function BizTrackAI() {
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between"><div className="text-left"><h1 className="text-base font-bold text-gray-900">BizTrack AI</h1><p className="text-xs text-gray-500">{t('ai_page_desc', lang)}</p></div><button type="button" className="lg:hidden text-sm text-primary" onClick={() => setSide((s) => !s)}>{t('conversations', lang)}</button></div>
           <div className="flex-1 overflow-auto p-4 space-y-3 bg-gray-50">
             {messages.length === 0 && <div className="text-center py-10 space-y-3"><p className="text-sm text-gray-500">{t('ai_empty_prompt', lang)}</p><div className="flex flex-wrap justify-center gap-2">{suggestions.map((q) => <button key={q} type="button" onClick={() => send(q)} className="px-3 py-1.5 text-sm rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-100">{q}</button>)}</div></div>}
-            {messages.map((m, i) => <Bubble key={i} item={m} lang={lang} />)}
+            {messages.map((m, i) => <Bubble key={i} item={m} lang={lang} onAction={openAction} />)}
             {sending && <div className="text-xs text-gray-400 text-left">{t('ai_thinking', lang)}…</div>}
             <div ref={bottom} />
           </div>
-          <form onSubmit={(e) => { e.preventDefault(); send(text); }} className="p-3 border-t border-gray-100 flex gap-2"><input value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} placeholder={t('ai_input_placeholder', lang)} className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-20" /><Button type="submit" loading={sending} disabled={!text.trim()}>{t('send', lang)}</Button></form>
+          <form onSubmit={(e) => { e.preventDefault(); send(text); }} className="p-3 border-t border-gray-100 flex items-end gap-2"><Input className="flex-1" value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} placeholder={t('ai_input_placeholder', lang)} /><Button type="submit" loading={sending} disabled={!text.trim()}>{t('send', lang)}</Button></form>
         </section>
       </div>
       <ConfirmModal isOpen={!!confirm} variant="danger" title={t('delete', lang)} confirmText={t('delete', lang)} cancelText={t('ui_cancel', lang)} message={t('ui_confirm_delete', lang, { name: confirm?.name })} onClose={() => setConfirm(null)} onConfirm={remove} />

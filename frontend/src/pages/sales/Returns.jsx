@@ -9,7 +9,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { salesService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { DataTable, Button, RowActions, ACTION_ICONS, Input, Select, Textarea, ConfirmModal } from '../../components/ui';
+import { DataTable, Button, RowActions, ACTION_ICONS, Input, NumberInput, Select, Textarea, ConfirmModal } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { FilterBar, StatusBadge, DetailGrid, toPaging, dateOnly } from './common';
 import { formatCurrency } from '../../utils/numberUtils';
@@ -60,7 +60,7 @@ export default function Returns() {
     if (chosen.some((l) => l.qty > l.sold)) { showError(t('return_quantity_exceeds_sold', lang)); return; }
     try {
       setBusy(true);
-      const r = await salesService.createReturn({ invoiceNumber: create.invoice, items: chosen.map((l) => ({ product_id: l.product_id, quantity: l.qty, price: l.price, condition: l.condition, restock: l.restock && l.condition === 'good', reason: create.reason || undefined })), reason: create.reason, notes: create.notes, refundMethod: create.refundMethod });
+      const r = await salesService.createReturn({ invoiceNumber: create.invoice, items: chosen.map((l) => ({ product_id: l.product_id, quantity: Number(l.qty) || 0, price: l.price, condition: l.condition, restock: l.restock && l.condition === 'good', reason: create.reason || undefined })), reason: create.reason, notes: create.notes, refundMethod: create.refundMethod });
       showSuccess(r.message || 'sales_return_created'); setCreate(null); setInvoiceInput(''); list.reload();
     } catch (err) { showError(err.message); } finally { setBusy(false); }
   };
@@ -100,16 +100,16 @@ export default function Returns() {
               <tbody>{create.lines.map((l, i) => (
                 <tr key={`${l.product_id}-${i}`} className="border-t border-gray-100">
                   <td className="px-3 py-2">{l.name}</td><td className="px-2 py-2 text-right">{l.sold}</td>
-                  <td className="px-2 py-2"><input className="w-full px-2 py-1 text-sm text-right border border-gray-300 rounded" type="number" min="0" max={l.sold} step="any" value={l.qty || ''} onChange={(e) => setLine(i, { qty: Math.max(0, Number(e.target.value) || 0) })} /></td>
-                  <td className="px-2 py-2"><select className="w-full px-2 py-1 text-sm border border-gray-300 rounded" value={l.condition} onChange={(e) => setLine(i, { condition: e.target.value })}>{CONDITIONS.map((c) => <option key={c} value={c}>{t(c, lang)}</option>)}</select></td>
+                  <td className="px-2 py-2 min-w-[8rem]"><NumberInput allowDecimals placeholder="0" aria-label={t('return_quantity', lang)} value={l.qty || ''} onChange={(e) => setLine(i, { qty: e.target.value })} /></td>
+                  <td className="px-2 py-2 min-w-[10rem]"><Select aria-label={t('condition', lang)} value={l.condition} onChange={(e) => setLine(i, { condition: e.target.value })} options={CONDITIONS.map((c) => ({ value: c, label: t(c, lang) }))} /></td>
                   <td className="px-2 py-2 text-center"><input type="checkbox" checked={l.restock && l.condition === 'good'} disabled={l.condition !== 'good'} onChange={(e) => setLine(i, { restock: e.target.checked })} /></td>
                   <td className="px-3 py-2 text-right">{money(l.qty * l.price)}</td>
                 </tr>))}</tbody></table></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Select label={t('refund_method', lang)} value={create.refundMethod} onChange={(e) => setCreate((c) => ({ ...c, refundMethod: e.target.value }))} options={['cash', 'mobile_money', 'bank_transfer', 'credit_note'].map((m) => ({ value: m, label: t(m, lang) }))} />
-              <Input label={t('reason', lang)} value={create.reason} onChange={(e) => setCreate((c) => ({ ...c, reason: e.target.value }))} />
+              <Input label={t('reason', lang)} placeholder={t('reason', lang)} value={create.reason} onChange={(e) => setCreate((c) => ({ ...c, reason: e.target.value }))} />
             </div>
-            <Textarea rows={2} label={t('notes', lang)} value={create.notes} onChange={(e) => setCreate((c) => ({ ...c, notes: e.target.value }))} />
+            <Textarea rows={2} label={t('notes', lang)} placeholder={t('notes', lang)} value={create.notes} onChange={(e) => setCreate((c) => ({ ...c, notes: e.target.value }))} />
             <div className="flex items-center justify-between pt-2 border-t border-gray-100"><span className="text-sm">{t('refund_amount', lang)}: <b>{money(refund)}</b></span>
               <div className="flex gap-3"><Button loading={busy} onClick={save}>{t('save', lang)}</Button><Button variant="secondary" onClick={() => setCreate(null)}>{t('ui_cancel', lang)}</Button></div></div>
           </div>

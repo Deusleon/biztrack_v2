@@ -29,9 +29,16 @@ export default function Recent() {
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
   const [send, setSend] = useState(false);
+  const [smsDraft, setSmsDraft] = useState(null);
   const [detail, setDetail] = useState(null);
   const load = useCallback(async () => { try { setLoading(true); setRows(await messagingService.history()); } catch (err) { showError(err.message); } finally { setLoading(false); } }, [currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); if (can('manage_messaging')) messagingService.groups().then(setGroups).catch(() => {}); }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const raw = sessionStorage.getItem('biztrackAiSmsDraft');
+    if (!raw) return;
+    sessionStorage.removeItem('biztrackAiSmsDraft');
+    try { setSmsDraft(JSON.parse(raw)); setSend(true); } catch { /* the page still opens */ }
+  }, []);
 
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -61,7 +68,7 @@ export default function Recent() {
         </div>
         <DataTable columns={columns} data={shown.slice((cur - 1) * PAGE, cur * PAGE)} loading={loading} rowId="batch_id" emptyMessage={search || status || from || to ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={{ currentPage: cur, totalPages: pages, totalItems: shown.length, limit: PAGE }} onPageChange={setPage} renderActions={(r) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(r) }]} />} />
       </div>
-      <SendMessageModal isOpen={send} onClose={() => setSend(false)} groups={groups} onSent={load} />
+      <SendMessageModal isOpen={send} onClose={() => setSend(false)} groups={groups} onSent={load} initialNumbers={smsDraft?.phone || ''} initialMessage={smsDraft?.message || ''} />
       <FormModal isOpen={!!detail} onClose={() => setDetail(null)} size="xl" title={t('message_details', lang)}>
         {detail && <div className="space-y-5 text-left">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

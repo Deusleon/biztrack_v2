@@ -4,7 +4,7 @@ import { t, toastLanguage } from './i18n';
 import { readSession, clearAuthSession, setLoginNotice } from './sessionStore';
 
 // BizTrack's API lives under /api (not /api/v1).
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 export const createApi = (unwrap = true) => {
 const api = axios.create({

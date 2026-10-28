@@ -9,14 +9,13 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { purchaseService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, Select, Textarea, DatePicker } from '../../components/ui';
+import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, NumberInput, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { PStatus, PFilters, useSuppliers, listFetcher, dateOnly, num, INITIAL, Dl } from './common';
-import { formatCurrency, formatNumberWithCommas } from '../../utils/numberUtils';
+import { formatCurrency, formatNumberWithCommas, getMoneyInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
 const STATUSES = ['pending_inspection', 'approved', 'rejected', 'cancelled'];
-const cell = 'w-full px-2 py-1.5 text-sm border border-gray-300 rounded text-right';
 
 export default function GoodsReceived() {
   const { can } = useAuth();
@@ -28,6 +27,7 @@ export default function GoodsReceived() {
   const list = useServerList({ fetcher: listFetcher(purchaseService.grn), initialFilters: INITIAL });
   useLiveRefresh(['grnCreated', 'grnUpdated'], list.reload);
   const money = (v) => formatCurrency(num(v), settings);
+  const moneyInput = getMoneyInputProps(settings);
   const showExpiry = !!settings?.allowExpireDate;
 
   const [orders, setOrders] = useState([]);
@@ -116,19 +116,19 @@ export default function GoodsReceived() {
             <Select label={t('purchase_order', lang)} required searchable value={create.po?.id || ''} onChange={(e) => pickOrder(e.target.value)} placeholder={t('select_purchase_order', lang)} options={orders.map((o) => ({ value: o.id, label: `#${o.po_number} · ${o.supplier_name} · ${money(o.total_amount)}` }))} />
             {create.po && <>
               <Dl items={[[t('supplier', lang), create.po.supplier_name], [t('expected_delivery', lang), dateOnly(create.po.expected_delivery_date, settings)], [t('items', lang), String(create.lines.length)], [t('pending', lang), formatNumberWithCommas(create.lines.reduce((s, l) => s + num(l.item.pending_quantity), 0))], [t('this_receipt', lang), money(create.lines.reduce((s, l) => s + num(l.qty) * num(l.unit_cost), 0))]]} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><Input label={t('supplier_delivery_note', lang)} value={create.supplier_delivery_note} onChange={(e) => setCreate((c) => ({ ...c, supplier_delivery_note: e.target.value }))} /><Input label={t('supplier_invoice_number', lang)} value={create.supplier_invoice_number} onChange={(e) => setCreate((c) => ({ ...c, supplier_invoice_number: e.target.value }))} /></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><Input label={t('supplier_delivery_note', lang)} placeholder={t('supplier_delivery_note', lang)} value={create.supplier_delivery_note} onChange={(e) => setCreate((c) => ({ ...c, supplier_delivery_note: e.target.value }))} /><Input label={t('supplier_invoice_number', lang)} placeholder={t('supplier_invoice_number', lang)} value={create.supplier_invoice_number} onChange={(e) => setCreate((c) => ({ ...c, supplier_invoice_number: e.target.value }))} /></div>
               <div className="overflow-x-auto border border-gray-100 rounded"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-2 py-2 text-left">{t('product_name', lang)}</th><th className="px-2 py-2 text-right">{t('pending', lang)}</th><th className="px-2 py-2 w-24 text-right">{t('received', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('unit_cost', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('selling_price', lang)}{settings?.useBatchWisePrice ? ' *' : ''}</th><th className="px-2 py-2 w-32">{t('batch_number', lang)}</th><th className="px-2 py-2 w-36">{t('mfg_date', lang)}</th>{showExpiry && <th className="px-2 py-2 w-36">{t('exp_date', lang)}</th>}</tr></thead>
                 <tbody>{create.lines.map((l, i) => (
                   <tr key={l.item.id} className="border-t border-gray-100">
                     <td className="px-2 py-1.5 text-left">{l.item.product_name}</td><td className="px-2 py-1.5 text-right">{num(l.item.pending_quantity)}</td>
-                    <td className="px-2 py-1.5"><input className={cell} inputMode="decimal" value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} /></td>
-                    <td className="px-2 py-1.5"><input className={cell} inputMode="decimal" value={l.unit_cost} onChange={(e) => setLine(i, { unit_cost: e.target.value })} /></td>
-                    <td className="px-2 py-1.5"><input className={cell} inputMode="decimal" value={l.selling_price} onChange={(e) => setLine(i, { selling_price: e.target.value })} /></td>
-                    <td className="px-2 py-1.5"><input className={`${cell} text-left`} value={l.batch_number} onChange={(e) => setLine(i, { batch_number: e.target.value })} /></td>
+                    <td className="px-2 py-1.5 min-w-[8rem]"><NumberInput allowDecimals placeholder="0" aria-label={t('received', lang)} value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} /></td>
+                    <td className="px-2 py-1.5 min-w-[9rem]"><NumberInput aria-label={t('unit_cost', lang)} value={l.unit_cost} onChange={(e) => setLine(i, { unit_cost: e.target.value })} {...moneyInput} /></td>
+                    <td className="px-2 py-1.5 min-w-[9rem]"><NumberInput aria-label={t('selling_price', lang)} value={l.selling_price} onChange={(e) => setLine(i, { selling_price: e.target.value })} {...moneyInput} /></td>
+                    <td className="px-2 py-1.5 min-w-[9rem]"><Input placeholder={t('batch_number', lang)} aria-label={t('batch_number', lang)} value={l.batch_number} onChange={(e) => setLine(i, { batch_number: e.target.value })} /></td>
                     <td className="px-2 py-1.5 min-w-[11rem]"><DatePicker value={l.manufacturing_date} onChange={(e) => setLine(i, { manufacturing_date: e.target.value })} placeholder={t('mfg_date', lang)} /></td>
                     {showExpiry && <td className="px-2 py-1.5 min-w-[11rem]"><DatePicker value={l.expiry_date} onChange={(e) => setLine(i, { expiry_date: e.target.value })} placeholder={t('exp_date', lang)} /></td>}
                   </tr>))}</tbody></table></div>
-              <Textarea rows={2} label={t('notes', lang)} value={create.notes} onChange={(e) => setCreate((c) => ({ ...c, notes: e.target.value }))} />
+              <Textarea rows={2} label={t('notes', lang)} placeholder={t('notes', lang)} value={create.notes} onChange={(e) => setCreate((c) => ({ ...c, notes: e.target.value }))} />
             </>}
             <div className="flex justify-end gap-3"><Button type="submit" loading={busy} disabled={!create.po}>{t('save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setCreate(null)}>{t('ui_cancel', lang)}</Button></div>
           </form>
@@ -157,10 +157,10 @@ export default function GoodsReceived() {
             <div className="overflow-x-auto border border-gray-100 rounded"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-3 py-2 text-right">{t('received', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('accepted', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('rejected', lang)}</th><th className="px-2 py-2 w-48">{t('rejection_reason', lang)}</th></tr></thead>
               <tbody>{inspect.lines.map((l, i) => (
                 <tr key={l.item.id} className="border-t border-gray-100"><td className="px-3 py-2 text-left">{l.item.product_name}</td><td className="px-3 py-2 text-right">{num(l.item.received_quantity)}</td>
-                  <td className="px-2 py-1.5"><input className={cell} inputMode="decimal" value={l.accepted} onChange={(e) => setInspect((s) => ({ ...s, lines: s.lines.map((x, k) => (k === i ? { ...x, accepted: e.target.value } : x)) }))} /></td>
-                  <td className="px-2 py-1.5"><input className={cell} inputMode="decimal" value={l.rejected} onChange={(e) => setInspect((s) => ({ ...s, lines: s.lines.map((x, k) => (k === i ? { ...x, rejected: e.target.value } : x)) }))} /></td>
-                  <td className="px-2 py-1.5"><input className={`${cell} text-left`} value={l.reason} onChange={(e) => setInspect((s) => ({ ...s, lines: s.lines.map((x, k) => (k === i ? { ...x, reason: e.target.value } : x)) }))} /></td></tr>))}</tbody></table></div>
-            <Textarea rows={2} label={t('inspection_notes', lang)} value={inspect.notes} onChange={(e) => setInspect((s) => ({ ...s, notes: e.target.value }))} />
+                  <td className="px-2 py-1.5 min-w-[8rem]"><NumberInput allowDecimals placeholder="0" aria-label={t('accepted', lang)} value={l.accepted} onChange={(e) => setInspect((s) => ({ ...s, lines: s.lines.map((x, k) => (k === i ? { ...x, accepted: e.target.value } : x)) }))} /></td>
+                  <td className="px-2 py-1.5 min-w-[8rem]"><NumberInput allowDecimals placeholder="0" aria-label={t('rejected', lang)} value={l.rejected} onChange={(e) => setInspect((s) => ({ ...s, lines: s.lines.map((x, k) => (k === i ? { ...x, rejected: e.target.value } : x)) }))} /></td>
+                  <td className="px-2 py-1.5 min-w-[10rem]"><Input placeholder={t('rejection_reason', lang)} aria-label={t('rejection_reason', lang)} value={l.reason} onChange={(e) => setInspect((s) => ({ ...s, lines: s.lines.map((x, k) => (k === i ? { ...x, reason: e.target.value } : x)) }))} /></td></tr>))}</tbody></table></div>
+            <Textarea rows={2} label={t('inspection_notes', lang)} placeholder={t('inspection_notes', lang)} value={inspect.notes} onChange={(e) => setInspect((s) => ({ ...s, notes: e.target.value }))} />
             <div className="flex justify-end gap-3"><Button loading={busy} onClick={saveInspect}>{t('save', lang)}</Button><Button variant="secondary" onClick={() => setInspect(null)}>{t('ui_cancel', lang)}</Button></div>
           </div>
         )}

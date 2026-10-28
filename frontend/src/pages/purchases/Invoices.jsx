@@ -10,10 +10,10 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { purchaseService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, DatePicker, Input, Select, Textarea } from '../../components/ui';
+import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, DatePicker, Input, NumberInput, Select, Textarea } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { PStatus, PFilters, useSuppliers, listFetcher, dateOnly, num, INITIAL, Dl } from './common';
-import { formatCurrency } from '../../utils/numberUtils';
+import { formatCurrency, getMoneyInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
 const STATUSES = ['draft', 'pending', 'approved', 'cancelled'];
@@ -29,6 +29,7 @@ export default function Invoices() {
   const list = useServerList({ fetcher: listFetcher(purchaseService.invoices, ['payment_status']), initialFilters: { ...INITIAL, payment_status: '' } });
   useLiveRefresh(['supplierInvoiceCreated', 'supplierPaymentCreated'], list.reload);
   const money = (v) => formatCurrency(num(v), settings);
+  const moneyInput = getMoneyInputProps(settings);
 
   const [grns, setGrns] = useState([]);
   const [create, setCreate] = useState(null);
@@ -48,7 +49,7 @@ export default function Invoices() {
         lines: (g.items || []).filter((i) => num(i.accepted_quantity || i.received_quantity) > 0).map((i) => ({ item: i, qty: num(i.accepted_quantity || i.received_quantity), unit_price: num(i.unit_cost), tax_rate: 0 })) }));
     } catch (err) { showError(err.message); }
   };
-  const tot = useMemo(() => { if (!create) return {}; const sub = create.lines.reduce((s, l) => s + l.qty * l.unit_price, 0); const tax = create.lines.reduce((s, l) => s + (l.qty * l.unit_price * num(l.tax_rate)) / 100, 0); return { sub, tax, total: sub + tax - num(create.discount_amount) + num(create.shipping_cost) + num(create.other_charges) }; }, [create]);
+  const tot = useMemo(() => { if (!create) return {}; const sub = create.lines.reduce((s, l) => s + num(l.qty) * num(l.unit_price), 0); const tax = create.lines.reduce((s, l) => s + (num(l.qty) * num(l.unit_price) * num(l.tax_rate)) / 100, 0); return { sub, tax, total: sub + tax - num(create.discount_amount) + num(create.shipping_cost) + num(create.other_charges) }; }, [create]);
 
   const save = async () => {
     if (!create.grn) { showError(t('select_grn', lang)); return; }
@@ -57,7 +58,7 @@ export default function Invoices() {
       setBusy(true);
       const res = await purchaseService.invoices.create({ supplier_id: create.grn.supplier_id, purchase_order_id: create.grn.purchase_order_id, grn_id: create.grn.id, supplier_invoice_number: create.supplier_invoice_number, invoice_date: create.invoice_date, due_date: create.due_date || undefined,
         subtotal: tot.sub, tax_amount: tot.tax, discount_amount: num(create.discount_amount), shipping_cost: num(create.shipping_cost), other_charges: num(create.other_charges), total_amount: tot.total, notes: create.notes,
-        items: create.lines.map((l) => ({ grn_item_id: l.item.id, product_id: l.item.product_id, product_name: l.item.product_name, description: '', quantity: l.qty, unit_price: l.unit_price, tax_rate: num(l.tax_rate), tax_amount: (l.qty * l.unit_price * num(l.tax_rate)) / 100, discount_amount: 0, notes: '' })) });
+        items: create.lines.map((l) => ({ grn_item_id: l.item.id, product_id: l.item.product_id, product_name: l.item.product_name, description: '', quantity: num(l.qty), unit_price: num(l.unit_price), tax_rate: num(l.tax_rate), tax_amount: (num(l.qty) * num(l.unit_price) * num(l.tax_rate)) / 100, discount_amount: 0, notes: '' })) });
       showSuccess(res.message); setCreate(null); list.reload();
     } catch (err) { showError(err.message); } finally { setBusy(false); }
   };
@@ -109,15 +110,15 @@ export default function Invoices() {
           <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>
             <Select label={t('grn', lang)} required searchable value={create.grn?.id || ''} onChange={(e) => pickGrn(e.target.value)} placeholder={t('select_grn', lang)} options={grns.map((g) => ({ value: g.id, label: `#${g.grn_number} · ${g.supplier_name} · ${money(g.total_value)}` }))} />
             {create.grn && <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4"><Input label={t('supplier_invoice_number', lang)} value={create.supplier_invoice_number} onChange={(e) => setCreate((c) => ({ ...c, supplier_invoice_number: e.target.value }))} /><DatePicker label={t('invoice_date', lang)} required value={create.invoice_date} onChange={(e) => setCreate((c) => ({ ...c, invoice_date: e.target.value }))} /><DatePicker label={t('due_date', lang)} value={create.due_date} onChange={(e) => setCreate((c) => ({ ...c, due_date: e.target.value }))} /></div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4"><Input label={t('supplier_invoice_number', lang)} placeholder={t('supplier_invoice_number', lang)} value={create.supplier_invoice_number} onChange={(e) => setCreate((c) => ({ ...c, supplier_invoice_number: e.target.value }))} /><DatePicker label={t('invoice_date', lang)} required value={create.invoice_date} onChange={(e) => setCreate((c) => ({ ...c, invoice_date: e.target.value }))} /><DatePicker label={t('due_date', lang)} value={create.due_date} onChange={(e) => setCreate((c) => ({ ...c, due_date: e.target.value }))} /></div>
               <div className="overflow-x-auto border border-gray-100 rounded"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-3 py-2 text-right">{t('quantity', lang)}</th><th className="px-2 py-2 w-32 text-right">{t('unit_price', lang)}</th><th className="px-2 py-2 w-24 text-right">{t('tax', lang)} %</th><th className="px-3 py-2 text-right">{t('total', lang)}</th></tr></thead>
                 <tbody>{create.lines.map((l, k) => <tr key={l.item.id} className="border-t border-gray-100"><td className="px-3 py-2 text-left">{l.item.product_name}</td><td className="px-3 py-2 text-right">{l.qty}</td>
-                  <td className="px-2 py-1.5"><input className="w-full px-2 py-1.5 text-sm text-right border border-gray-300 rounded" inputMode="decimal" value={l.unit_price} onChange={(e) => setCreate((c) => ({ ...c, lines: c.lines.map((x, j) => (j === k ? { ...x, unit_price: num(e.target.value) } : x)) }))} /></td>
-                  <td className="px-2 py-1.5"><input className="w-full px-2 py-1.5 text-sm text-right border border-gray-300 rounded" inputMode="decimal" value={l.tax_rate} onChange={(e) => setCreate((c) => ({ ...c, lines: c.lines.map((x, j) => (j === k ? { ...x, tax_rate: e.target.value } : x)) }))} /></td>
+                  <td className="px-2 py-1.5"><NumberInput aria-label={t('unit_price', lang)} value={l.unit_price} onChange={(e) => setCreate((c) => ({ ...c, lines: c.lines.map((x, j) => (j === k ? { ...x, unit_price: e.target.value } : x)) }))} {...moneyInput} /></td>
+                  <td className="px-2 py-1.5"><NumberInput allowDecimals decimals={2} placeholder="0" aria-label={t('tax', lang)} value={l.tax_rate} onChange={(e) => setCreate((c) => ({ ...c, lines: c.lines.map((x, j) => (j === k ? { ...x, tax_rate: e.target.value } : x)) }))} /></td>
                   <td className="px-3 py-2 text-right font-medium">{money(l.qty * l.unit_price * (1 + num(l.tax_rate) / 100))}</td></tr>)}</tbody></table></div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div className="grid grid-cols-3 gap-3"><Input label={t('discount', lang)} value={create.discount_amount} onChange={(e) => setCreate((c) => ({ ...c, discount_amount: e.target.value }))} /><Input label={t('shipping_cost', lang)} value={create.shipping_cost} onChange={(e) => setCreate((c) => ({ ...c, shipping_cost: e.target.value }))} /><Input label={t('other_charges', lang)} value={create.other_charges} onChange={(e) => setCreate((c) => ({ ...c, other_charges: e.target.value }))} /></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div className="grid grid-cols-3 gap-3"><NumberInput label={t('discount', lang)} value={create.discount_amount} onChange={(e) => setCreate((c) => ({ ...c, discount_amount: e.target.value }))} {...moneyInput} /><NumberInput label={t('shipping_cost', lang)} value={create.shipping_cost} onChange={(e) => setCreate((c) => ({ ...c, shipping_cost: e.target.value }))} {...moneyInput} /><NumberInput label={t('other_charges', lang)} value={create.other_charges} onChange={(e) => setCreate((c) => ({ ...c, other_charges: e.target.value }))} {...moneyInput} /></div>
                 <div className="text-sm space-y-1"><div className="flex justify-between"><span className="text-gray-500">{t('subtotal', lang)}</span><span>{money(tot.sub)}</span></div><div className="flex justify-between"><span className="text-gray-500">{t('tax', lang)}</span><span>{money(tot.tax)}</span></div><div className="flex justify-between font-bold border-t border-gray-100 pt-1"><span>{t('total', lang)}</span><span>{money(tot.total)}</span></div></div></div>
-              <Textarea rows={2} label={t('notes', lang)} value={create.notes} onChange={(e) => setCreate((c) => ({ ...c, notes: e.target.value }))} />
+              <Textarea rows={2} label={t('notes', lang)} placeholder={t('notes', lang)} value={create.notes} onChange={(e) => setCreate((c) => ({ ...c, notes: e.target.value }))} />
             </>}
             <div className="flex justify-end gap-3"><Button type="submit" loading={busy} disabled={!create.grn}>{t('save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setCreate(null)}>{t('ui_cancel', lang)}</Button></div>
           </form>
@@ -127,10 +128,10 @@ export default function Invoices() {
       <FormModal isOpen={!!edit} onClose={() => !busy && setEdit(null)} size="lg" title={`${t('edit', lang)} #${edit?.bill_number || ''}`}>
         {edit && (
           <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4"><Input label={t('supplier_invoice_number', lang)} value={edit.supplier_invoice_number || ''} onChange={(e) => setEdit((x) => ({ ...x, supplier_invoice_number: e.target.value }))} /><DatePicker label={t('invoice_date', lang)} value={edit.invoice_date} onChange={(e) => setEdit((x) => ({ ...x, invoice_date: e.target.value }))} /><DatePicker label={t('due_date', lang)} value={edit.due_date} onChange={(e) => setEdit((x) => ({ ...x, due_date: e.target.value }))} /></div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">{['subtotal', 'tax_amount', 'discount_amount', 'shipping_cost', 'other_charges'].map((k) => <Input key={k} label={t(k, lang)} value={edit[k] ?? ''} onChange={(e) => setEdit((x) => ({ ...x, [k]: e.target.value }))} />)}</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><Input label={t('total', lang)} value={edit.total_amount ?? ''} onChange={(e) => setEdit((x) => ({ ...x, total_amount: e.target.value }))} /><Select label={t('status', lang)} value={edit.status} onChange={(e) => setEdit((x) => ({ ...x, status: e.target.value }))} options={STATUSES.map((s) => ({ value: s, label: t(s, lang) }))} /></div>
-            <Textarea rows={2} label={t('notes', lang)} value={edit.notes || ''} onChange={(e) => setEdit((x) => ({ ...x, notes: e.target.value }))} />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4"><Input label={t('supplier_invoice_number', lang)} placeholder={t('supplier_invoice_number', lang)} value={edit.supplier_invoice_number || ''} onChange={(e) => setEdit((x) => ({ ...x, supplier_invoice_number: e.target.value }))} /><DatePicker label={t('invoice_date', lang)} value={edit.invoice_date} onChange={(e) => setEdit((x) => ({ ...x, invoice_date: e.target.value }))} /><DatePicker label={t('due_date', lang)} value={edit.due_date} onChange={(e) => setEdit((x) => ({ ...x, due_date: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">{['subtotal', 'tax_amount', 'discount_amount', 'shipping_cost', 'other_charges'].map((k) => <NumberInput key={k} label={t(k, lang)} value={edit[k] ?? ''} onChange={(e) => setEdit((x) => ({ ...x, [k]: e.target.value }))} {...moneyInput} />)}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><NumberInput label={t('total', lang)} value={edit.total_amount ?? ''} onChange={(e) => setEdit((x) => ({ ...x, total_amount: e.target.value }))} {...moneyInput} /><Select label={t('status', lang)} value={edit.status} onChange={(e) => setEdit((x) => ({ ...x, status: e.target.value }))} options={STATUSES.map((s) => ({ value: s, label: t(s, lang) }))} /></div>
+            <Textarea rows={2} label={t('notes', lang)} placeholder={t('notes', lang)} value={edit.notes || ''} onChange={(e) => setEdit((x) => ({ ...x, notes: e.target.value }))} />
             <div className="flex justify-end gap-3"><Button type="submit" loading={busy}>{t('ui_update', lang)}</Button><Button type="button" variant="secondary" onClick={() => setEdit(null)}>{t('ui_cancel', lang)}</Button></div>
           </form>
         )}

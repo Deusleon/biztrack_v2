@@ -12,6 +12,7 @@ import { ICON_PATHS } from '../utils/navigation';
 import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
 import SupportWidget from './SupportWidget';
+import DailyBriefModal from './DailyBriefModal';
 import { useIdleLock } from '../contexts/IdleLockContext';
 import InstallBanner from './InstallBanner';
 import { Select } from './ui';
@@ -125,6 +126,7 @@ export default function MainLayout({ children }) {
 
         <InstallBanner />
         <main className="flex-1 min-w-0 overflow-x-auto px-3 sm:px-4 py-3 print:p-0">{children}</main>
+        <DailyBriefModal />
       </div>
           <SupportWidget isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
 </div>

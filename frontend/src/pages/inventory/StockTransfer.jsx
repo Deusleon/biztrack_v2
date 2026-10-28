@@ -9,11 +9,11 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { stockTransferService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, Select, Textarea, DatePicker } from '../../components/ui';
+import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, NumberInput, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { toPaging, dateOnly, DetailGrid } from '../sales/common';
 import { PStatus, useAllProducts } from '../purchases/common';
-import { formatNumberWithCommas } from '../../utils/numberUtils';
+import { formatNumberWithCommas, getMoneyInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
 const num = (v) => Number(v) || 0;
@@ -24,14 +24,13 @@ const fetchTransfers = async ({ page, limit, search, direction, status, startDat
   return { data: r.transfers || [], pagination: toPaging(r.pagination, limit) };
 };
 const blank = () => ({ key: Math.random().toString(36).slice(2), product_id: '', quantity: '' });
-const cell = 'w-full px-2 py-1.5 text-sm border border-gray-300 rounded text-right';
-
 export default function StockTransfer() {
   const { can } = useAuth();
   const { showSuccess, showError } = useToast();
   const { lang } = useLanguage();
   const { stores, currentStore } = useStore();
   const { settings, loading: settingsLoading } = useStoreSettings();
+  const moneyInput = getMoneyInputProps(settings);
   const products = useAllProducts();
   const list = useServerList({ fetcher: fetchTransfers, initialFilters: { search: '', direction: 'all', status: '', startDate: '', endDate: '' } });
   useLiveRefresh(['stockTransferCreated', 'stockTransferUpdated'], list.reload);
@@ -124,10 +123,10 @@ export default function StockTransfer() {
               <tbody>{create.items.map((i) => { const p = products.find((x) => x.id === i.product_id); return (
                 <tr key={i.key} className="border-t border-gray-100"><td className="px-2 py-1.5 min-w-[14rem]"><Select searchable value={i.product_id} onChange={(e) => setCreate((c) => ({ ...c, items: c.items.map((x) => (x.key === i.key ? { ...x, product_id: e.target.value } : x)) }))} placeholder={t('select_product', lang)} options={products.map((x) => ({ value: x.id, label: x.name }))} /></td>
                   <td className="px-2 py-1.5 text-right">{p ? `${formatNumberWithCommas(p.current_stock)} ${t(p.unit, lang)}` : '—'}</td>
-                  <td className="px-2 py-1.5"><input className={cell} inputMode="decimal" value={i.quantity} onChange={(e) => setCreate((c) => ({ ...c, items: c.items.map((x) => (x.key === i.key ? { ...x, quantity: e.target.value } : x)) }))} /></td>
+                  <td className="px-2 py-1.5"><NumberInput allowDecimals placeholder="0" aria-label={t('quantity', lang)} value={i.quantity} onChange={(e) => setCreate((c) => ({ ...c, items: c.items.map((x) => (x.key === i.key ? { ...x, quantity: e.target.value } : x)) }))} /></td>
                   <td className="px-1"><button type="button" className="text-gray-400 hover:text-red-600" onClick={() => setCreate((c) => ({ ...c, items: c.items.length > 1 ? c.items.filter((x) => x.key !== i.key) : [blank()] }))} aria-label={t('delete', lang)}>✕</button></td></tr>); })}</tbody></table></div>
             <Button type="button" variant="secondary" onClick={() => setCreate((c) => ({ ...c, items: [...c.items, blank()] }))}>{t('add_item', lang)}</Button>
-            <Textarea rows={2} label={t('notes', lang)} value={create.notes} onChange={(e) => setCreate((c) => ({ ...c, notes: e.target.value }))} />
+            <Textarea rows={2} label={t('notes', lang)} placeholder={t('notes', lang)} value={create.notes} onChange={(e) => setCreate((c) => ({ ...c, notes: e.target.value }))} />
             <p className="text-xs text-gray-500 text-left">{t('transfer_help', lang)}</p>
             <div className="flex justify-end gap-3"><Button type="submit" loading={busy}>{t('save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setCreate(null)}>{t('ui_cancel', lang)}</Button></div>
           </form>
@@ -159,10 +158,10 @@ export default function StockTransfer() {
             <div className="overflow-x-auto border border-gray-100 rounded"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-2 py-2 text-left">{t('product_name', lang)}</th><th className="px-2 py-2 text-right">{t('sent', lang)}</th><th className="px-2 py-2 w-24 text-right">{t('received', lang)}</th><th className="px-2 py-2 w-32">{t('batch_number', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('cost_price', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('selling_price', lang)}</th>{showExpiry && <th className="px-2 py-2 w-36">{t('exp_date', lang)}</th>}</tr></thead>
               <tbody>{receive.lines.map((l, k) => { const up = (patch) => setReceive((r) => ({ ...r, lines: r.lines.map((x, j) => (j === k ? { ...x, ...patch } : x)) })); return (
                 <tr key={l.item.id} className="border-t border-gray-100"><td className="px-2 py-1.5 text-left">{l.item.product_name}</td><td className="px-2 py-1.5 text-right">{formatNumberWithCommas(l.item.quantity)}</td>
-                  <td className="px-2 py-1.5"><input className={cell} inputMode="decimal" value={l.quantity} onChange={(e) => up({ quantity: e.target.value })} /></td>
-                  <td className="px-2 py-1.5"><input className={`${cell} text-left`} value={l.batch_number} onChange={(e) => up({ batch_number: e.target.value })} /></td>
-                  <td className="px-2 py-1.5"><input className={cell} inputMode="decimal" value={l.cost_price} onChange={(e) => up({ cost_price: e.target.value })} /></td>
-                  <td className="px-2 py-1.5"><input className={cell} inputMode="decimal" value={l.selling_price} onChange={(e) => up({ selling_price: e.target.value })} /></td>
+                  <td className="px-2 py-1.5"><NumberInput allowDecimals placeholder="0" aria-label={t('received', lang)} value={l.quantity} onChange={(e) => up({ quantity: e.target.value })} /></td>
+                  <td className="px-2 py-1.5 min-w-[9rem]"><Input placeholder={t('batch_number', lang)} aria-label={t('batch_number', lang)} value={l.batch_number} onChange={(e) => up({ batch_number: e.target.value })} /></td>
+                  <td className="px-2 py-1.5"><NumberInput aria-label={t('cost_price', lang)} value={l.cost_price} onChange={(e) => up({ cost_price: e.target.value })} {...moneyInput} /></td>
+                  <td className="px-2 py-1.5"><NumberInput aria-label={t('selling_price', lang)} value={l.selling_price} onChange={(e) => up({ selling_price: e.target.value })} {...moneyInput} /></td>
                   {showExpiry && <td className="px-2 py-1.5"><DatePicker value={l.expiry_date} onChange={(e) => up({ expiry_date: e.target.value })} placeholder={t('exp_date', lang)} /></td>}</tr>); })}</tbody></table></div>
             <div className="flex justify-end gap-3"><Button loading={busy} onClick={saveReceive}>{t('receive', lang)}</Button><Button variant="secondary" onClick={() => setReceive(null)}>{t('ui_cancel', lang)}</Button></div>
           </div>

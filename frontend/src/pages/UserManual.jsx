@@ -7,7 +7,7 @@ import { t } from '../utils/i18n';
 /** Notes for the current update only. Replace this list, and the matching
  *  manual_<key>_title and manual_<key>_body strings in en.json and sw.json,
  *  each time a new update ships. */
-const UPDATES = ['stores_menu', 'menu_lines', 'developer_devices'];
+const UPDATES = ['ai_morning', 'ai_answers', 'ai_actions'];
 
 const MANUALS = {
   en: { titleKey: 'manual_title_en', languageKey: 'manual_english', pdf: '/manuals/BizTrack_User_Guide.pdf' },

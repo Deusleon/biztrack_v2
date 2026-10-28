@@ -282,7 +282,6 @@ export default function Invoice() {
   };
   const clearAll = () => { reset(); salesService.syncActiveCart({ cart_code: cartCode, items: [] }).catch(() => {}); setConfirmClear(false); };
 
-  const cell = 'w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-20 text-right';
   // Phone cards (as in the original BizTrack): + / − changes the quantity by one, never below 1.
   const stepQty = (r, d) => sale.updateItem(r.id, 'quantity', shapeNumber(String(Math.max(1, (parseFloat(String(r.quantity).replace(/,/g, '')) || 0) + d)), QTY_DECIMALS));
   const pickedIds = picked.filter((id) => rows.some((r) => r.id === id));
@@ -361,7 +360,7 @@ export default function Invoice() {
                   <div className="flex items-center justify-between gap-2 mt-2 ps-6">
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button type="button" className="item-btn" onClick={() => stepQty(r, -1)} aria-label={t('quantity', lang)}>−</button>
-                      <input className="item-qty" inputMode="decimal" value={r.quantity} onChange={(e) => sale.updateItem(r.id, 'quantity', shapeNumber(e.target.value, QTY_DECIMALS))} onBlur={() => { if (!r.quantity) sale.updateItem(r.id, 'quantity', '1'); }} aria-label={t('quantity', lang)} />
+                      <input className="item-qty" inputMode="decimal" placeholder="0" value={r.quantity} onChange={(e) => sale.updateItem(r.id, 'quantity', shapeNumber(e.target.value, QTY_DECIMALS))} onBlur={() => { if (!r.quantity) sale.updateItem(r.id, 'quantity', '1'); }} aria-label={t('quantity', lang)} />
                       <button type="button" className="item-btn" onClick={() => stepQty(r, 1)} aria-label={t('quantity', lang)}>+</button>
                     </div>
                     <button type="button" className="item-btn" onClick={() => setEditId(r.id)} aria-label={t('edit', lang)}>
@@ -378,11 +377,11 @@ export default function Invoice() {
                 <div className="space-y-3 text-left">
                   <div className="text-xs opacity-70">{t('available', lang)}: {formatNumberWithCommas(editRow.quantityLeft)}</div>
                   <div className="grid grid-cols-2 gap-3">
-                    <label className="block"><span className="item-label">{t('quantity', lang)}</span><input className={cell} inputMode="decimal" value={editRow.quantity} onChange={(e) => sale.updateItem(editRow.id, 'quantity', shapeNumber(e.target.value, QTY_DECIMALS))} onBlur={() => { if (!editRow.quantity) sale.updateItem(editRow.id, 'quantity', '1'); }} /></label>
-                    <label className="block"><span className="item-label">{t('price', lang)}</span><input className={cell} inputMode="decimal" value={editRow.price} onChange={(e) => sale.updateItem(editRow.id, 'price', shapeNumber(e.target.value, moneyDecimals))} onBlur={() => sale.updateItem(editRow.id, 'price', formatNumberWithCommas(editRow.rawPrice || 0, moneyDecimals))} /></label>
+                    <label className="block"><span className="item-label">{t('quantity', lang)}</span><NumberInput allowDecimals decimals={QTY_DECIMALS} placeholder="0" aria-label={t('quantity', lang)} value={editRow.quantity} onChange={(e) => sale.updateItem(editRow.id, 'quantity', e.target.value)} onBlur={() => { if (!editRow.quantity) sale.updateItem(editRow.id, 'quantity', '1'); }} /></label>
+                    <label className="block"><span className="item-label">{t('price', lang)}</span><NumberInput aria-label={t('price', lang)} value={editRow.price} onChange={(e) => sale.updateItem(editRow.id, 'price', e.target.value)} {...moneyInput} /></label>
                   </div>
                   <div className="grid grid-cols-2 gap-3 items-end">
-                    {discountEnabled && <label className="block"><span className="item-label">{t('discount', lang)}{sale.discountType === 'percentage' ? ' (%)' : ''}</span><input className={cell} inputMode="decimal" value={editRow.discount} onChange={(e) => sale.updateItem(editRow.id, 'discount', shapeNumber(e.target.value, sale.discountType === 'percentage' ? 2 : moneyDecimals))} onBlur={() => { if (sale.discountType !== 'percentage') sale.updateItem(editRow.id, 'discount', formatNumberWithCommas(editRow.rawDiscount || 0, moneyDecimals)); }} /></label>}
+                    {discountEnabled && <label className="block"><span className="item-label">{t('discount', lang)}{sale.discountType === 'percentage' ? ' (%)' : ''}</span><NumberInput allowDecimals decimals={sale.discountType === 'percentage' ? 2 : moneyDecimals} placeholder={sale.discountType === 'percentage' ? '0' : formatNumberWithCommas(0, moneyDecimals)} aria-label={t('discount', lang)} value={editRow.discount} onChange={(e) => sale.updateItem(editRow.id, 'discount', e.target.value)} /></label>}
                     <div className={discountEnabled ? 'text-right' : 'col-span-2 text-right'}><div className="item-label text-right">{t('total', lang)}</div><div className="text-sm font-semibold">{editRow.total}</div></div>
                   </div>
                   {vatEnabled && <div className="flex items-center justify-between text-xs opacity-70"><span>{t('tax', lang)}</span><span>{editRow.vat}</span></div>}
@@ -405,9 +404,9 @@ export default function Invoice() {
                   {rows.map((r) => (
                     <tr key={r.id} className="border-t border-gray-100 align-middle">
                       <td className="px-3 py-2 text-left"><div className="font-medium text-gray-900">{r.productName}</div><div className="text-xs text-gray-400">{t(r.unit, lang)} · {t('available', lang)}: {formatNumberWithCommas(r.quantityLeft)}</div></td>
-                      <td className="px-2 py-2"><input className={cell} inputMode="decimal" value={r.quantity} onChange={(e) => sale.updateItem(r.id, 'quantity', shapeNumber(e.target.value, QTY_DECIMALS))} onBlur={() => { if (!r.quantity) sale.updateItem(r.id, 'quantity', '1'); }} /></td>
-                      <td className="px-2 py-2"><input className={cell} inputMode="decimal" value={r.price} onChange={(e) => sale.updateItem(r.id, 'price', shapeNumber(e.target.value, moneyDecimals))} onBlur={() => sale.updateItem(r.id, 'price', formatNumberWithCommas(r.rawPrice || 0, moneyDecimals))} /></td>
-                      {discountEnabled && <td className="px-2 py-2"><input className={cell} inputMode="decimal" value={r.discount} onChange={(e) => sale.updateItem(r.id, 'discount', shapeNumber(e.target.value, sale.discountType === 'percentage' ? 2 : moneyDecimals))} onBlur={() => { if (sale.discountType !== 'percentage') sale.updateItem(r.id, 'discount', formatNumberWithCommas(r.rawDiscount || 0, moneyDecimals)); }} /></td>}
+                      <td className="px-2 py-2 min-w-[8rem]"><NumberInput allowDecimals decimals={QTY_DECIMALS} placeholder="0" aria-label={t('quantity', lang)} value={r.quantity} onChange={(e) => sale.updateItem(r.id, 'quantity', e.target.value)} onBlur={() => { if (!r.quantity) sale.updateItem(r.id, 'quantity', '1'); }} /></td>
+                      <td className="px-2 py-2 min-w-[9rem]"><NumberInput aria-label={t('price', lang)} value={r.price} onChange={(e) => sale.updateItem(r.id, 'price', e.target.value)} {...moneyInput} /></td>
+                      {discountEnabled && <td className="px-2 py-2 min-w-[8rem]"><NumberInput allowDecimals decimals={sale.discountType === 'percentage' ? 2 : moneyDecimals} placeholder={sale.discountType === 'percentage' ? '0' : formatNumberWithCommas(0, moneyDecimals)} aria-label={t('discount', lang)} value={r.discount} onChange={(e) => sale.updateItem(r.id, 'discount', e.target.value)} /></td>}
                       {vatEnabled && <td className="px-2 py-2 text-right text-gray-600">{r.vat}</td>}
                       <td className="px-3 py-2 text-right font-medium">{r.total}</td>
                       <td className="px-1 py-2"><button type="button" className="p-1 text-gray-400 hover:text-red-600" onClick={() => sale.clearProductFromRow(r.id)} aria-label={t('delete', lang)}>✕</button></td>

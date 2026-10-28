@@ -10,7 +10,7 @@
  *
  * Failures are thrown by utils/api.js as an object with a readable `.message`.
  */
-import api from '../utils/api';
+import api, { API_BASE_URL } from '../utils/api';
 import { readSession } from '../utils/sessionStore';
 import { toastLanguage } from '../utils/i18n';
 
@@ -392,6 +392,49 @@ export const supportService = {
 export const aiService = {
   /** → { conversationId, answer, source, provider, toolsUsed, toolsDenied, toolSelectionStrategy, confidence, … } */
   ask: async ({ message, conversationId }) => (await api.post('/ai/chat', { message, conversationId: conversationId || undefined })).data,
+  /** Writes the answer as it arrives. Events: status, figures, delta, done, error. Falls back to ask() if the stream cannot be read. */
+  askStream: async ({ message, conversationId, onEvent }) => {
+    const token = readSession('accessToken');
+    const response = await fetch(`${API_BASE_URL}/ai/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : '',
+        'X-Store-ID': readSession('currentStoreId') || '',
+        'x-language': toastLanguage(),
+      },
+      body: JSON.stringify({ message, conversationId: conversationId || undefined }),
+    });
+    if (!response.ok || !response.body) {
+      const failed = await response.json().catch(() => ({}));
+      const error = new Error(failed.message || 'Failed to get an AI response.');
+      error.status = response.status;
+      throw error;
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let donePayload = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split('\n\n');
+      buffer = chunks.pop() || '';
+      for (const chunk of chunks) {
+        const line = chunk.split('\n').find((row) => row.startsWith('data:'));
+        if (!line) continue;
+        const event = JSON.parse(line.slice(5).trim());
+        if (event.type === 'done') donePayload = event;
+        if (event.type === 'error') throw new Error(event.message);
+        onEvent?.(event);
+      }
+    }
+    return donePayload;
+  },
+  morningBrief: async () => (await api.get('/ai/morning-brief')).data,
+  briefDelivery: async () => (await api.get('/ai/morning-brief/delivery')).data,
+  saveBriefDelivery: async (delivery) => (await api.put('/ai/morning-brief/delivery', delivery)).data,
   conversations: async () => (await api.get('/ai/conversations')).data || [],
   conversation: async (id) => (await api.get(`/ai/conversations/${id}`)).data,
   deleteConversation: (id) => api.delete(`/ai/conversations/${id}`),

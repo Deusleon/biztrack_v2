@@ -7,9 +7,9 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { purchaseService } from '../../services/api';
-import { Button, DatePicker, Input, Loader, Select, Textarea } from '../../components/ui';
+import { Button, DatePicker, Input, Loader, NumberInput, Select, Textarea } from '../../components/ui';
 import { useSuppliers, useAllProducts, dateOnly, num } from './common';
-import { formatCurrency, formatNumberWithCommas, removeNumberFormatting } from '../../utils/numberUtils';
+import { formatCurrency, formatNumberWithCommas, getMoneyInputProps, removeNumberFormatting } from '../../utils/numberUtils';
 import { getMoneyDecimals } from '../../utils/money';
 import { t } from '../../utils/i18n';
 
@@ -37,8 +37,6 @@ const lineOf = (i) => {
   const tax = (net * amount(i.tax_rate)) / 100;
   return { net, tax, total: net + tax };
 };
-
-const cell = 'w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-20 text-right';
 
 /** A purchase order on the full page, arranged the same way as a sale invoice. */
 export default function OrderForm() {
@@ -103,6 +101,27 @@ export default function OrderForm() {
     return () => { gone = true; };
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const draftDone = useRef(false);
+  useEffect(() => {
+    if (editing || draftDone.current || !form || products.length === 0) return;
+    const raw = sessionStorage.getItem('biztrackAiPurchaseDraft');
+    if (!raw) return;
+    let draft;
+    try { draft = JSON.parse(raw); } catch { sessionStorage.removeItem('biztrackAiPurchaseDraft'); return; }
+    const lines = [];
+    for (const item of draft.products || []) {
+      const wanted = String(item.name || '').trim().toLowerCase();
+      const product = products.find((row) => row.id === item.id) || products.find((row) => String(row.name || '').trim().toLowerCase() === wanted);
+      if (!product || lines.some((line) => line.product_id === product.id)) continue;
+      const quantity = Math.max(Number(item.quantity) || 1, 1);
+      lines.push({ key: Math.random().toString(36).slice(2), product_id: product.id, product_name: product.name, unit: product.unit || '', stock: product.current_stock, quantity: formatNumberWithCommas(quantity, QTY_DECIMALS), unit_price: formatNumberWithCommas(num(product.cost_price), moneyDecimals), discount_percent: '0', tax_rate: '0', notes: '' });
+    }
+    sessionStorage.removeItem('biztrackAiPurchaseDraft');
+    draftDone.current = true;
+    if (!lines.length) return;
+    setForm((current) => ({ ...current, items: [...current.items.filter((row) => !lines.some((line) => line.product_id === row.product_id)), ...lines], notes: current.notes || t('ai_draft_order_note', lang) }));
+  }, [form, products, editing, moneyDecimals, lang]);
+
   useEffect(() => {
     if (!form || editing) return undefined;
     clearTimeout(syncTimer.current);
@@ -154,13 +173,13 @@ export default function OrderForm() {
   const fieldsMobile = (i) => (
     <>
       <label className="block text-left"><span className="item-label">{t('quantity', lang)}</span>
-        <input className={cell} inputMode="decimal" value={i.quantity} onChange={(e) => setItem(i.key, { quantity: shapeNumber(e.target.value, QTY_DECIMALS) })} onBlur={() => { if (!i.quantity) setItem(i.key, { quantity: '1' }); }} /></label>
+        <NumberInput allowDecimals decimals={QTY_DECIMALS} placeholder="0" aria-label={t('quantity', lang)} value={i.quantity} onChange={(e) => setItem(i.key, { quantity: e.target.value })} onBlur={() => { if (!i.quantity) setItem(i.key, { quantity: '1' }); }} /></label>
       <label className="block text-left"><span className="item-label">{t('unit_price', lang)}</span>
-        <input className={cell} inputMode="decimal" value={i.unit_price} onChange={(e) => setItem(i.key, { unit_price: shapeNumber(e.target.value, moneyDecimals) })} onBlur={() => setItem(i.key, { unit_price: formatNumberWithCommas(amount(i.unit_price), moneyDecimals) })} /></label>
+        <NumberInput aria-label={t('unit_price', lang)} value={i.unit_price} onChange={(e) => setItem(i.key, { unit_price: e.target.value })} {...getMoneyInputProps(settings, moneyDecimals)} /></label>
       <label className="block text-left"><span className="item-label">{t('discount', lang)} %</span>
-        <input className={cell} inputMode="decimal" value={i.discount_percent} onChange={(e) => setItem(i.key, { discount_percent: shapeNumber(e.target.value, 2) })} /></label>
+        <NumberInput allowDecimals decimals={2} placeholder="0" aria-label={t('discount', lang)} value={i.discount_percent} onChange={(e) => setItem(i.key, { discount_percent: e.target.value })} /></label>
       <label className="block text-left"><span className="item-label">{t('tax', lang)} %</span>
-        <input className={cell} inputMode="decimal" value={i.tax_rate} onChange={(e) => setItem(i.key, { tax_rate: shapeNumber(e.target.value, 2) })} /></label>
+        <NumberInput allowDecimals decimals={2} placeholder="0" aria-label={t('tax', lang)} value={i.tax_rate} onChange={(e) => setItem(i.key, { tax_rate: e.target.value })} /></label>
     </>
   );
 
@@ -240,10 +259,10 @@ export default function OrderForm() {
                             <div className="font-medium text-gray-900">{i.product_name}</div>
                             <div className="text-xs text-gray-400">{[i.unit && t(i.unit, lang), i.stock != null && `${t('available', lang)}: ${formatNumberWithCommas(i.stock)}`].filter(Boolean).join(' · ')}</div>
                           </td>
-                          <td className="px-2 py-2"><input className={cell} inputMode="decimal" value={i.quantity} onChange={(e) => setItem(i.key, { quantity: shapeNumber(e.target.value, QTY_DECIMALS) })} onBlur={() => { if (!i.quantity) setItem(i.key, { quantity: '1' }); }} /></td>
-                          <td className="px-2 py-2"><input className={cell} inputMode="decimal" value={i.unit_price} onChange={(e) => setItem(i.key, { unit_price: shapeNumber(e.target.value, moneyDecimals) })} onBlur={() => setItem(i.key, { unit_price: formatNumberWithCommas(amount(i.unit_price), moneyDecimals) })} /></td>
-                          <td className="px-2 py-2"><input className={cell} inputMode="decimal" value={i.discount_percent} onChange={(e) => setItem(i.key, { discount_percent: shapeNumber(e.target.value, 2) })} /></td>
-                          <td className="px-2 py-2"><input className={cell} inputMode="decimal" value={i.tax_rate} onChange={(e) => setItem(i.key, { tax_rate: shapeNumber(e.target.value, 2) })} /></td>
+                          <td className="px-2 py-2 min-w-[8rem]"><NumberInput allowDecimals decimals={QTY_DECIMALS} placeholder="0" aria-label={t('quantity', lang)} value={i.quantity} onChange={(e) => setItem(i.key, { quantity: e.target.value })} onBlur={() => { if (!i.quantity) setItem(i.key, { quantity: '1' }); }} /></td>
+                          <td className="px-2 py-2 min-w-[9rem]"><NumberInput aria-label={t('unit_price', lang)} value={i.unit_price} onChange={(e) => setItem(i.key, { unit_price: e.target.value })} {...getMoneyInputProps(settings, moneyDecimals)} /></td>
+                          <td className="px-2 py-2 min-w-[7rem]"><NumberInput allowDecimals decimals={2} placeholder="0" aria-label={t('discount', lang)} value={i.discount_percent} onChange={(e) => setItem(i.key, { discount_percent: e.target.value })} /></td>
+                          <td className="px-2 py-2 min-w-[7rem]"><NumberInput allowDecimals decimals={2} placeholder="0" aria-label={t('tax', lang)} value={i.tax_rate} onChange={(e) => setItem(i.key, { tax_rate: e.target.value })} /></td>
                           <td className="px-3 py-2 text-right font-medium">{money(lineOf(i).total)}</td>
                           <td className="px-1 py-2"><button type="button" className="p-1 text-gray-400 hover:text-red-600" onClick={() => removeLine(i.key)} aria-label={t('delete', lang)}>✕</button></td>
                         </tr>

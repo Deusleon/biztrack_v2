@@ -24,6 +24,9 @@ export default function NumberInput({
   decimals,
   onBlur,
   placeholder,
+  bare = false,
+  align = "right",
+  className = "",
   ...props
 }) {
   const raw = value === null || value === undefined ? "" : String(value).replace(/,/g, "");
@@ -70,9 +73,26 @@ export default function NumberInput({
     onBlur?.(e);
   };
 
+  if (bare) {
+    return (
+      <input
+        {...props}
+        name={name}
+        type="text"
+        inputMode={allowDec ? "decimal" : "numeric"}
+        value={formatDisplay(raw)}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        placeholder={resolvedPlaceholder}
+        className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-20 ${align === "left" ? "text-left" : "text-right"} ${className}`}
+      />
+    );
+  }
+
   return (
     <Input
       {...props}
+      className={className}
       name={name}
       type="text"
       inputMode={allowDec ? "decimal" : "numeric"}

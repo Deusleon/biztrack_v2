@@ -9,7 +9,7 @@ import { normalizePhone, smsParts } from './common';
 import { t } from '../../utils/i18n';
 
 /** Send an SMS to typed numbers, picked contacts, or a group. `group` pre-selects a group; `initialNumbers` fills one number. */
-export default function SendMessageModal({ isOpen, onClose, group, groups = [], initialNumbers = '', onSent }) {
+export default function SendMessageModal({ isOpen, onClose, group, groups = [], initialNumbers = '', initialMessage = '', onSent }) {
   const { showSuccess, showError } = useToast();
   const { lang } = useLanguage();
   const [mode, setMode] = useState('individual');
@@ -30,12 +30,12 @@ export default function SendMessageModal({ isOpen, onClose, group, groups = [], 
     setNumbers(initialNumbers || '');
     setNumberMode('type');
     setPicked([]);
-    setMessage('');
+    setMessage(initialMessage || '');
     setSub(true);
     messagingService.templates().then(setTemplates).catch(() => {});
     setContactsLoading(true);
     messagingService.contacts().then(setContacts).catch(() => setContacts([])).finally(() => setContactsLoading(false));
-  }, [isOpen, group, initialNumbers]);
+  }, [isOpen, group, initialNumbers, initialMessage]);
 
   const parts = smsParts(message);
   const phones = numbers.split(/[\s,;]+/).filter(Boolean);

@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
-import { settingsAdminService } from '../../services/api';
+import { aiService, settingsAdminService } from '../../services/api';
 import { Button, Loader } from '../../components/ui';
 import { t } from '../../utils/i18n';
 
@@ -59,7 +59,9 @@ function columnsFor(settings) {
     .map((group) => ({ ...group, parties: group.parties.filter((party) => partyVisible(party, settings)) }))
     .filter((group) => group.parties.length));
 
-  const extra = [...new Set(Object.keys(settings).map((key) => key.replace(/^(inapp|email|sms)_/, '')))]
+  const extra = [...new Set(Object.keys(settings)
+    .filter((key) => /^(inapp|email|sms)_/.test(key))
+    .map((key) => key.replace(/^(inapp|email|sms)_/, '')))]
     .filter((id) => !known.has(id))
     .map((id) => ({ event: id, parties: [{ id, where: 'store' }] }));
   if (extra.length) columns[columns.length - 1].push(...extra);
@@ -139,11 +141,15 @@ export default function Notifications() {
   const [n, setN] = useState(null);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
+  const [delivery, setDelivery] = useState({ bell: false, email: false, sms: false });
+  const [savingDelivery, setSavingDelivery] = useState(false);
   const canManage = can('manage_notifications');
+  const canBrief = can('ai_access');
 
   useEffect(() => {
     setN(null);
     settingsAdminService.getNotifications().then(setN).catch((err) => showError(err.message));
+    if (can('ai_access')) aiService.briefDelivery().then(setDelivery).catch(() => {});
   }, [currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = async () => {
@@ -172,6 +178,14 @@ export default function Notifications() {
   };
 
   const columns = n ? columnsFor(n) : [];
+  const toggleDelivery = async (key) => {
+    const next = { ...delivery, [key]: !delivery[key] };
+    setDelivery(next);
+    setSavingDelivery(true);
+    try { setDelivery(await aiService.saveBriefDelivery(next)); }
+    catch (err) { showError(err.message); }
+    finally { setSavingDelivery(false); }
+  };
 
   return (
     <MainLayout>
@@ -185,6 +199,28 @@ export default function Notifications() {
         </div>
         {!canManage && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 text-left">{t('view_only_mode', lang)}</p>}
         {!n && <Loader />}
+        {n && (
+          <div className="bg-white rounded shadow p-5 text-left space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-800">{t('ai_daily_brief', lang)}</h2>
+              <p className="text-xs text-gray-500 mt-1">{t('ai_daily_brief_setting_desc', lang)}</p>
+            </div>
+            <label className="flex items-center justify-between gap-3 py-2 border-t border-gray-100 text-sm text-gray-800 cursor-pointer">
+              <span>{t('ai_daily_brief_setting', lang)}</span>
+              <input type="checkbox" className="h-4 w-4 accent-[var(--color-primary)]" checked={n.show_daily_brief !== false} disabled={!canManage} onChange={(e) => setN((current) => ({ ...current, show_daily_brief: e.target.checked }))} />
+            </label>
+            {canBrief && (
+              <div className="border-t border-gray-100 pt-3 space-y-2">
+                <p className="text-xs text-gray-500">{t('ai_brief_delivery_hint', lang)}</p>
+                <div className="flex flex-wrap gap-2">
+                  {['bell', 'email', 'sms'].map((key) => (
+                    <button key={key} type="button" disabled={savingDelivery} onClick={() => toggleDelivery(key)} className={`px-2.5 py-1 text-xs font-medium rounded border ${delivery[key] ? 'border-primary bg-primary-10 text-primary' : 'border-gray-300 text-gray-600'}`}>{t(`ai_brief_${key}`, lang)}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {n && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {columns.map((groups, index) => (
