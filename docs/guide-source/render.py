@@ -64,7 +64,7 @@ This edition describes BizTrack Version 2 and replaces the October 2026 edition.
 - Reports with the usual columns, a Total row, charts, and exports to PDF, Excel and CSV (Chapter 7).
 - Integrations — your own email mailbox, SMS gateways and Google Drive backup (section 11.10).
 - Friendly error cards instead of blank screens (Chapter 15).
-- One signed-in device per account, with an immediate message when the account is opened somewhere else (section 1.2 and Chapter 16).
+- One signed-in device per account. The developer account can stay open on more than one device (section 1.2 and Chapter 16).
 - A menu that opens one section at a time, full width, with Dashboard, User Guide, BizTrack AI and Subscription on their own rows (section 1.6).
 - Signing out ends only that account, and sign-in opens the default store (sections 1.7 and 1.8).
 - Emails and text messages in the language of the account, and Reload on the top bar (Chapter 16).
@@ -92,7 +92,7 @@ Toleo hili linaeleza BizTrack Toleo la 2 na linachukua nafasi ya toleo la Oktoba
 - Ripoti zenye safu za kawaida, safu ya Jumla, michoro, na kuhamisha kwa PDF, Excel na CSV (Sura ya 7).
 - Uunganishaji — kisanduku chako cha barua pepe, malango ya SMS na nakala rudufu ya Google Drive (sehemu ya 11.10).
 - Kadi za hitilafu zenye urafiki badala ya skrini tupu (Sura ya 15).
-- Kifaa kimoja kwa kila akaunti, na ujumbe wa mara moja akaunti ikifunguliwa mahali pengine (sehemu ya 1.2 na Sura ya 16).
+- Kifaa kimoja kwa kila akaunti. Akaunti ya msanidi inaweza kubaki wazi kwenye vifaa zaidi ya kimoja (sehemu ya 1.2 na Sura ya 16).
 - Menyu inayofungua sehemu moja kwa wakati, kwa upana wote, Dashibodi, Muongozo wa Mtumiaji, BizTrack AI na Usajili vikiwa kwenye mistari yao (sehemu ya 1.6).
 - Kutoka kunaishia akaunti hiyo tu, na kuingia kunafungua duka chaguo-msingi (sehemu ya 1.7 na 1.8).
 - Barua pepe na ujumbe mfupi kwa lugha ya akaunti, na Pakia upya juu ya ukurasa (Sura ya 16).

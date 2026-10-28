@@ -16,7 +16,7 @@ Every user has their own account with an email address and a password.
 3. Enter your password.
 4. Click [[Login]].
 
-> NOTE: If your store administrator gave you an account, use the email and password they provided. You can change the password later under [[My Profile]] → [[Change Password]]. An account stays signed in on one device. When it is signed in somewhere else, this device is signed out at once and the sign-in page tells you why.
+> NOTE: If your store administrator gave you an account, use the email and password they provided. You can change the password later under [[My Profile]] → [[Change Password]]. An account stays signed in on one device. When it is signed in somewhere else, this device is signed out at once and the sign-in page tells you why. The developer account can stay signed in on more than one device.
 > WARNING: To protect accounts, sign-in pauses for a few minutes after 10 wrong passwords for the same email within 15 minutes. The message tells you how long to wait. Signing in correctly never counts against you, and other people are not affected. If you have forgotten the password, use [[Forgot password?]] instead of guessing.
 
 ## 1.3  Registering a New Account
@@ -62,7 +62,8 @@ The main menu is on the left of the screen. It takes you to every part of the sy
 
 - On a computer: click the arrow above the menu to collapse or expand the menu labels.
 - On a phone or tablet: tap the menu icon (≡) at the top left to open the menu as a slide-out drawer.
-- [[Dashboard]], [[User Guide]], [[BizTrack AI]] and [[Subscription]] each sit on their own row, lined up with the other section names. When both [[Subscription]] and Extend subscription are available, they open together. [[Help & support]] and the support desk open together when both are available. With only one of them, it stays a single row.
+- [[Dashboard]], [[Stores]], [[User Guide]], [[BizTrack AI]] and [[Subscription]] each sit on their own row, lined up with the other section names. [[Stores]] is not inside [[Users]]. When both [[Subscription]] and Extend subscription are available, they open together. [[Help & support]] and the support desk open together when both are available. With only one of them, it stays a single row.
+- A light line separates the BizTrack name from the menu, and each section from the next, including under the last section. Your name stays in the top bar.
 - Open one section at a time. It eases open, and the section you are working in stays open. The section name uses a light band across the full width of the menu. The pages inside it use a darker band, also full width, with square corners, so they are easy to tell apart.
 - At the top of every page you will find [[Reload]], the bell for notifications, the help icon ([[Help & support]]), the button to lock the screen, and your profile menu. Reload refreshes the page, including when BizTrack is installed as an app.
 
@@ -889,7 +890,7 @@ Below you find the [[Payment History]]: date, plan, billing cycle, months paid, 
 PATH: [[BizTrack AI]]
 PERM: ai_access
 
-BizTrack AI is an assistant you can ask about your business in plain language. It answers from your store's real data (sales, profit, products, customers, expenses), not from guesses.
+BizTrack AI is an assistant you can ask about your business in plain language. It answers from your store's real data (sales, profit, products, customers, expenses, purchases, supplier debts, returns and cashiers), not from guesses. Amounts use your currency and decimal places, and each answer names the period and links to the page the figures came from.
 
 ## 13.1  How to Use BizTrack AI
 
@@ -898,7 +899,11 @@ BizTrack AI is an assistant you can ask about your business in plain language. I
 3. Send it and wait for the answer — you also see the sources used to build it.
 4. Start a new conversation at any time to ask about something else.
 
-> NOTE: The Dashboard also shows AI cards with a short summary of how your business did, and an AI question box that opens BizTrack AI. In the reports, the explain button describes the figures in plain words (if your role has that permission).
+> NOTE: The Dashboard also shows a morning brief for yesterday and an AI question box that opens BizTrack AI. Bell, Email and SMS on the brief stay off until you turn one on. In the reports, the explain button describes the figures in plain words (if your role has that permission).
+
+## 13.2  The next step
+
+When stock is running low, the answer can open a purchase order with those products filled in. When a customer owes money, it can open a reminder with the message filled in. Nothing is saved or sent until you confirm it on that page. A follow-up such as “why?” uses the figures already checked. If the AI service is down, those figures still appear.
 
 @@CH 14
 @@TITLE Help, Support & User Guide

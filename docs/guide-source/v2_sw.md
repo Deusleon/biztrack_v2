@@ -16,7 +16,7 @@ Kila mtumiaji ana akaunti yake yenye barua pepe na nenosiri.
 3. Weka nenosiri lako.
 4. Bofya [[Login]].
 
-> NOTE: Ukipewa akaunti na msimamizi wa duka lako, tumia barua pepe na nenosiri alilokupatia. Unaweza kulibadilisha baadaye kwenye [[My Profile]] → [[Change Password]]. Akaunti hubaki imeingia kwenye kifaa kimoja. Ikifunguliwa mahali pengine, kifaa hiki kinatolewa mara moja na ukurasa wa kuingia unakuambia sababu.
+> NOTE: Ukipewa akaunti na msimamizi wa duka lako, tumia barua pepe na nenosiri alilokupatia. Unaweza kulibadilisha baadaye kwenye [[My Profile]] → [[Change Password]]. Akaunti hubaki imeingia kwenye kifaa kimoja. Ikifunguliwa mahali pengine, kifaa hiki kinatolewa mara moja na ukurasa wa kuingia unakuambia sababu. Akaunti ya msanidi inaweza kubaki imeingia kwenye vifaa zaidi ya kimoja.
 > WARNING: Kulinda akaunti, kuingia husimama kwa dakika chache baada ya nenosiri kukosewa mara 10 kwa barua pepe ile ile ndani ya dakika 15. Ujumbe unakuambia muda wa kusubiri. Kuingia kwa usahihi hakuhesabiwi dhidi yako, na watu wengine hawaathiriwi. Ukisahau nenosiri, tumia [[Forgot password?]] badala ya kubahatisha.
 
 ## 1.3  Kujisajili Akaunti Mpya
@@ -62,7 +62,8 @@ Menyu kuu iko upande wa kushoto wa skrini. Inakupeleka kila sehemu ya mfumo: [[D
 
 - Kwenye kompyuta: bofya mshale juu ya menyu kubana au kupanua majina ya vipengele.
 - Kwenye simu au kompyuta kibao: gusa alama ya menyu (≡) juu kushoto kufungua menyu kama droo.
-- [[Dashboard]], [[User Guide]], [[BizTrack AI]] na [[Subscription]] kila moja iko kwenye mstari wake, ikilingana na majina ya sehemu nyingine. [[Subscription]] na Ongeza usajili vinapopatikana vyote, vinafunguka pamoja. [[Help & support]] na dawati la msaada vinafunguka pamoja vinapopatikana vyote. Kikiwepo kimoja tu, kinabaki mstari mmoja.
+- [[Dashboard]], [[Stores]], [[User Guide]], [[BizTrack AI]] na [[Subscription]] kila moja iko kwenye mstari wake, ikilingana na majina ya sehemu nyingine. [[Stores]] hayako ndani ya [[Users]]. [[Subscription]] na Ongeza usajili vinapopatikana vyote, vinafunguka pamoja. [[Help & support]] na dawati la msaada vinafunguka pamoja vinapopatikana vyote. Kikiwepo kimoja tu, kinabaki mstari mmoja.
+- Mstari mwepesi unatenganisha jina la BizTrack na menyu, na kila sehemu na inayofuata, ikiwemo chini ya sehemu ya mwisho. Jina lako linabaki kwenye upau wa juu.
 - Fungua sehemu moja kwa wakati. Inafunguka taratibu, na sehemu unayofanyia kazi hubaki wazi. Jina la sehemu linatumia utepe mwepesi kwa upana wote wa menyu. Kurasa zilizo ndani zinatumia utepe mweusi zaidi, pia kwa upana wote, wenye pembe za mraba, ili zitofautiane.
 - Juu ya kila ukurasa kuna [[Reload]], kengele ya arifa, alama ya msaada ([[Help & support]]), kitufe cha kufunga skrini, na menyu ya wasifu wako. Pakia upya huonyesha upya ukurasa, ikiwemo BizTrack ikiwa imesakinishwa kama programu.
 
@@ -888,7 +889,7 @@ Chini utapata [[Payment History]]: tarehe, mpango, mzunguko wa malipo, miezi ili
 PATH: [[BizTrack AI]]
 PERM: ai_access
 
-BizTrack AI ni msaidizi unayeweza kumuuliza kuhusu biashara yako kwa lugha ya kawaida. Anajibu kutokana na data halisi ya duka lako (mauzo, faida, bidhaa, wateja, matumizi), si makadirio.
+BizTrack AI ni msaidizi unayeweza kumuuliza kuhusu biashara yako kwa lugha ya kawaida. Anajibu kutokana na data halisi ya duka lako (mauzo, faida, bidhaa, wateja, matumizi, manunuzi, madeni ya wasambazaji, marejesho na wahudumu), si makadirio. Kiasi kinatumia sarafu na desimali zako, na kila jibu linataja kipindi na lina kiungo cha ukurasa tarakimu zilitoka.
 
 ## 13.1  Jinsi ya Kutumia BizTrack AI
 
@@ -897,7 +898,11 @@ BizTrack AI ni msaidizi unayeweza kumuuliza kuhusu biashara yako kwa lugha ya ka
 3. Litume na usubiri jibu — pia unaona vyanzo vilivyotumika kulitengeneza.
 4. Anza mazungumzo mapya wakati wowote kuuliza jambo lingine.
 
-> NOTE: Dashibodi pia inaonyesha kadi za AI zenye muhtasari mfupi wa biashara yako ilivyofanya, na kisanduku cha swali cha AI kinachofungua BizTrack AI. Kwenye ripoti, kitufe cha kueleza kinaelezea takwimu kwa maneno rahisi (ikiwa jukumu lako lina ruhusa hiyo).
+> NOTE: Dashibodi pia inaonyesha muhtasari wa asubuhi wa jana na kisanduku cha swali cha AI kinachofungua BizTrack AI. Kengele, Barua pepe na SMS kwenye muhtasari zinabaki zimezimwa mpaka uwashe moja. Kwenye ripoti, kitufe cha kueleza kinaelezea takwimu kwa maneno rahisi (ikiwa jukumu lako lina ruhusa hiyo).
+
+## 13.2  Hatua inayofuata
+
+Hisa ikipungua, jibu linaweza kufungua oda ya manunuzi ikiwa na bidhaa hizo. Mteja anapodaiwa, linaweza kufungua kumbusho likiwa na ujumbe. Hakuna kinachohifadhiwa au kutumwa mpaka uthibitishe kwenye ukurasa huo. Swali la kufuatilia kama “kwa nini?” linatumia tarakimu zilizokaguliwa. Huduma ya AI ikikosekana, tarakimu hizo bado zinaonekana.
 
 @@CH 14
 @@TITLE Msaada, Tiketi na Muongozo wa Mtumiaji
