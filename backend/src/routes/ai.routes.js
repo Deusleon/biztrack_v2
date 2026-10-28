@@ -12,6 +12,10 @@ router.get('/conversations', authMiddleware, checkStorePermission(['ai_access'])
 router.get('/conversations/:id', authMiddleware, checkStorePermission(['ai_access']), aiController.getConversation);
 router.delete('/conversations/:id', authMiddleware, checkStorePermission(['ai_access']), aiController.deleteConversation);
 router.post('/chat', authMiddleware, checkStorePermission(['ai_chat', 'ai_access']), aiController.chat);
+router.post('/chat/stream', authMiddleware, checkStorePermission(['ai_chat', 'ai_access']), aiController.chatStream);
+router.get('/morning-brief', authMiddleware, checkStorePermission(['ai_access', 'view_dashboard'], true), aiController.morningBrief);
+router.get('/morning-brief/delivery', authMiddleware, checkStorePermission(['ai_access']), aiController.morningBriefDelivery);
+router.put('/morning-brief/delivery', authMiddleware, checkStorePermission(['ai_access']), aiController.saveMorningBriefDelivery);
 router.post('/explain', authMiddleware, checkStorePermission(['ai_explain_reports']), aiController.explainReport);
 
 export default router;

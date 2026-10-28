@@ -1,9 +1,10 @@
 import { createTimeoutSignal, parseErrorResponse, cleanText } from './providerUtils.js';
+import { toGeminiDeclarations } from './geminiSchema.js';
 class GeminiProvider {
   constructor() {
     this.name = 'gemini';
     this.apiKey = process.env.GEMINI_API_KEY;
-    this.model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+    this.model = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
     this.baseUrl = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/$/, '');
   }
 
@@ -89,7 +90,7 @@ class GeminiProvider {
     maxOutputTokens = 900,
     functionCallingMode = 'AUTO',
   }) {
-    const declarations = Array.isArray(functionDeclarations) ? functionDeclarations : [];
+    const declarations = toGeminiDeclarations(functionDeclarations);
     const body = {
       systemInstruction: { parts: [{ text: instructions }] },
       contents,

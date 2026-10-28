@@ -6,38 +6,108 @@ import { getConversation, saveTurn } from './Conversation.service.js';
 import { resolvePermissionSet } from '../core/PermissionResolver.js';
 import { writeAudit } from '../core/Audit.service.js';
 import { runNativeFunctionCalling } from './NativeFunctionCalling.service.js';
+import { businessToday } from './periods.js';
+import { loadStoreFormat } from './storeFormat.js';
+import {
+  actionsFor, compactVerified, fallbackAnswer, figuresAnswer, plainText, sourcesFor, splitAnswer,
+} from './present.js';
+
+function clarifyAnswer(lang) {
+  return lang === 'sw'
+    ? 'Niambie unachotaka kujua kutoka kwenye kumbukumbu za duka: mauzo, faida, bidhaa zinazokaribia kuisha, madeni, manunuzi, marejesho, au kulinganisha maduka. Nitajibu swali hilo kwa tarakimu zilizohakikiwa.'
+    : 'Tell me what you want from the store records: sales, profit, products running low, debts, purchases, returns, or a comparison of your stores. I will answer that question with the verified figures.';
+}
+
 function deniedAnswer(lang, denied) {
   const names = denied.map((item) => item.id || item.name).join(', ');
   return lang === 'sw'
-    ? `Huna ruhusa ya kutumia taarifa zinazohitajika kwa swali hili (${names}). Muombe msimamizi akupe permission husika ya BizTrack AI.`
-    : `You do not have permission to access the data required for this question (${names}). Ask an administrator to assign the relevant BizTrack AI permission.`;
+    ? `Huna ruhusa ya kutumia taarifa zinazohitajika kwa swali hili (${names}). Muombe msimamizi akupe ruhusa husika.`
+    : `You do not have permission to access the data required for this question (${names}). Ask an administrator to assign the relevant permission.`;
 }
 
-function fallbackAnswer(lang, tools, error) {
-  const names = tools.join(', ');
-  return lang === 'sw'
-    ? `Nimepata data iliyohakikiwa kupitia ${names}, lakini AI provider haikupatikana kuitafsiri. ${error ? `Sababu: ${error}` : ''}`.trim()
-    : `Verified data was retrieved through ${names}, but the AI provider was unavailable. ${error ? `Reason: ${error}` : ''}`.trim();
+function present(lang, tools, results, format) {
+  return {
+    figures: figuresAnswer(lang, results, format),
+    sources: sourcesFor(tools, lang),
+    actions: actionsFor(results, lang, format),
+  };
 }
 
-async function runControlledRouting({ storeId, userId, message, lang, conversation, permissions }) {
+async function runControlledRouting({ storeId, userId, message, lang, conversation, permissions, format, today, onFigures }) {
   const intent = classifyIntent(message, conversation);
-  const execution = await registry.execute(intent.tools, { storeId, userId, lang }, permissions);
+  if (intent.clarify) {
+    return {
+      answer: clarifyAnswer(lang),
+      source: 'clarify',
+      provider: 'none',
+      model: null,
+      providerError: null,
+      toolsRequested: [],
+      toolsExecuted: [],
+      toolsDenied: [],
+      toolErrors: [],
+      toolResults: {},
+      confidence: 'unavailable',
+      followUp: false,
+      selectionStrategy: 'clarify',
+      rounds: 0,
+      usage: {},
+      figures: '',
+      sources: [],
+      actions: [],
+    };
+  }
+  const context = { storeId, userId, lang, period: intent.period, today };
+  let results = {};
+  let executed = [];
+  let denied = [];
+  let missing = [];
+
+  if (intent.reuseFigures) {
+    const saved = conversation.verifiedContext || {};
+    for (const id of intent.tools) {
+      if (saved[id]) {
+        results[id] = saved[id];
+        executed.push(id);
+      }
+    }
+    const absent = intent.tools.filter((id) => !results[id]);
+    if (absent.length) {
+      const extra = await registry.execute(absent, context, permissions);
+      Object.assign(results, extra.results);
+      executed.push(...extra.executed);
+      denied = extra.denied;
+      missing = extra.missing || [];
+    }
+  } else {
+    const execution = await registry.execute(intent.tools, context, permissions);
+    results = execution.results;
+    executed = execution.executed;
+    denied = execution.denied;
+    missing = execution.missing || [];
+  }
+
+  const shown = present(lang, executed, results, format);
+  if (onFigures && executed.length) onFigures(shown);
+
   let answer;
   let source = 'permission';
   let provider = 'none';
   let model = null;
   let providerError = null;
 
-  if (!execution.executed.length && execution.denied.length) {
-    answer = deniedAnswer(lang, execution.denied);
+  if (!executed.length && denied.length) {
+    answer = deniedAnswer(lang, denied);
   } else {
     const prompt = buildAssistantPrompt({
       message,
       lang,
       history: conversation.messages,
-      toolResults: execution.results,
-      toolsUsed: execution.executed,
+      toolResults: results,
+      toolsUsed: executed,
+      format,
+      priorVerified: intent.reuseFigures ? conversation.verifiedContext : null,
+      today,
     });
     const generated = await generateText({ instructions: prompt.instructions, input: prompt.input, maxOutputTokens: 700 });
     const status = getProviderStatus();
@@ -45,7 +115,7 @@ async function runControlledRouting({ storeId, userId, message, lang, conversati
     provider = generated.text ? generated.provider : 'fallback';
     model = generated.model || status.model;
     providerError = generated.error || null;
-    answer = generated.text || fallbackAnswer(lang, execution.executed, generated.error);
+    answer = plainText(generated.text) || fallbackAnswer(lang, results, format);
   }
 
   return {
@@ -55,22 +125,20 @@ async function runControlledRouting({ storeId, userId, message, lang, conversati
     model,
     providerError,
     toolsRequested: intent.tools,
-    toolsExecuted: execution.executed,
-    toolsDenied: execution.denied,
-    toolErrors: execution.missing || [],
-    confidence: execution.executed.length === intent.tools.length
-      ? 'high'
-      : execution.executed.length
-        ? 'limited'
-        : 'unavailable',
+    toolsExecuted: executed,
+    toolsDenied: denied,
+    toolErrors: missing,
+    toolResults: results,
+    confidence: executed.length === intent.tools.length ? 'high' : executed.length ? 'limited' : 'unavailable',
     followUp: intent.followUp,
     selectionStrategy: 'controlled_routing',
     rounds: 0,
     usage: {},
+    ...shown,
   };
 }
 
-async function askAssistant({ storeId, userId, message, lang, conversationId }) {
+async function askAssistant({ storeId, userId, message, lang, conversationId, onEvent }) {
   const started = Date.now();
   const audit = {
     storeId,
@@ -90,14 +158,26 @@ async function askAssistant({ storeId, userId, message, lang, conversationId }) 
       throw error;
     }
 
-    const conversation = await getConversation({ storeId, userId, conversationId, firstMessage: message });
+    const [conversation, format] = await Promise.all([
+      getConversation({ storeId, userId, conversationId, firstMessage: message }),
+      loadStoreFormat(storeId),
+    ]);
     audit.conversationId = conversation.id;
+    const today = businessToday();
+    const intent = classifyIntent(message, conversation);
+    if (onEvent) onEvent({ type: 'status', text: 'checking' });
 
     let result;
     let nativeError = null;
     const nativeEnabled = String(process.env.AI_NATIVE_FUNCTION_CALLING || 'true').toLowerCase() !== 'false';
+    let figuresSent = false;
+    const emitFigures = (shown, tools) => {
+      if (!onEvent || figuresSent) return;
+      figuresSent = true;
+      onEvent({ type: 'figures', answer: shown.figures, sources: shown.sources, actions: shown.actions, tools });
+    };
 
-    if (nativeEnabled) {
+    if (nativeEnabled && !intent.reuseFigures && !intent.clarify) {
       try {
         const native = await runNativeFunctionCalling({
           registry,
@@ -107,12 +187,22 @@ async function askAssistant({ storeId, userId, message, lang, conversationId }) 
           message,
           lang,
           history: conversation.messages,
+          format,
+          priorVerified: conversation.verifiedContext,
+          today,
+          period: intent.period,
+          onResults: (toolResults) => {
+            const tools = Object.keys(toolResults);
+            emitFigures(present(lang, tools, toolResults, format), tools);
+          },
         });
 
         if (native.supported) {
           const hasToolProblems = native.toolsDenied.length > 0 || native.toolErrors.length > 0;
+          const shown = present(lang, native.toolsExecuted, native.toolResults, format);
+          emitFigures(shown, native.toolsExecuted);
           result = {
-            answer: native.answer,
+            answer: plainText(native.answer),
             source: 'ai',
             provider: native.provider,
             model: native.model,
@@ -121,13 +211,13 @@ async function askAssistant({ storeId, userId, message, lang, conversationId }) 
             toolsExecuted: native.toolsExecuted,
             toolsDenied: native.toolsDenied,
             toolErrors: native.toolErrors,
-            confidence: native.toolsExecuted.length
-              ? (hasToolProblems ? 'limited' : 'high')
-              : 'general',
+            toolResults: native.toolResults,
+            confidence: native.toolsExecuted.length ? (hasToolProblems ? 'limited' : 'high') : 'general',
             followUp: conversation.messages.length > 0,
             selectionStrategy: native.selectionStrategy,
             rounds: native.rounds,
             usage: native.usage,
+            ...shown,
           };
         }
       } catch (error) {
@@ -137,8 +227,18 @@ async function askAssistant({ storeId, userId, message, lang, conversationId }) 
     }
 
     if (!result) {
-      result = await runControlledRouting({ storeId, userId, message, lang, conversation, permissions });
+      result = await runControlledRouting({
+        storeId, userId, message, lang, conversation, permissions, format, today,
+        onFigures: (shown) => emitFigures(shown, []),
+      });
       if (nativeError) result.providerError = result.providerError || nativeError;
+    }
+
+    if (onEvent && result.answer) {
+      for (const part of splitAnswer(result.answer)) {
+        onEvent({ type: 'delta', text: part });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
     }
 
     audit.toolsRequested = result.toolsRequested;
@@ -161,9 +261,8 @@ async function askAssistant({ storeId, userId, message, lang, conversationId }) 
       },
     });
 
-    const toolsRequestedByAI = result.selectionStrategy === 'native_function_calling'
-      ? result.toolsRequested
-      : [];
+    const toolsRequestedByAI = result.selectionStrategy === 'native_function_calling' ? result.toolsRequested : [];
+    const verified = compactVerified({ ...(conversation.verifiedContext || {}), ...(result.toolResults || {}) });
 
     await saveTurn({
       conversation,
@@ -183,6 +282,9 @@ async function askAssistant({ storeId, userId, message, lang, conversationId }) 
         toolSelectionStrategy: result.selectionStrategy,
         toolRounds: result.rounds,
         usage: result.usage,
+        verified,
+        sources: result.sources,
+        actions: result.actions,
       },
     });
 
@@ -191,6 +293,7 @@ async function askAssistant({ storeId, userId, message, lang, conversationId }) 
     return {
       conversationId: conversation.id,
       answer: result.answer,
+      figures: result.figures,
       source: result.source,
       provider: result.provider,
       requestedProvider: getProviderStatus().requested,
@@ -202,7 +305,8 @@ async function askAssistant({ storeId, userId, message, lang, conversationId }) 
       toolErrors: result.toolErrors,
       toolSelectionStrategy: result.selectionStrategy,
       toolRounds: result.rounds,
-      sources: result.toolsExecuted.map((name) => ({ name, verified: true })),
+      sources: result.sources,
+      actions: result.actions,
       confidence: result.confidence,
       followUp: result.followUp,
       usage: result.usage,
@@ -220,4 +324,3 @@ async function askAssistant({ storeId, userId, message, lang, conversationId }) 
 }
 
 export { askAssistant };
-

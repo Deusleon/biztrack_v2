@@ -28,7 +28,7 @@ function mergeUsage(total, usage) {
   };
 }
 
-async function runNativeFunctionCalling({ registry, permissions, storeId, userId, message, lang, history }) {
+async function runNativeFunctionCalling({ registry, permissions, storeId, userId, message, lang, history, format, priorVerified, today, period, onResults }) {
   const provider = createProvider();
   if (!provider.isConfigured() || typeof provider.supportsFunctionCalling !== 'function' || !provider.supportsFunctionCalling()) {
     return { supported: false, provider: provider.name, model: provider.model };
@@ -42,12 +42,13 @@ async function runNativeFunctionCalling({ registry, permissions, storeId, userId
   const maxCalls = Math.max(Number(process.env.AI_MAX_TOOL_CALLS) || 4, 1);
   const maxRounds = Math.min(Math.max(Number(process.env.AI_MAX_TOOL_ROUNDS) || 2, 1), 4);
   const toolTimeoutMs = Math.max(Number(process.env.AI_TOOL_TIMEOUT_MS) || 10000, 1000);
-  const prompt = buildNativeAssistantPrompt({ lang, history, message });
+  const prompt = buildNativeAssistantPrompt({ lang, history, message, format, priorVerified, today });
   const contents = prompt.contents;
   const callsRequested = [];
   const toolsExecuted = [];
   const toolsDenied = [];
   const toolErrors = [];
+  const toolResults = {};
   let usage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
   let totalCalls = 0;
   let finalText = '';
@@ -89,12 +90,16 @@ async function runNativeFunctionCalling({ registry, permissions, storeId, userId
 
     const execution = await registry.executeCalls(
       callsForExecution,
-      { storeId, userId, lang },
+      { storeId, userId, lang, period, today },
       permissions,
       { maxCalls: remainingCalls, timeoutMs: toolTimeoutMs },
     );
 
     totalCalls += callsForExecution.length;
+    for (const response of execution.responses) {
+      if (response.status === 'success') toolResults[response.name] = response.result;
+    }
+    if (onResults) onResults(toolResults);
     toolsExecuted.push(...execution.executed);
     toolsDenied.push(...execution.denied);
     toolErrors.push(...execution.invalid, ...execution.missing, ...execution.failed, ...skippedCalls);
@@ -128,6 +133,7 @@ async function runNativeFunctionCalling({ registry, permissions, storeId, userId
     toolsExecuted: [...new Set(toolsExecuted)],
     toolsDenied,
     toolErrors,
+    toolResults,
     rounds,
     usage,
     selectionStrategy: 'native_function_calling',

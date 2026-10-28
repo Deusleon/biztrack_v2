@@ -18,6 +18,8 @@
     "seedProduction": "node src/seeds/seedProduction.js",
     "permissions:dry-run": "DRY_RUN=1 node src/seeds/syncPermissions.js",
     "test:ai": "node tests/ai-function-calling.smoke.js",
+    "test:ai-upgrade": "node --test tests/ai-upgrade.test.mjs",
+    "test:ai-live": "node tests/ai-upgrade.live.mjs",
     "db:migrate:mark-applied": "node src/utils/migrate.js mark-applied"
   },
   "license": "UNLICENSED",

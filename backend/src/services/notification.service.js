@@ -73,6 +73,9 @@ const DEFAULT_NOTIFICATION_SETTINGS = Object.freeze({
   sms_supplier_payment: false,
   email_supplier_payment_supplier: false,
   sms_supplier_payment_supplier: false,
+
+  // The daily brief reminder. Off means it does not open.
+  show_daily_brief: true,
 });
 
 const EMAIL_BRAND = Object.freeze({

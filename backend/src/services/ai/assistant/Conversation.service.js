@@ -21,7 +21,8 @@ async function getConversation({ storeId, userId, conversationId, firstMessage }
       throw error;
     }
     const messages = await getContextMessages(rows[0].id);
-    return { ...rows[0], messages, lastTools: rows[0].last_tools || [] };
+    const verifiedContext = await getVerifiedContext(rows[0].id);
+    return { ...rows[0], messages, lastTools: rows[0].last_tools || [], verifiedContext };
   }
 
   const { rows } = await pool.query(
@@ -30,7 +31,7 @@ async function getConversation({ storeId, userId, conversationId, firstMessage }
      RETURNING id, title, last_tools, created_at, updated_at`,
     [storeId, userId, makeTitle(firstMessage)],
   );
-  return { ...rows[0], messages: [], lastTools: [] };
+  return { ...rows[0], messages: [], lastTools: [], verifiedContext: {} };
 }
 
 async function getContextMessages(conversationId) {
@@ -47,6 +48,18 @@ async function getContextMessages(conversationId) {
     [conversationId, MAX_CONTEXT_MESSAGES],
   );
   return rows;
+}
+
+async function getVerifiedContext(conversationId) {
+  const { rows } = await pool.query(
+    `SELECT metadata->'verified' AS verified
+     FROM ai_messages
+     WHERE conversation_id = $1 AND role = 'assistant' AND metadata ? 'verified'
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [conversationId],
+  );
+  return rows[0]?.verified && typeof rows[0].verified === 'object' ? rows[0].verified : {};
 }
 
 async function saveTurn({ conversation, userMessage, answer, toolsUsed, provider, model, confidence, source, metadata }) {

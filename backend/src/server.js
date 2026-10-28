@@ -11,6 +11,7 @@ import { testConnection } from './config/database.js';
 import http from 'http';
 import { initSocket } from './utils/socket.js';
 import { startNotificationScheduler } from './services/notificationScheduler.js';
+import { startMorningBriefScheduler } from './services/ai/morningBrief.service.js';
 import { startBackupScheduler } from './services/backupScheduler.js';
 import { startStockValueHistoryScheduler } from './services/stockValueHistoryScheduler.js';
 import { perfMiddleware } from './utils/perf.js';
@@ -19,6 +20,7 @@ const app = express();
 const server = http.createServer(app);
 initSocket(server);
 startNotificationScheduler();
+startMorningBriefScheduler();
 startBackupScheduler();
 startStockValueHistoryScheduler();
 

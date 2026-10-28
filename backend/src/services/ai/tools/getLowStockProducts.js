@@ -20,7 +20,7 @@ export default {
   async execute({ storeId, args = {} }) {
     const limit = Math.min(Math.max(Number(args.limit) || 20, 1), 50);
     const { rows } = await pool.query(
-      `SELECT p.name, COALESCE(p.minimum_stock, 0)::numeric AS "minimumStock",
+      `SELECT p.id, p.name, COALESCE(p.minimum_stock, 0)::numeric AS "minimumStock",
               COALESCE(SUM(CASE WHEN im.type = 'IN' THEN im.quantity WHEN im.type = 'OUT' THEN -im.quantity ELSE im.quantity END), 0)::numeric AS quantity
        FROM products p
        LEFT JOIN inventory_movements im ON im.product_id = p.id AND im.store_id = $1
@@ -33,6 +33,7 @@ export default {
     );
     return {
       products: rows.map((row) => ({
+        id: row.id,
         name: row.name,
         quantity: Number(row.quantity) || 0,
         minimumStock: Number(row.minimumStock) || 0,
