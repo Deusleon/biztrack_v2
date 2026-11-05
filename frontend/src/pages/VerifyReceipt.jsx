@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { salesService } from '../../services/api';
-import { useLanguage } from '../../contexts/LanguageContext';
-import { showDate } from '../../utils/dateFormat';
-import { t } from '../../utils/i18n';
+import { salesService } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
+import { formatDate } from '../utils/dateFormat';
+import { t } from '../utils/i18n';
 
 /** Opened by the QR code on a receipt. No sign-in. Shows only enough to confirm the sale is real. */
 export default function VerifyReceipt() {
@@ -34,7 +34,7 @@ export default function VerifyReceipt() {
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between gap-3"><dt className="text-gray-500">{t('business_name', lang)}</dt><dd className="font-medium text-right">{row.business_name || '—'}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-gray-500">{t('invoice_number', lang)}</dt><dd className="font-medium">#{row.invoice_number}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-gray-500">{t('date', lang)}</dt><dd>{showDate(row.sales_date)}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-gray-500">{t('date', lang)}</dt><dd>{formatDate(row.sales_date)}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-gray-500">{t('total', lang)}</dt><dd className="font-medium">{Number.isFinite(Number(row.total_amount)) ? Number(row.total_amount).toLocaleString('en-US') : row.total_amount}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-gray-500">{t('status', lang)}</dt><dd>{t(row.status, lang)}</dd></div>
             </dl>

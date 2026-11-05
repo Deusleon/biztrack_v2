@@ -77,7 +77,7 @@ export default function ProductForm({ isOpen, onClose, product, categories, sett
             {!editing && <NumberInput label={`${t('cost_price', lang)}${currency}`} required value={form.cost_price} onChange={set('cost_price')} error={errors.cost_price} disabled={saving} {...moneyInput} />}
             {!editing && <NumberInput label={`${t('selling_price', lang)}${currency}`} required value={form.selling_price} onChange={set('selling_price')} error={errors.selling_price} disabled={saving} helperText={t('uses_default_price_category', lang)} {...moneyInput} />}
             {!editing && <NumberInput label={t('current_stock', lang)} value={form.current_stock} onChange={set('current_stock')} error={errors.current_stock} disabled={saving} {...getQuantityInputProps()} />}
-            <NumberInput label={t('alert_qty', lang)} value={form.alert_qty} onChange={set('alert_qty')} error={errors.alert_qty} disabled={saving} {...getQuantityInputProps()} />}
+            <NumberInput label={t('alert_qty', lang)} value={form.alert_qty} onChange={set('alert_qty')} error={errors.alert_qty} disabled={saving} {...getQuantityInputProps()} />
             {editing && <Select label={t('status', lang)} value={form.status} onChange={set('status')} disabled={saving} options={[{ value: 'active', label: t('active', lang) }, { value: 'inactive', label: t('inactive', lang) }]} />}
             {!editing && <DatePicker label={t('mfg_date', lang)} value={form.mfg_date} onChange={set('mfg_date')} disabled={saving} />}
             {!editing && settings.allowExpireDate && <DatePicker label={t('exp_date', lang)} value={form.exp_date} onChange={set('exp_date')} disabled={saving} />}
