@@ -60,3 +60,14 @@ export const getDateRangeFromPeriod = (period) => {
       return { startDate: toStart(today), endDate: toEnd(today) };
   }
 };
+
+/** Date-only range for report filters. `custom` (and an empty setting) returns null so the page keeps the dates the person picked. */
+export const reportDates = (period) => {
+  const key = String(period || '').trim().toLowerCase();
+  if (!key || key === 'custom') return null;
+  const range = getDateRangeFromPeriod(key);
+  return {
+    startDate: String(range.startDate).slice(0, 10),
+    endDate: String(range.endDate).slice(0, 10),
+  };
+};

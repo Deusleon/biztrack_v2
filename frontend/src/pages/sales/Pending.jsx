@@ -20,7 +20,7 @@ const isSold = (o) => String(o?.order_status || '').toLowerCase() === 'sold';
 const isCancelled = (o) => String(o?.order_status || '').toLowerCase().includes('cancel');
 
 // The server returns every pending order at once; search, status and paging are done here.
-const fetchOrders = async ({ search = '', status = '', page = 1, limit = 25 }) => {
+const fetchOrders = async ({ search = '', status = '', startDate = '', endDate = '', page = 1, limit = 25 }) => {
   // 'pending' = waiting, 'sold' = completed from pending (kept for reference), 'cancelled' = cancelled
   const lists = await Promise.all([
     status !== 'cancelled' && status !== 'sold' ? salesService.getPendingOrders() : null,
@@ -28,7 +28,15 @@ const fetchOrders = async ({ search = '', status = '', page = 1, limit = 25 }) =
     status !== 'pending' && status !== 'cancelled' ? salesService.getPendingOrders('Sold') : null,
   ]);
   const q = search.trim().toLowerCase();
-  const all = lists.flatMap((r) => r?.orderDatas || []).filter((o) => !q || `${o.order_number} ${o.customer_name} ${o.customer_phone} ${o.invoice_number || ''}`.toLowerCase().includes(q));
+  const all = lists.flatMap((r) => r?.orderDatas || []).filter((o) => {
+    if (q && !`${o.order_number} ${o.customer_name} ${o.customer_phone} ${o.invoice_number || ''}`.toLowerCase().includes(q)) return false;
+    const raw = o.created_at || o.order_date || '';
+    const day = (raw instanceof Date ? raw.toISOString() : String(raw)).match(/\d{4}-\d{2}-\d{2}/)?.[0] || '';
+    if ((startDate || endDate) && !day) return false;
+    if (startDate && day < startDate) return false;
+    if (endDate && day > endDate) return false;
+    return true;
+  });
   const totalPages = Math.max(1, Math.ceil(all.length / limit));
   return { data: all.slice((page - 1) * limit, page * limit), pagination: { currentPage: Math.min(page, totalPages), totalPages, totalItems: all.length, limit } };
 };
@@ -39,7 +47,7 @@ export default function Pending() {
   const { lang } = useLanguage();
   const { settings } = useStoreSettings();
   const navigate = useNavigate();
-  const list = useServerList({ fetcher: fetchOrders, initialFilters: { search: '', status: '' } });
+  const list = useServerList({ fetcher: fetchOrders, initialFilters: { search: '', status: '', startDate: '', endDate: '' } });
   useLiveRefresh(['orderCreated', 'orderUpdated', 'newSale'], list.reload);
   const [confirm, setConfirm] = useState({ isOpen: false });
   const [cancel, setCancel] = useState(null);
@@ -81,7 +89,7 @@ export default function Pending() {
           {can('export_sales_pdf') && <div className="ml-auto"><ExportMenu rows={exp.rows} columns={exp.columns} loadRows={exp.loadAllRows} title="pending_orders" disabled={list.loading || list.rows.length === 0} /></div>}
           {can('create_invoice') && <Button onClick={() => navigate('/sales/invoice')}>{t('new_sale', lang)}</Button>}
         </div>
-        <FilterBar list={list} statusKey="status" statusOptions={['pending', 'sold', 'cancelled']} dates={false} />
+        <FilterBar list={list} statusKey="status" statusOptions={['pending', 'sold', 'cancelled']} />
         <DataTable columns={columns} data={list.rows} loading={list.loading} rowId="cart_code" emptyMessage={list.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={list.pagination} onPageChange={list.setPage}
           renderActions={(o) => <RowActions actions={[
             { label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(o) },

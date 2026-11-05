@@ -32,7 +32,7 @@ function Bubble({ item, lang, onAction }) {
           <div className="mt-3 pt-2 border-t border-gray-100 space-y-2">
             {sources.length > 0 && <p className="text-[11px] text-gray-500">{t('ai_sources', lang)}: {sources.map((source, index) => <span key={`${source.to}-${source.label}`}>{index > 0 ? ', ' : ''}<Link className="text-primary hover:underline" to={source.to}>{source.label}</Link></span>)}</p>}
             {actions.length > 0 && <div className="flex flex-wrap gap-2">{actions.map((action) => <button key={action.id} type="button" onClick={() => onAction(action)} className="px-2.5 py-1 text-xs font-medium rounded border border-primary text-primary hover:bg-primary-10">{action.label}</button>)}</div>}
-            {item.source === 'fallback' && <p className="text-[11px] text-amber-600">{t('ai_provider_offline', lang)}</p>}
+            {item.source === 'fallback' && !String(item.text || '').trim() && <p className="text-[11px] text-amber-600">{t('ai_provider_offline', lang)}</p>}
             {item.toolsDenied?.length > 0 && <p className="text-[11px] text-amber-600">{t('ai_access_limited', lang)}</p>}
           </div>
         )}
@@ -77,15 +77,21 @@ export default function BizTrackAI() {
         message: clean,
         conversationId: activeId,
         onEvent: (event) => {
-          if (event.type === 'figures') patch((last) => ({ ...last, text: event.answer || last.text, sources: event.sources || [], actions: event.actions || [], provisional: true }));
-          if (event.type === 'delta') patch((last) => ({ ...last, text: last.provisional ? event.text : `${last.text || ''}${event.text}`, provisional: false }));
+          if (event.type === 'figures') patch((last) => ({ ...last, figures: event.answer || '', text: event.answer || last.text, sources: event.sources || [], actions: event.actions || [], provisional: true }));
+          if (event.type === 'delta') patch((last) => {
+            const piece = event.text || '';
+            if (!last.provisional) return { ...last, text: `${last.text || ''}${piece}`, provisional: false };
+            const lead = last.figures || last.text || '';
+            const text = !piece || !lead || piece.startsWith(lead) || lead.startsWith(piece) ? (piece || lead) : `${lead}\n\n${piece}`;
+            return { ...last, text, provisional: false };
+          });
         },
       });
       if (done) apply(done);
       loadList();
     } catch (err) {
       try { apply(await aiService.ask({ message: clean, conversationId: activeId })); loadList(); }
-      catch (again) { patch((last) => ({ ...last, text: again.message || err.message || t('ai_chat_failed', lang), provisional: false })); }
+      catch (again) { patch((last) => ({ ...last, text: last.figures || last.text || again.message || err.message || t('ai_chat_failed', lang), source: last.figures ? 'fallback' : last.source, provisional: false })); }
     } finally { setSending(false); }
   }, [activeId, sending, loadList, lang]);
   const openAction = (action) => {

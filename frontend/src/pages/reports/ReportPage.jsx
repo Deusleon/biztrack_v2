@@ -10,6 +10,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { usePersistedState } from '../../hooks/usePersistedState';
+import { useDefaultReportRange } from '../../hooks/useDefaultReportRange';
 import { reportService, categoryService } from '../../services/api';
 import { DataTable, Input, Select, DatePicker } from '../../components/ui';
 import { useAllProducts } from '../purchases/common';
@@ -47,13 +48,17 @@ export default function ReportPage({ group }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const seq = useRef(0);
-  const setF = (k, v) => { setFilters((f) => ({ ...f, [k]: v })); setPage(1); };
+  const { ready, touch } = useDefaultReportRange(filters, setFilters);
+  const setF = (k, v) => { if (k === 'startDate' || k === 'endDate') touch(); setFilters((f) => ({ ...f, [k]: v })); setPage(1); };
 
   useEffect(() => { if (report?.filters.includes('categoryId')) categoryService.getAll({ limit: 500 }).then((r) => setCats(r.data)).catch(() => {}); }, [report?.id, currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // run the report whenever the report, the filters or the store change (a moment after the last keystroke)
   useEffect(() => {
-    if (!report) return undefined;
+    if (!report || (report.dates && !ready)) {
+      if (report?.dates && !ready) setState((s) => (s.loading ? s : { ...s, loading: true }));
+      return undefined;
+    }
     const path = report.paths ? (report.paths.find(([, p]) => can(p)) || report.paths[0])[0] : report.path;
     const params = {};
     if (report.dates) { params.startDate = filters.startDate; params.endDate = filters.endDate; }
@@ -64,7 +69,7 @@ export default function ReportPage({ group }) {
       catch (err) { if (mine === seq.current) { setState({ loading: false, data: [], summary: null }); showError(err.message); } }
     }, 250);
     return () => clearTimeout(timer);
-  }, [report?.id, filters, currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [report?.id, filters, currentStore?.id, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The columns, headings and totals of this report as the original BizTrack laid them out (layouts.js); a report without a
   // layout shows every column the server sends. Columns the server did not send are skipped rather than shown empty.
@@ -123,7 +128,7 @@ export default function ReportPage({ group }) {
         <div className="bg-white p-4 rounded shadow space-y-3">
           {report.dates && (
             <div className="flex flex-wrap gap-2 items-end">
-              {Object.keys(PRESETS).map((p) => <button key={p} type="button" className="px-2.5 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-50" onClick={() => { const [a, b] = PRESETS[p](); setFilters((f) => ({ ...f, startDate: a, endDate: b })); setPage(1); }}>{t(p, lang)}</button>)}
+              {Object.keys(PRESETS).map((p) => <button key={p} type="button" className="px-2.5 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-50" onClick={() => { touch(); const [a, b] = PRESETS[p](); setFilters((f) => ({ ...f, startDate: a, endDate: b })); setPage(1); }}>{t(p, lang)}</button>)}
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

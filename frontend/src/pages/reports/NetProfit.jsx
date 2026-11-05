@@ -10,6 +10,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { reportService } from '../../services/api';
 import { DatePicker, Loader } from '../../components/ui';
 import { PRESETS } from './ReportPage';
+import { useDefaultReportRange } from '../../hooks/useDefaultReportRange';
 import { formatValue, labelOf } from './format';
 import { t } from '../../utils/i18n';
 
@@ -21,12 +22,14 @@ export default function NetProfit() {
   const { currentStore } = useStore();
   const { settings } = useStoreSettings();
   const [range, setRange] = useState(() => { const [a, b] = PRESETS.this_month(); return { startDate: a, endDate: b }; });
+  const { ready, touch } = useDefaultReportRange(range, setRange);
   const [state, setState] = useState({ loading: true, s: null });
   useEffect(() => {
+    if (!ready) return undefined;
     let live = true; setState((x) => ({ ...x, loading: true }));
     reportService.get('/net-profit', range).then((r) => { if (live) setState({ loading: false, s: r.summary }); }).catch((err) => { if (live) { setState({ loading: false, s: null }); showError(err.message); } });
     return () => { live = false; };
-  }, [range, currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [range, currentStore?.id, ready]); // eslint-disable-line react-hooks/exhaustive-deps
   const s = state.s; const fmt = (k, v) => formatValue(k, v, { settings, lang });
   const lines = s ? [['total_revenue', s.total_revenue], ['total_cost_of_goods_sold', -s.total_cost_of_goods_sold], ['gross_profit', s.gross_profit, true], ['total_expenses', -s.total_expenses], ['net_profit', s.net_profit, true]] : [];
   const exportRows = s ? [
@@ -40,8 +43,8 @@ export default function NetProfit() {
     <MainLayout>
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3"><div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('net_profit_reports', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('net_profit_report_description', lang)}</p></div><div className="flex items-center gap-2">{can('export_reports_pdf') && <ExportMenu rows={exportRows} columns={[{ key: 'item', title: 'description' }, { key: 'amount', title: 'amount' }]} title="net_profit_report" fromDate={range.startDate} toDate={range.endDate} disabled={state.loading || exportRows.length === 0} />}</div></div>
-        <div className="bg-white p-4 rounded shadow space-y-3"><div className="flex flex-wrap gap-2">{Object.keys(PRESETS).map((p) => <button key={p} type="button" className="px-2.5 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-50" onClick={() => { const [a, b] = PRESETS[p](); setRange({ startDate: a, endDate: b }); }}>{t(p, lang)}</button>)}</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"><DatePicker label={t('start_date', lang)} value={range.startDate} onChange={(e) => setRange((r) => ({ ...r, startDate: e.target.value }))} /><DatePicker label={t('end_date', lang)} align="right" value={range.endDate} onChange={(e) => setRange((r) => ({ ...r, endDate: e.target.value }))} /></div></div>
+        <div className="bg-white p-4 rounded shadow space-y-3"><div className="flex flex-wrap gap-2">{Object.keys(PRESETS).map((p) => <button key={p} type="button" className="px-2.5 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-50" onClick={() => { touch(); const [a, b] = PRESETS[p](); setRange({ startDate: a, endDate: b }); }}>{t(p, lang)}</button>)}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"><DatePicker label={t('start_date', lang)} value={range.startDate} onChange={(e) => { touch(); setRange((r) => ({ ...r, startDate: e.target.value })); }} /><DatePicker label={t('end_date', lang)} align="right" value={range.endDate} onChange={(e) => { touch(); setRange((r) => ({ ...r, endDate: e.target.value })); }} /></div></div>
         {state.loading && <Loader />}
         {s && (<>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

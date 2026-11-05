@@ -45,18 +45,18 @@ const ICONS = {
   close: 'M6 6l12 12M18 6L6 18',
 };
 const Section = ({ icon, tone, title, count, children }) => (
-  <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+  <section className="rounded border border-slate-200 bg-white overflow-hidden">
     <header className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-50 border-b border-slate-100">
-      <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg ${tone}`}><Icon d={ICONS[icon]} className="w-4 h-4" /></span>
+      <span className={`inline-flex items-center justify-center w-7 h-7 rounded ${tone}`}><Icon d={ICONS[icon]} className="w-4 h-4" /></span>
       <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
-      {count != null && <span className="ml-auto text-xs font-medium text-slate-500 bg-white border border-slate-200 rounded-full px-2 py-0.5">{count}</span>}
+      {count != null && <span className="ml-auto text-xs font-medium text-slate-500 bg-white border border-slate-200 rounded px-2 py-0.5">{count}</span>}
     </header>
     {children}
   </section>
 );
 const Kpi = ({ icon, tone, label, value, hint }) => (
-  <div className="rounded-xl border border-slate-200 bg-white p-3.5 flex items-start gap-3 min-w-0">
-    <span className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl ${tone}`}><Icon d={ICONS[icon]} /></span>
+  <div className="rounded border border-slate-200 bg-white p-3.5 flex items-start gap-3 min-w-0">
+    <span className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded ${tone}`}><Icon d={ICONS[icon]} /></span>
     <div className="min-w-0">
       <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
       <p className="text-lg sm:text-xl font-bold text-slate-900 leading-tight mt-0.5 break-words">{value}</p>
@@ -161,11 +161,11 @@ export default function DailyBriefModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-[2px] sm:p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) cancel(); }}>
-      <div className="bg-slate-50 w-full sm:max-w-xl max-h-[94vh] sm:max-h-[88vh] flex flex-col rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden text-left" role="dialog" aria-modal="true" aria-labelledby="daily-brief-title">
+      <div className="bg-slate-50 w-full sm:max-w-xl max-h-[94vh] sm:max-h-[88vh] flex flex-col rounded shadow-2xl overflow-hidden text-left" role="dialog" aria-modal="true" aria-labelledby="daily-brief-title">
         <div className="relative px-5 pt-5 pb-6 text-white shrink-0" style={{ background: 'linear-gradient(135deg, var(--color-primary, #1e3a5f) 0%, #0f172a 100%)' }}>
-          <button type="button" onClick={cancel} aria-label={t('ai_brief_cancel', lang)} className="absolute top-3 right-3 w-8 h-8 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"><Icon d={ICONS.close} className="w-4 h-4" /></button>
+          <button type="button" onClick={cancel} aria-label={t('ai_brief_cancel', lang)} className="absolute top-3 right-3 w-8 h-8 inline-flex items-center justify-center rounded bg-white/10 hover:bg-white/20 transition-colors"><Icon d={ICONS.close} className="w-4 h-4" /></button>
           <div className="flex items-center gap-3 pr-10">
-            <span className="shrink-0 inline-flex items-center justify-center w-11 h-11 rounded-xl bg-white/15 ring-1 ring-white/20"><Icon d={ICONS.sun} className="w-6 h-6" /></span>
+            <span className="shrink-0 inline-flex items-center justify-center w-11 h-11 rounded bg-white/15 ring-1 ring-white/20"><Icon d={ICONS.sun} className="w-6 h-6" /></span>
             <div className="min-w-0">
               <p className="text-[11px] uppercase tracking-[0.18em] text-white/70">{t('ai_daily_brief', lang)}</p>
               <h2 id="daily-brief-title" className="text-lg sm:text-xl font-semibold leading-snug truncate">{prettyDate || t('ai_daily_brief', lang)}</h2>
@@ -183,8 +183,8 @@ export default function DailyBriefModal() {
           )}
 
           {brief.action?.label && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 flex items-center gap-3 flex-wrap sm:flex-nowrap">
-              <span className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-amber-100 text-amber-700"><Icon d={ICONS.bolt} className="w-5 h-5" /></span>
+            <div className="rounded border border-amber-200 bg-amber-50 p-3.5 flex items-center gap-3 flex-wrap sm:flex-nowrap">
+              <span className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded bg-amber-100 text-amber-700"><Icon d={ICONS.bolt} className="w-5 h-5" /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">{t('ui_brief_do_today', lang)}</p>
                 <p className="text-sm text-slate-800 break-words">{brief.action.label}</p>
@@ -199,7 +199,7 @@ export default function DailyBriefModal() {
                 {low.map((row) => (
                   <li key={row.id || row.name} className="px-4 py-2.5 flex items-center justify-between gap-3 text-sm">
                     <span className="text-slate-800 min-w-0 break-words">{row.name}</span>
-                    <span className="shrink-0 rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold">{formatQuantity(row.quantity)}</span>
+                    <span className="shrink-0 rounded bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold">{formatQuantity(row.quantity)}</span>
                   </li>
                 ))}
               </ul>
@@ -211,7 +211,7 @@ export default function DailyBriefModal() {
               <ul className="divide-y divide-slate-100">
                 {debts.map((row) => (
                   <li key={row.name} className="px-4 py-2.5 flex items-center gap-3 text-sm">
-                    <span className="shrink-0 w-8 h-8 rounded-full bg-slate-100 text-slate-600 inline-flex items-center justify-center text-xs font-bold">{initial(row.name)}</span>
+                    <span className="shrink-0 w-8 h-8 rounded bg-slate-100 text-slate-600 inline-flex items-center justify-center text-xs font-bold">{initial(row.name)}</span>
                     <span className="text-slate-800 min-w-0 flex-1 break-words">{row.name}</span>
                     <span className="font-semibold text-slate-900 shrink-0">{money(row.balance)}</span>
                   </li>
@@ -229,14 +229,14 @@ export default function DailyBriefModal() {
           {slow.length > 0 && (
             <Section icon="clock" tone="bg-slate-100 text-slate-600" title={t('brief_not_selling', lang)} count={slow.length}>
               <div className="px-4 py-3 flex flex-wrap gap-1.5">
-                {slow.map((name) => <span key={name} className="rounded-full bg-slate-100 text-slate-700 px-2.5 py-1 text-xs">{name}</span>)}
+                {slow.map((name) => <span key={name} className="rounded bg-slate-100 text-slate-700 px-2.5 py-1 text-xs">{name}</span>)}
               </div>
             </Section>
           )}
 
           {nothing && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 flex items-start gap-3">
-              <span className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600"><Icon d={ICONS.check} className="w-5 h-5" /></span>
+            <div className="rounded border border-slate-200 bg-white p-4 flex items-start gap-3">
+              <span className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded bg-emerald-50 text-emerald-600"><Icon d={ICONS.check} className="w-5 h-5" /></span>
               <p className="text-sm text-slate-700 leading-6 whitespace-pre-wrap">{brief.text}</p>
             </div>
           )}
