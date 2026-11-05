@@ -122,7 +122,7 @@ async function runNativeFunctionCalling({ registry, permissions, storeId, userId
     }
   }
 
-  if (!finalText) throw new Error('Native function calling completed without a final answer');
+  if (!finalText && !toolsExecuted.length) throw new Error('Native function calling completed without a final answer');
 
   return {
     supported: true,

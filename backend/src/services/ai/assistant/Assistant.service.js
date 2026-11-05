@@ -25,6 +25,17 @@ function deniedAnswer(lang, denied) {
     : `You do not have permission to access the data required for this question (${names}). Ask an administrator to assign the relevant permission.`;
 }
 
+function answerWithFigures(answer, figures) {
+  const text = String(answer || '').trim();
+  const lead = String(figures || '').trim();
+  const empty = !lead || lead.startsWith('There are no verified') || lead.startsWith('Hakuna tarakimu');
+  if (empty) return text;
+  if (!text) return lead;
+  const first = lead.split('\n').map((line) => line.trim()).find(Boolean) || '';
+  if (first && text.includes(first)) return text;
+  return `${lead}\n\n${text}`;
+}
+
 function present(lang, tools, results, format) {
   return {
     figures: figuresAnswer(lang, results, format),
@@ -115,7 +126,9 @@ async function runControlledRouting({ storeId, userId, message, lang, conversati
     provider = generated.text ? generated.provider : 'fallback';
     model = generated.model || status.model;
     providerError = generated.error || null;
-    answer = plainText(generated.text) || fallbackAnswer(lang, results, format);
+    answer = generated.text
+      ? answerWithFigures(plainText(generated.text), shown.figures)
+      : fallbackAnswer(lang, results, format);
   }
 
   return {
@@ -197,13 +210,17 @@ async function askAssistant({ storeId, userId, message, lang, conversationId, on
           },
         });
 
-        if (native.supported) {
+        const expectedTools = intent.tools || [];
+        const ranTools = native.toolsExecuted || [];
+        const missedTools = expectedTools.length > 0 && ranTools.length === 0;
+        if (native.supported && !missedTools) {
           const hasToolProblems = native.toolsDenied.length > 0 || native.toolErrors.length > 0;
           const shown = present(lang, native.toolsExecuted, native.toolResults, format);
           emitFigures(shown, native.toolsExecuted);
+          const modelText = plainText(native.answer);
           result = {
-            answer: plainText(native.answer),
-            source: 'ai',
+            answer: modelText ? answerWithFigures(modelText, shown.figures) : fallbackAnswer(lang, native.toolResults, format),
+            source: modelText ? 'ai' : 'fallback',
             provider: native.provider,
             model: native.model,
             providerError: null,
@@ -219,6 +236,9 @@ async function askAssistant({ storeId, userId, message, lang, conversationId, on
             usage: native.usage,
             ...shown,
           };
+        } else if (missedTools && native.supported) {
+          figuresSent = false;
+          nativeError = 'Native function calling did not read the store records for this question';
         }
       } catch (error) {
         nativeError = error.message;
