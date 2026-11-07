@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import { t } from "@/utils/i18n";
 import { formatDateLocalized } from "@/utils/formatDateLocalized";
 import { formatNumberWithCommas } from "@/utils/numberUtils";
+import { pdfDesignId, withTableTheme, paintBandHeader, paintBandFooter, tint, themePrimary } from "./pdfDesign";
 
 /**
  * Paper size configurations for delivery notes.
@@ -68,9 +69,8 @@ const getPrimaryColorRGB = () => {
   try {
     if (typeof window === "undefined") return FALLBACK_PRIMARY;
 
-    const primaryColor = getComputedStyle(document.documentElement)
-      .getPropertyValue("--primary")
-      .trim();
+    const rootStyle = getComputedStyle(document.documentElement);
+    const primaryColor = (rootStyle.getPropertyValue("--color-primary") || rootStyle.getPropertyValue("--primary")).trim();
 
     if (!primaryColor) return FALLBACK_PRIMARY;
 
@@ -230,18 +230,55 @@ function renderThermal(pageHeight, data, p) {
     }
   }
 
-  if (businessInfo.name) {
-    centerText(businessInfo.name, p.headerSize, "bold");
-    y += 0.3;
+  const design = pdfDesignId(settings);
+  const brand = themePrimary();
+  const noteTitle = t("delivery_note").toUpperCase();
+  const printBusiness = () => {
+    if (businessInfo.name) {
+      centerText(businessInfo.name, p.headerSize, "bold");
+      y += 0.3;
+    }
+    if (businessInfo.address) centerText(businessInfo.address, p.infoSize);
+    if (businessInfo.phone) centerText(`${t("phone")}: ${businessInfo.phone}`, p.infoSize);
+  };
+  if (design === "2") {
+    doc.setTextColor(...brand);
+    centerText(noteTitle, p.subHeaderSize, "bold");
+    doc.setTextColor(0, 0, 0);
+    y += 0.4;
+    doc.setDrawColor(...brand);
+    doc.setLineWidth(0.45);
+    doc.line(M, y, W - M, y);
+    y += 1.2;
+    printBusiness();
+    y += 0.5;
+    solidLine(0.2);
+    gap(p.sectionGap);
+  } else if (design === "3") {
+    doc.setFontSize(p.subHeaderSize);
+    const typeLines = doc.splitTextToSize(noteTitle, CW);
+    const lh = p.subHeaderSize * 0.38;
+    const bandH = typeLines.length * (lh + p.lineGap * 0.3) + 1.8;
+    const bandTop = y;
+    doc.setFillColor(...brand);
+    doc.rect(0, bandTop, W, bandH, "F");
+    y = bandTop + 0.7;
+    doc.setTextColor(255, 255, 255);
+    centerText(noteTitle, p.subHeaderSize, "bold");
+    doc.setTextColor(0, 0, 0);
+    y = bandTop + bandH + 1.2;
+    printBusiness();
+    y += 0.5;
+    solidLine(0.2);
+    gap(p.sectionGap);
+  } else {
+    printBusiness();
+    y += 0.5;
+    centerText(noteTitle, p.subHeaderSize, "bold");
+    y += 0.5;
+    solidLine(0.2);
+    gap(p.sectionGap);
   }
-  if (businessInfo.address) centerText(businessInfo.address, p.infoSize);
-  if (businessInfo.phone) centerText(`${t("phone")}: ${businessInfo.phone}`, p.infoSize);
-
-  y += 0.5;
-  centerText(t("delivery_note").toUpperCase(), p.subHeaderSize, "bold");
-  y += 0.5;
-  solidLine(0.2);
-  gap(p.sectionGap);
 
   const ref = getDeliveryRef(orderInfo);
   const deliveryDate =
@@ -342,6 +379,7 @@ function generateDocumentDeliveryNote(data, size) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const primary = getPrimaryColorRGB();
+  const design = pdfDesignId(settings);
 
   const M = p.margin;
   const CONTENT_W = pageWidth - M * 2;
@@ -371,7 +409,29 @@ function generateDocumentDeliveryNote(data, size) {
     author: businessName,
   });
 
+  let headerBottom = p.headerHeight;
   const addTopHeader = () => {
+    if (design !== "1") {
+      headerBottom = paintBandHeader(doc, design, {
+        pageWidth,
+        margin: M,
+        primary,
+        kicker: t("goods_delivery") || "Delivery",
+        title: t("delivery_note"),
+        businessName: safeText(businessName),
+        contactLines: [
+          businessInfo.address,
+          businessInfo.phone ? `${t("phone")}: ${businessInfo.phone}` : null,
+          businessInfo.email ? `${t("email_address")}: ${businessInfo.email}` : null,
+        ].filter(Boolean),
+        facts: [
+          { label: t("reference"), value: safeText(ref, "-") },
+          { label: t("date"), value: fmtDate(deliveryDate) },
+          { label: t("generated_on"), value: fmtDate(new Date()) },
+        ].filter((fact) => fact.value && fact.value !== "-"),
+      });
+      return;
+    }
     const headerH = p.headerHeight;
     doc.setFillColor(...primary);
     doc.rect(0, 0, pageWidth, headerH, "F");
@@ -425,6 +485,18 @@ function generateDocumentDeliveryNote(data, size) {
   };
 
   const addFooter = (pageNumber, totalPages) => {
+    if (design !== "1") {
+      paintBandFooter(doc, design, {
+        pageWidth,
+        pageHeight,
+        margin: M,
+        primary,
+        left: businessName,
+        center: t("powered_by") || "Powered By BizTrack Software",
+        right: `${t("page")} ${pageNumber} / ${totalPages}`,
+      });
+      return;
+    }
     const footerY = pageHeight - 12;
     doc.setDrawColor(...BORDER_COLOR);
     doc.setLineWidth(0.3);
@@ -457,17 +529,39 @@ function generateDocumentDeliveryNote(data, size) {
   };
 
   const drawInfoCard = (x, cardY, w, h, title, rows) => {
-    doc.setFillColor(...SOFT_BG);
-    doc.setDrawColor(...BORDER_COLOR);
-    doc.setLineWidth(0.35);
-    roundedRect(doc, x, cardY, w, h, 1, 1, "FD");
-
-    doc.setFillColor(243, 244, 246);
-    doc.rect(x, cardY, w, 8, "F");
-    doc.setFont(undefined, "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(...LABEL_COLOR);
-    doc.text(title.toUpperCase(), x + 4, cardY + 5.4);
+    if (design === "2") {
+      doc.setDrawColor(...primary);
+      doc.setLineWidth(0.7);
+      doc.line(x, cardY, x, cardY + h);
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...primary);
+      doc.text(title, x + 4, cardY + 4.5);
+      doc.setLineWidth(0.3);
+      doc.line(x + 4, cardY + 6.2, x + 4 + Math.min(doc.getTextWidth(title) + 1, w - 10), cardY + 6.2);
+    } else if (design === "3") {
+      doc.setFillColor(...tint(primary, 0.93));
+      doc.rect(x, cardY, w, h, "F");
+      const label = title.toUpperCase();
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(7);
+      const pillW = Math.min(doc.getTextWidth(label) + 6, w - 8);
+      doc.setFillColor(...primary);
+      doc.roundedRect(x + 3, cardY + 2, pillW, 4.8, 1, 1, "F");
+      doc.setTextColor(...WHITE);
+      doc.text(label, x + 6, cardY + 5.3);
+    } else {
+      doc.setFillColor(...SOFT_BG);
+      doc.setDrawColor(...BORDER_COLOR);
+      doc.setLineWidth(0.35);
+      roundedRect(doc, x, cardY, w, h, 1, 1, "FD");
+      doc.setFillColor(243, 244, 246);
+      doc.rect(x, cardY, w, 8, "F");
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...LABEL_COLOR);
+      doc.text(title.toUpperCase(), x + 4, cardY + 5.4);
+    }
 
     let rowY = cardY + 13;
     const labelX = x + 4;
@@ -499,18 +593,20 @@ function generateDocumentDeliveryNote(data, size) {
 
   addTopHeader();
 
-  let y = p.headerHeight + 9;
+  let y = design === "1" ? p.headerHeight + 9 : headerBottom + 8;
 
-  doc.setFont(undefined, "bold");
-  doc.setFontSize(p.titleSize);
-  doc.setTextColor(...VALUE_COLOR);
-  doc.text(t("delivery_note").toUpperCase(), M, y);
+  if (design === "1") {
+    doc.setFont(undefined, "bold");
+    doc.setFontSize(p.titleSize);
+    doc.setTextColor(...VALUE_COLOR);
+    doc.text(t("delivery_note").toUpperCase(), M, y);
+  }
 
   // Document purpose badge
   const badgeText = (t("goods_delivery") || "GOODS DELIVERY").toUpperCase();
   const badgeW = Math.max(34, doc.getTextWidth(badgeText) + 10);
   const badgeX = pageWidth - M - badgeW;
-  doc.setFillColor(239, 246, 255);
+  doc.setFillColor(...(design === "1" ? [239, 246, 255] : tint(primary, 0.9)));
   doc.setDrawColor(...primary);
   roundedRect(doc, badgeX, y - 5, badgeW, 7, 3, 3, "FD");
   doc.setFont(undefined, "bold");
@@ -562,7 +658,7 @@ function generateDocumentDeliveryNote(data, size) {
   doc.text(t("items").toUpperCase(), M, y);
   y += 3;
 
-  autoTable(doc, {
+  autoTable(doc, withTableTheme({
     startY: y,
     columns: [
       { header: "#", dataKey: "no" },
@@ -614,7 +710,7 @@ function generateDocumentDeliveryNote(data, size) {
         hookData.cell.styles.fontStyle = "bold";
       }
     },
-  });
+  }, design, primary));
 
   y = (doc.lastAutoTable?.finalY || y) + 8;
 

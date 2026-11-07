@@ -4,6 +4,7 @@ import { t } from "@/utils/i18n";
 import { formatDateLocalized } from "@/utils/formatDateLocalized";
 import { formatCurrency } from "@/utils/numberUtils";
 import { buildReceiptVerifyUrl, generateReceiptQrDataUrl } from "./receiptVerify";
+import { pdfDesignId, themePrimary } from "./pdfDesign";
 
 /**
  * Paper size configurations (all in mm).
@@ -146,14 +147,96 @@ function renderDocumentReceipt(data, receiptSize) {
   const smallFs = isA4 ? 9 : 8;
   const titleFs = isA4 ? 14 : 12;
 
-  // Primary color (approximate var(--primary) — use a blue)
-  const PRIMARY = [59, 130, 246]; // blue-500
+  // The invoice title and rules follow the theme chosen in Appearance.
+  const design = pdfDesignId(settings);
+  const PRIMARY = themePrimary();
   const RED = [239, 68, 68]; // red-500
 
-  // ── BUSINESS HEADER (two columns) ───────────────────────
-  const _headerLeftX = M;
+  // ── BUSINESS HEADER ─────────────────────────────────────
   const headerRightX = W - M;
   const headerStartY = y;
+  const invoiceLabel =
+    parseFloat(String(paymentInfo.amountDue || "0").replace(/,/g, "")) > 0
+      ? t("credit_invoice") || "CREDIT INVOICE"
+      : t("sales_invoice") || "SALES INVOICE";
+
+  if (design === "2") {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(isA4 ? 8 : 7);
+    doc.setTextColor(...PRIMARY);
+    doc.text(String(invoiceLabel).toUpperCase(), M, y + 3);
+    doc.setFontSize(isA4 ? 16 : 13);
+    doc.setTextColor(15, 23, 42);
+    doc.text(orderInfo.invoice_number || "N/A", M, y + (isA4 ? 10 : 8.5));
+    const boxW = isA4 ? 62 : 52;
+    const boxX = W - M - boxW;
+    doc.setDrawColor(...PRIMARY);
+    doc.setLineWidth(0.4);
+    doc.rect(boxX, y, boxW, isA4 ? 16 : 13);
+    doc.setFontSize(smallFs);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...PRIMARY);
+    doc.text(businessInfo.name || "", boxX + 2, y + 4.5);
+    doc.setTextColor(71, 85, 105);
+    const byline = [businessInfo.phone ? `Tel: ${businessInfo.phone}` : "", businessInfo.address || ""].filter(Boolean).join(" · ");
+    const bylineLines = doc.splitTextToSize(byline, boxW - 4).slice(0, 2);
+    doc.text(bylineLines, boxX + 2, y + 8.5);
+    y += (isA4 ? 20 : 17);
+    doc.setFontSize(smallFs);
+    doc.setTextColor(0, 0, 0);
+    const meta = [
+      orderInfo?.sales_date ? `${t("sales_date") || "Sales Date"}: ${formatDateLocalized(orderInfo.sales_date, settings)}` : "",
+      `${t("printed_on") || "Printed on"}: ${formattedDate}`,
+      orderInfo.cashierName ? `${t("issued_by") || "Issued by"}: ${orderInfo.cashierName}` : "",
+    ].filter(Boolean).join("    ");
+    doc.text(doc.splitTextToSize(meta, CW).slice(0, 2), M, y);
+    y += 5;
+    doc.setDrawColor(...PRIMARY);
+    doc.setLineWidth(0.45);
+    doc.line(M, y, W - M, y);
+    y += 4;
+  } else if (design === "3") {
+    const panelW = isA4 ? 68 : 58;
+    const panelX = W - M - panelW;
+    const panelH = isA4 ? 36 : 32;
+    doc.setFillColor(...PRIMARY);
+    doc.rect(panelX, y, panelW, panelH, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(isA4 ? 8 : 7);
+    doc.text(String(invoiceLabel).toUpperCase(), panelX + 4, y + 6);
+    doc.setFontSize(isA4 ? 12 : 10);
+    const numberLines = doc.splitTextToSize(orderInfo.invoice_number || "N/A", panelW - 8).slice(0, 2);
+    doc.text(numberLines, panelX + 4, y + 12);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(smallFs);
+    let panelY = y + 12 + numberLines.length * 4.2;
+    if (orderInfo?.sales_date) {
+      doc.text(formatDateLocalized(orderInfo.sales_date, settings), panelX + 4, panelY);
+      panelY += 4;
+    }
+    doc.text(formattedDate, panelX + 4, panelY);
+
+    doc.setTextColor(...PRIMARY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(headFs);
+    let leftY3 = y + headFs * 0.4;
+    if (businessInfo.name) {
+      doc.text(businessInfo.name, M, leftY3);
+      leftY3 += 5;
+    }
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(smallFs);
+    doc.setTextColor(71, 85, 105);
+    [businessInfo.address, businessInfo.phone ? `Tel: ${businessInfo.phone}` : "", businessInfo.email || "", [businessInfo.tin && `TIN: ${businessInfo.tin}`, businessInfo.VRN && `VRN: ${businessInfo.VRN}`].filter(Boolean).join(" | ")]
+      .filter(Boolean)
+      .slice(0, 4)
+      .forEach((line) => {
+        doc.text(doc.splitTextToSize(String(line), panelX - M - 4).slice(0, 1), M, leftY3);
+        leftY3 += 4;
+      });
+    y = Math.max(y + panelH, leftY3) + 4;
+  } else {
 
   // LEFT side: Logo + business details
   let leftY = y;
@@ -205,11 +288,6 @@ function renderDocumentReceipt(data, receiptSize) {
   // RIGHT side: Invoice type + details (right-aligned)
   let rightY = headerStartY;
 
-  // Invoice type label
-  const invoiceLabel =
-    parseFloat(String(paymentInfo.amountDue || "0").replace(/,/g, "")) > 0
-      ? t("credit_invoice") || "CREDIT INVOICE"
-      : t("sales_invoice") || "SALES INVOICE";
   doc.setFontSize(titleFs);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...PRIMARY);
@@ -257,6 +335,7 @@ function renderDocumentReceipt(data, receiptSize) {
   doc.setLineWidth(0.3);
   doc.line(M, y, W - M, y);
   y += 3;
+  }
 
   // ── CUSTOMER + PAYMENT INFO (two columns) ────────────────
   const colLeftX = M;
@@ -615,52 +694,72 @@ function renderReceipt(pageHeight, data, receiptSize) {
     }
   }
 
-  // Business name — text-base / text-sm, font-bold
-  if (businessInfo.name) {
-    centerText(businessInfo.name, p.headerSize, "bold");
-    y += 0.3;
-  }
-
-  // Address — text-xs
-  if (businessInfo.address) {
-    centerText(businessInfo.address, p.infoSize);
-  }
-
-  // Email | Website — text-xs
-  if (businessInfo.email || businessInfo.website) {
-    const emailWeb = [];
-    if (businessInfo.website) emailWeb.push(`Website: ${businessInfo.website}`);
-    if (businessInfo.email) emailWeb.push(`Email: ${businessInfo.email}`);
-    const sep = receiptSize === "58mm" ? " \n " : " \n ";
-    centerText(emailWeb.join(sep), p.infoSize);
-  }
-
-  // Phone — text-xs
-  if (businessInfo.phone) {
-    centerText(`Tel: ${businessInfo.phone}`, p.infoSize);
-  }
-
-  // TIN | VRN — text-xs, on same line with | separator (80mm) or separate (58mm)
-  if (businessInfo.tin || businessInfo.VRN) {
-    const tinVrn = [];
-    if (businessInfo.tin) tinVrn.push(`TIN: ${businessInfo.tin}`);
-    if (businessInfo.VRN) tinVrn.push(`VRN: ${businessInfo.VRN}`);
-    const sep = receiptSize === "58mm" ? " | " : " | ";
-    centerText(tinVrn.join(sep), p.infoSize);
-  }
-
-  // Receipt type — font-semibold
-  y += 0.5;
+  const design = pdfDesignId(settings);
+  const brand = themePrimary();
   const receiptType =
     parseFloat(String(paymentInfo.amountDue || "0").replace(/,/g, "")) > 0
       ? "CREDIT RECEIPT"
       : "CASH RECEIPT";
-  centerText(receiptType, p.subHeaderSize, "bold");
 
-  // border-b pb-1 → solid line + small gap
-  y += 0.5;
-  solidLine(0.2);
-  gap(p.sectionGap);
+  const printBusiness = () => {
+    if (businessInfo.name) {
+      centerText(businessInfo.name, p.headerSize, "bold");
+      y += 0.3;
+    }
+    if (businessInfo.address) centerText(businessInfo.address, p.infoSize);
+    if (businessInfo.email || businessInfo.website) {
+      const emailWeb = [];
+      if (businessInfo.website) emailWeb.push(`Website: ${businessInfo.website}`);
+      if (businessInfo.email) emailWeb.push(`Email: ${businessInfo.email}`);
+      centerText(emailWeb.join(" \n "), p.infoSize);
+    }
+    if (businessInfo.phone) centerText(`Tel: ${businessInfo.phone}`, p.infoSize);
+    if (businessInfo.tin || businessInfo.VRN) {
+      const tinVrn = [];
+      if (businessInfo.tin) tinVrn.push(`TIN: ${businessInfo.tin}`);
+      if (businessInfo.VRN) tinVrn.push(`VRN: ${businessInfo.VRN}`);
+      centerText(tinVrn.join(" | "), p.infoSize);
+    }
+  };
+
+  if (design === "2") {
+    doc.setTextColor(...brand);
+    centerText(receiptType, p.subHeaderSize, "bold");
+    doc.setTextColor(0, 0, 0);
+    y += 0.4;
+    doc.setDrawColor(...brand);
+    doc.setLineWidth(0.45);
+    doc.line(M, y, W - M, y);
+    y += 1.2;
+    printBusiness();
+    y += 0.5;
+    solidLine(0.2);
+    gap(p.sectionGap);
+  } else if (design === "3") {
+    doc.setFontSize(p.subHeaderSize);
+    const typeLines = doc.splitTextToSize(receiptType, CW);
+    const lh = p.subHeaderSize * 0.38;
+    const bandH = typeLines.length * (lh + p.lineGap * 0.3) + 1.8;
+    const bandTop = y;
+    doc.setFillColor(...brand);
+    doc.rect(0, bandTop, W, bandH, "F");
+    y = bandTop + 0.7;
+    doc.setTextColor(255, 255, 255);
+    centerText(receiptType, p.subHeaderSize, "bold");
+    doc.setTextColor(0, 0, 0);
+    y = bandTop + bandH + 1.2;
+    printBusiness();
+    y += 0.5;
+    solidLine(0.2);
+    gap(p.sectionGap);
+  } else {
+    printBusiness();
+    y += 0.5;
+    centerText(receiptType, p.subHeaderSize, "bold");
+    y += 0.5;
+    solidLine(0.2);
+    gap(p.sectionGap);
+  }
 
   // ── TRANSACTION INFO ────────────────────────────────────
   lrRow("Receipt No:", orderInfo.invoice_number || "N/A", p.bodySize);

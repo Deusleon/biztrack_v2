@@ -291,6 +291,7 @@ export const settingsAdminService = {
   getBranding: async () => (await api.get('/settings/branding')).branding || {},
   uploadBranding: (assetType, file) => { const fd = new FormData(); fd.append('asset_type', assetType); fd.append('file', file); return api.post('/settings/branding/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } }); },
   removeBranding: (assetType) => api.delete(`/settings/branding/${assetType}`),
+  savePdfTheme: (primary) => api.put('/settings/pdf-theme', { primary }),
 };
 
 // ─── system tools and backups ───────────────────────────────────────────────────────────────────────

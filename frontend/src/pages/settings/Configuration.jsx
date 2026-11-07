@@ -58,13 +58,23 @@ export default function Configuration() {
           options: [{ label: 'Beem Africa', value: 'beem_africa' }, { label: 'NextSMS', value: 'next_sms' }, { label: 'Meseji', value: 'meseji' }, { label: 'SwalaSMS', value: 'swala_sms' }],
         });
       }
+      if (isDeveloper && primary && !fields.some((f) => f.key === 'defaultPdfDesign')) {
+        fields.push({
+          key: 'defaultPdfDesign', type: 'select', label: 'pdf_design',
+          options: [
+            { label: 'pdf_design_1', value: '1' },
+            { label: 'pdf_design_2', value: '2' },
+            { label: 'pdf_design_3', value: '3' },
+          ],
+        });
+      }
       out.push({ ...loc, fields, group: 'ops' });
     }
     const op = find(st, 'operations'); if (op && can('view_system_operations')) out.push({ ...op, group: 'ops' });
     return out;
   }, [data, can, isDeveloper, primary]);
 
-  const isSystemKey = (k) => ['defaultStore', 'multiStoreSupport', 'interStoreTransfer', 'defaultSmsGateway'].includes(k);
+  const isSystemKey = (k) => ['defaultStore', 'multiStoreSupport', 'interStoreTransfer', 'defaultSmsGateway', 'defaultPdfDesign'].includes(k);
   const read = (group, k) => (group === 'business' ? values.business[k] : isSystemKey(k) ? values.sys[k] : values.ops[k]);
   const write = (group, k, v) => setValues((x) => (group === 'business' ? { ...x, business: { ...x.business, [k]: v } } : isSystemKey(k) ? { ...x, sys: { ...x.sys, [k]: v } } : { ...x, ops: { ...x.ops, [k]: v } }));
   const save = async () => {

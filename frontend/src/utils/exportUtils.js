@@ -11,6 +11,7 @@ import { getStoreSettings } from "@/services/SettingsService";
 
 // The cache lives in its own tiny module so Configuration can clear it WITHOUT loading the PDF/Excel libraries.
 import { pdfSettingsCache as cache, clearPdfSettingsCache } from "./pdfSettingsCache";
+import { pdfDesignId, tableTheme, paintBandHeader, paintBandFooter } from "./pdfDesign";
 export { clearPdfSettingsCache };
 
 const hasReadyPdfSettings = (settings) =>
@@ -487,9 +488,8 @@ const getPrimaryColorRGB = () => {
   try {
     if (typeof window === "undefined") return FALLBACK_PRIMARY;
 
-    const primaryColor = getComputedStyle(document.documentElement)
-      .getPropertyValue("--primary")
-      .trim();
+    const rootStyle = getComputedStyle(document.documentElement);
+    const primaryColor = (rootStyle.getPropertyValue("--color-primary") || rootStyle.getPropertyValue("--primary")).trim();
 
     if (!primaryColor) return FALLBACK_PRIMARY;
 
@@ -637,6 +637,8 @@ export const exportToPDF = async (
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const primaryColorRGB = safeRgb(getPrimaryColorRGB(), FALLBACK_PRIMARY);
+    const design = pdfDesignId(resolvedSettings);
+    const theme = tableTheme(design, primaryColorRGB);
     const imageMap = {};
 
     const M = orientation === "landscape" ? 8 : 9;
@@ -667,7 +669,35 @@ export const exportToPDF = async (
     // Load business logo if available
     const logoBase64 = businessInfo?.logo?.preview || businessInfo?.logo || null;
 
+    const contactLines = [
+      getBusinessValue(businessInfo, resolvedSettings, "address"),
+      getBusinessValue(businessInfo, resolvedSettings, "phone")
+        ? `${t("phone")}: ${getBusinessValue(businessInfo, resolvedSettings, "phone")}`
+        : null,
+      getBusinessValue(businessInfo, resolvedSettings, "email")
+        ? `${t("email_address")}: ${getBusinessValue(businessInfo, resolvedSettings, "email")}`
+        : null,
+    ].filter(Boolean);
+
+    let headerEnd = 26;
     const addHeader = () => {
+      if (design !== "1") {
+        headerEnd = paintBandHeader(doc, design, {
+          pageWidth,
+          margin: M,
+          primary: primaryColorRGB,
+          kicker: t("report"),
+          title: reportTitle,
+          businessName: safeText(businessName, "BIZTRACK"),
+          contactLines,
+          facts: [
+            dateRange ? { label: t("period"), value: dateRange } : null,
+            { label: t("store"), value: storeDisplayName },
+            { label: t("generated_on"), value: formatDateLocalized(new Date(), resolvedSettings) },
+          ].filter((fact) => fact && fact.value),
+        });
+        return;
+      }
       const headerH = 26;
       doc.setFillColor(...primaryColorRGB);
       doc.rect(0, 0, pageWidth, headerH, "F");
@@ -695,16 +725,6 @@ export const exportToPDF = async (
       doc.setFont(undefined, "bold");
       doc.setFontSize(14);
       doc.text(safeText(businessName, "BIZTRACK"), headerX, headerY);
-
-      const contactLines = [
-        getBusinessValue(businessInfo, resolvedSettings, "address"),
-        getBusinessValue(businessInfo, resolvedSettings, "phone")
-          ? `${t("phone")}: ${getBusinessValue(businessInfo, resolvedSettings, "phone")}`
-          : null,
-        getBusinessValue(businessInfo, resolvedSettings, "email")
-          ? `${t("email_address")}: ${getBusinessValue(businessInfo, resolvedSettings, "email")}`
-          : null,
-      ].filter(Boolean);
 
       doc.setFont(undefined, "normal");
       doc.setFontSize(9.5);
@@ -744,6 +764,18 @@ export const exportToPDF = async (
     };
 
     const addFooter = (pageNumber, totalPages) => {
+      if (design !== "1") {
+        paintBandFooter(doc, design, {
+          pageWidth,
+          pageHeight,
+          margin: M,
+          primary: primaryColorRGB,
+          left: `${businessName} • ${storeDisplayName}`,
+          center: t("powered_by"),
+          right: `${t("page")} ${pageNumber} / ${totalPages}`,
+        });
+        return;
+      }
       const footerY = pageHeight - 12;
       doc.setDrawColor(...BORDER_COLOR);
       doc.setLineWidth(0.3);
@@ -764,7 +796,7 @@ export const exportToPDF = async (
     // ==================== HEADER SECTION ====================
     addHeader();
 
-    let currentY = 30;
+    let currentY = design === "1" ? 30 : headerEnd + 2;
 
     // ==================== BODY SECTION (TABLE) ====================
     const pdfColumns = columns.map((col) => ({
@@ -868,6 +900,7 @@ export const exportToPDF = async (
         lineColor: [235, 237, 240],
         lineWidth: 0.15,
         valign: "middle",
+        ...(theme?.styles || {}),
       },
       headStyles: {
         fillColor: primaryColorRGB,
@@ -877,12 +910,13 @@ export const exportToPDF = async (
         halign: "left",
         fontSize: orientation === "landscape" ? 8 : 9,
         cellPadding: { top: 1.3, right: 1.4, bottom: 1.3, left: 1.4 },
+        ...(theme?.headStyles || {}),
       },
       bodyStyles: {
         minCellHeight: 5,
       },
       columnStyles: normalizedColumnStyles,
-      alternateRowStyles: {
+      alternateRowStyles: theme?.alternateRowStyles || {
         fillColor: [250, 251, 252],
       },
       margin: { top: 8, right: M, bottom: 16, left: M },
@@ -902,9 +936,9 @@ export const exportToPDF = async (
           dataCell.row.index === grandTotalRowIndex
         ) {
           dataCell.cell.styles.fontStyle = "bold";
-          dataCell.cell.styles.fillColor = [238, 242, 247];
+          dataCell.cell.styles.fillColor = theme?.footFill || [238, 242, 247];
           dataCell.cell.styles.fontSize = orientation === "landscape" ? 8 : 9;
-          dataCell.cell.styles.textColor = VALUE_COLOR;
+          dataCell.cell.styles.textColor = theme?.footText || VALUE_COLOR;
 
           const colKey = dataCell.column.dataKey;
           if (footerTotals[colKey] !== undefined) {

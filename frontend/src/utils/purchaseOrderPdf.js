@@ -4,6 +4,7 @@ import autoTable from "jspdf-autotable";
 import { t } from "./i18n";
 import { formatNumberWithCommas } from "./numberUtils";
 import { formatDateLocalized } from "@/utils/formatDateLocalized";
+import { pdfDesignId, withTableTheme, paintBandHeader, paintBandFooter, tint } from "./pdfDesign";
 
 const FALLBACK_PRIMARY = [30, 58, 95];
 
@@ -11,9 +12,8 @@ const getPrimaryColorRGB = () => {
   try {
     if (typeof window === "undefined") return FALLBACK_PRIMARY;
 
-    const primaryColor = getComputedStyle(document.documentElement)
-      .getPropertyValue("--primary")
-      .trim();
+    const rootStyle = getComputedStyle(document.documentElement);
+    const primaryColor = (rootStyle.getPropertyValue("--color-primary") || rootStyle.getPropertyValue("--primary")).trim();
 
     if (!primaryColor) return FALLBACK_PRIMARY;
 
@@ -121,6 +121,7 @@ export const exportPurchaseOrderToPDF = (order, settings) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const primary = getPrimaryColorRGB();
+  const design = pdfDesignId(settings);
 
   const M = 12;
   const CONTENT_W = pageWidth - M * 2;
@@ -156,7 +157,29 @@ export const exportPurchaseOrderToPDF = (order, settings) => {
     author: businessName,
   });
 
+  let headerBottom = 38;
   const addTopHeader = () => {
+    if (design !== "1") {
+      headerBottom = paintBandHeader(doc, design, {
+        pageWidth,
+        margin: M,
+        primary,
+        kicker: t("purchases"),
+        title: t("purchase_order"),
+        businessName,
+        contactLines: [
+          settings?.address,
+          settings?.phone ? `${t("phone")}: ${settings.phone}` : null,
+          settings?.email ? `${t("email_address")}: ${settings.email}` : null,
+        ].filter(Boolean),
+        facts: [
+          { label: t("po_number"), value: safeText(order?.po_number, "-") },
+          { label: t("order_date"), value: fmtDate(order?.order_date) },
+          { label: t("expected_date"), value: fmtDate(order?.expected_delivery_date) },
+        ].filter((fact) => fact.value && fact.value !== "-"),
+      });
+      return;
+    }
     doc.setFillColor(...primary);
     doc.rect(0, 0, pageWidth, 38, "F");
 
@@ -210,6 +233,18 @@ export const exportPurchaseOrderToPDF = (order, settings) => {
   };
 
   const addFooter = (pageNumber, totalPages) => {
+    if (design !== "1") {
+      paintBandFooter(doc, design, {
+        pageWidth,
+        pageHeight,
+        margin: M,
+        primary,
+        left: businessName,
+        center: t("powered_by"),
+        right: `${t("page")} ${pageNumber} / ${totalPages}`,
+      });
+      return;
+    }
     const footerY = pageHeight - 12;
     doc.setDrawColor(...BORDER_COLOR);
     doc.setLineWidth(0.3);
@@ -245,17 +280,39 @@ export const exportPurchaseOrderToPDF = (order, settings) => {
   };
 
   const drawInfoCard = (x, y, w, h, title, rows) => {
-    doc.setFillColor(...SOFT_BG);
-    doc.setDrawColor(...BORDER_COLOR);
-    doc.setLineWidth(0.35);
-    roundedRect(doc, x, y, w, h, 1, 1, "FD");
-
-    doc.setFillColor(243, 244, 246);
-    doc.rect(x, y, w, 8, "F");
-    doc.setFont(undefined, "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(...LABEL_COLOR);
-    doc.text(title.toUpperCase(), x + 4, y + 5.4);
+    if (design === "2") {
+      doc.setDrawColor(...primary);
+      doc.setLineWidth(0.7);
+      doc.line(x, y, x, y + h);
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...primary);
+      doc.text(title, x + 4, y + 4.5);
+      doc.setLineWidth(0.3);
+      doc.line(x + 4, y + 6.2, x + 4 + Math.min(doc.getTextWidth(title) + 1, w - 10), y + 6.2);
+    } else if (design === "3") {
+      doc.setFillColor(...tint(primary, 0.93));
+      doc.rect(x, y, w, h, "F");
+      const label = title.toUpperCase();
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(7);
+      const pillW = Math.min(doc.getTextWidth(label) + 6, w - 8);
+      doc.setFillColor(...primary);
+      doc.roundedRect(x + 3, y + 2, pillW, 4.8, 1, 1, "F");
+      doc.setTextColor(...WHITE);
+      doc.text(label, x + 6, y + 5.3);
+    } else {
+      doc.setFillColor(...SOFT_BG);
+      doc.setDrawColor(...BORDER_COLOR);
+      doc.setLineWidth(0.35);
+      roundedRect(doc, x, y, w, h, 1, 1, "FD");
+      doc.setFillColor(243, 244, 246);
+      doc.rect(x, y, w, 8, "F");
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...LABEL_COLOR);
+      doc.text(title.toUpperCase(), x + 4, y + 5.4);
+    }
 
     let rowY = y + 13;
     const labelX = x + 4;
@@ -289,12 +346,14 @@ export const exportPurchaseOrderToPDF = (order, settings) => {
   // First-page header
   addTopHeader();
 
-  // Title area
-  let y = 47;
-  doc.setFont(undefined, "bold");
-  doc.setFontSize(13);
-  doc.setTextColor(...VALUE_COLOR);
-  doc.text(t("purchase_order").toUpperCase(), M, y);
+  // Title area. Designs 2 and 3 already lead with the document name, so only the status stays here.
+  let y = design === "1" ? 47 : headerBottom + 8;
+  if (design === "1") {
+    doc.setFont(undefined, "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(...VALUE_COLOR);
+    doc.text(t("purchase_order").toUpperCase(), M, y);
+  }
 
   // Status badge
   const badgeText = statusLabel.toUpperCase();
@@ -384,7 +443,7 @@ export const exportPurchaseOrderToPDF = (order, settings) => {
     total: fmtMoney(item.line_total),
   }));
 
-  autoTable(doc, {
+  autoTable(doc, withTableTheme({
     startY: y,
     columns: tableColumns,
     body: tableRows,
@@ -429,7 +488,7 @@ export const exportPurchaseOrderToPDF = (order, settings) => {
         data.cell.styles.fontStyle = "bold";
       }
     },
-  });
+  }, design, primary));
 
   y = (doc.lastAutoTable?.finalY || y) + 8;
 

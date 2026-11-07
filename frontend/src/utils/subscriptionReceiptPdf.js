@@ -8,6 +8,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDateLocalized } from "@/utils/formatDateLocalized";
+import { pdfDesignId, paintBandHeader, themePrimary } from "./pdfDesign";
 
 // BizTrack brand palette (matches the marketing site / product UI)
 const BRAND = {
@@ -74,7 +75,7 @@ function getBillingPeriod(transaction) {
  * @param {object} transaction - one row from GET /subscriptions/history
  * @param {object} store - { name } of the paying store, if available
  */
-export function downloadSubscriptionReceipt(transaction, store = {}) {
+export function downloadSubscriptionReceipt(transaction, store = {}, settings = {}) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 16;
@@ -85,8 +86,26 @@ export function downloadSubscriptionReceipt(transaction, store = {}) {
   const receiptNo = transaction.provider_reference || transaction.request_id || String(transaction.id || "").slice(0, 12);
   const issuedDate = transaction.paid_at || transaction.created_at;
 
-  // -- Header band --------------------------------------------------------
-  doc.setFillColor(...BRAND.accent);
+  const design = pdfDesignId(settings);
+  const brand = themePrimary();
+  let headerEnd = 34;
+  // -- Header band. Design 1 keeps its original arrangement, in the selected theme. --
+  if (design !== "1") {
+    headerEnd = paintBandHeader(doc, design, {
+      pageWidth,
+      margin,
+      primary: brand,
+      kicker: "Payment",
+      title: "Subscription receipt",
+      businessName: "BizTrack",
+      contactLines: ["Sales & Inventory Management Platform", "biztrack.co.tz  ·  info@biztrack.co.tz"],
+      facts: [
+        { label: "Receipt", value: receiptNo },
+        { label: "Issued", value: formatDateLocalized(issuedDate, { includeTime: true }) },
+      ],
+    });
+  } else {
+  doc.setFillColor(...brand);
   doc.rect(0, 0, pageWidth, 34, "F");
 
   doc.setTextColor(...BRAND.white);
@@ -106,19 +125,21 @@ export function downloadSubscriptionReceipt(transaction, store = {}) {
   doc.setFontSize(9);
   doc.text(`No. ${receiptNo}`, pageWidth - margin, 22.5, { align: "right" });
   doc.text(formatDateLocalized(issuedDate, { includeTime: true }), pageWidth - margin, 27.5, { align: "right" });
+  }
 
   // -- Status badge ---------------------------------------------------------
   const badgeColor = paid ? BRAND.success : [180, 60, 60];
   const badgeWidth = doc.getTextWidth(statusLabel) + 10;
+  const badgeY = design === "1" ? 40 : headerEnd + 2;
   doc.setFillColor(...badgeColor);
-  doc.roundedRect(pageWidth - margin - badgeWidth, 40, badgeWidth, 8, 2, 2, "F");
+  doc.roundedRect(pageWidth - margin - badgeWidth, badgeY, badgeWidth, 8, 2, 2, "F");
   doc.setTextColor(...BRAND.white);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text(statusLabel, pageWidth - margin - badgeWidth / 2, 45.5, { align: "center" });
+  doc.text(statusLabel, pageWidth - margin - badgeWidth / 2, badgeY + 5.5, { align: "center" });
 
   // -- Billed to / Payment info ----------------------------------------------
-  let y = 52;
+  let y = badgeY + 12;
   doc.setTextColor(...BRAND.text3);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
@@ -206,7 +227,7 @@ export function downloadSubscriptionReceipt(transaction, store = {}) {
   doc.setTextColor(...BRAND.text3);
   doc.text("TOTAL PAID", margin, y);
   doc.setFontSize(15);
-  doc.setTextColor(...BRAND.accent);
+  doc.setTextColor(...brand);
   doc.text(toCurrency(transaction.amount, transaction.currency), pageWidth - margin, y, { align: "right" });
 
   y += 14;

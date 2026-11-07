@@ -104,6 +104,14 @@ export const ThemeProvider = ({ children }) => {
     // 30% deeper than the sidebar's top colour, so the title bar and the sidebar read as two different bars where they meet.
     // Save to localStorage
     localStorage.setItem('biztrack-theme', JSON.stringify(theme));
+    const hex = String(theme?.primary || '').trim();
+    if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+    import('../utils/sessionStore').then(({ readSession }) => {
+      if (!readSession('accessToken')) return;
+      import('../services/api').then(({ settingsAdminService }) => {
+        settingsAdminService.savePdfTheme(hex).catch(() => {});
+      }).catch(() => {});
+    }).catch(() => {});
   }, [theme]);
 
   const updateTheme = (newTheme) => {
