@@ -1,0 +1,50 @@
+{
+  "name": "biztrack-backend",
+  "version": "2.0.0",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "db:migrate": "node src/utils/migrate.js up",
+    "db:migrate:status": "node src/utils/migrate.js status",
+    "db:migrate:undo": "node src/utils/migrate.js down",
+    "db:verify": "node src/utils/verifyUpgrade.js",
+    "db:backup": "node src/utils/backupCli.js run",
+    "db:backup:list": "node src/utils/backupCli.js list",
+    "db:restore": "node src/utils/backupCli.js restore",
+    "permissions:sync": "node src/seeds/syncPermissions.js",
+    "seed": "node src/seeds/seed.js",
+    "seedProduction": "node src/seeds/seedProduction.js",
+    "permissions:dry-run": "DRY_RUN=1 node src/seeds/syncPermissions.js",
+    "test:ai": "node tests/ai-function-calling.smoke.js",
+    "db:migrate:mark-applied": "node src/utils/migrate.js mark-applied"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.6.1",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "express-validator": "^7.3.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "nodemailer": "^7.0.11",
+    "pg": "^8.16.3",
+    "resend": "^6.26.0",
+    "sequelize": "^6.37.7",
+    "socket.io": "^4.8.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11",
+    "supertest": "^7.2.2"
+  }
+}

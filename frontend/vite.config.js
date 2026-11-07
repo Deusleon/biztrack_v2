@@ -1,0 +1,29 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// Stamps a fresh id into the service worker on every build, so the browser sees a changed
+// sw.js after each release and offers the update (see public/sw.js).
+const stampServiceWorker = () => ({
+  name: 'stamp-service-worker',
+  apply: 'build',
+  closeBundle: {
+    order: 'post',
+    handler() {
+      const file = path.resolve('dist/sw.js')
+      if (!fs.existsSync(file)) return
+      fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replaceAll('__BUILD_ID__', Date.now().toString(36)))
+    },
+  },
+})
+
+export default defineConfig({
+  plugins: [react(), stampServiceWorker()],
+  // BizTrack pages have always imported with "@/..." — kept so they move across unchanged.
+  build: {
+    rollupOptions: { output: { manualChunks: { react: ['react', 'react-dom', 'react-router-dom'], pdf: ['jspdf', 'jspdf-autotable'], excel: ['xlsx'], charts: ['recharts'], scan: ['@zxing/browser'] } } },
+    chunkSizeWarningLimit: 700,
+  },
+  resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
+})

@@ -1,0 +1,488 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme CSS Variables */
+:root {
+  --color-primary: #1e3a5f;
+  --color-primary-dark: #162c47;
+  --color-primary-light: #4a6a8c;
+  --color-accent: #f59e0b;
+  --font-family: 'Heebo', sans-serif;
+}
+
+/* Apply Heebo font globally */
+* {
+  font-family: var(--font-family);
+}
+
+/* Checkbox styling with theme color */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #d1d5db;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+input[type="checkbox"]:hover {
+  border-color: var(--color-primary);
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 0.35rem;
+  height: 0.6rem;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -60%) rotate(45deg);
+}
+
+input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Custom utility classes using theme colors */
+@layer utilities {
+  .bg-primary {
+    background-color: var(--color-primary);
+  }
+  
+  .bg-primary-dark {
+    background-color: var(--color-primary-dark);
+  }
+  
+  .bg-primary-light {
+    background-color: var(--color-primary-light);
+  }
+  
+  .bg-accent {
+    background-color: var(--color-accent);
+  }
+  
+  .text-primary {
+    color: var(--color-primary);
+  }
+  
+  .text-primary-dark {
+    color: var(--color-primary-dark);
+  }
+  
+  .text-primary-light {
+    color: var(--color-primary-light);
+  }
+  
+  .text-accent {
+    color: var(--color-accent);
+  }
+  
+  .border-primary {
+    border-color: var(--color-primary);
+  }
+  
+  /* Background with opacity */
+  
+  .bg-primary-5 {
+    background-color: color-mix(in srgb, var(--color-primary) 5%, transparent);
+  }
+
+  .bg-primary-10 {
+    background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+
+  .bg-primary-15 {
+    background-color: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
+  
+  .bg-primary-20 {
+    background-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
+  }
+  
+  .bg-primary-25 {
+    background-color: color-mix(in srgb, var(--color-primary) 25%, transparent);
+  }
+  
+  .bg-primary-30 {
+    background-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  }
+  
+  .bg-primary-35 {
+    background-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+  }
+  
+  .bg-primary-40 {
+    background-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  }
+  
+  .bg-primary-45 {
+    background-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+  }
+  
+  .bg-primary-50 {
+    background-color: color-mix(in srgb, var(--color-primary) 50%, transparent);
+  }
+  
+  .bg-primary-55 {
+    background-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
+  }
+  
+  .bg-primary-60 {
+    background-color: color-mix(in srgb, var(--color-primary) 60%, transparent);
+  }
+  
+  .bg-primary-65 {
+    background-color: color-mix(in srgb, var(--color-primary) 65%, transparent);
+  }
+  
+  .bg-primary-70 {
+    background-color: color-mix(in srgb, var(--color-primary) 70%, transparent);
+  }
+  
+  .bg-primary-75 {
+    background-color: color-mix(in srgb, var(--color-primary) 75%, transparent);
+  }
+  
+  .bg-primary-80 {
+    background-color: color-mix(in srgb, var(--color-primary) 80%, transparent);
+  }
+  
+  .bg-primary-85 {
+    background-color: color-mix(in srgb, var(--color-primary) 85%, transparent);
+  }
+  
+  .bg-primary-90 {
+    background-color: color-mix(in srgb, var(--color-primary) 90%, transparent);
+  }
+  
+  .bg-primary-95 {
+    background-color: color-mix(in srgb, var(--color-primary) 95%, transparent);
+  }
+  
+  .hover\:bg-primary-5:hover {
+    background-color: color-mix(in srgb, var(--color-primary) 5%, transparent);
+  }
+  
+  .hover\:bg-primary-10:hover {
+    background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+  
+  .hover\:bg-primary-20:hover {
+    background-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
+  }
+  
+  /* Text with opacity */
+  .text-primary-5  { color: color-mix(in srgb, var(--color-primary) 5%,  transparent); }
+  .text-primary-10 { color: color-mix(in srgb, var(--color-primary) 10%, transparent); }
+  .text-primary-15 { color: color-mix(in srgb, var(--color-primary) 15%, transparent); }
+  .text-primary-20 { color: color-mix(in srgb, var(--color-primary) 20%, transparent); }
+  .text-primary-25 { color: color-mix(in srgb, var(--color-primary) 25%, transparent); }
+  .text-primary-30 { color: color-mix(in srgb, var(--color-primary) 30%, transparent); }
+  .text-primary-35 { color: color-mix(in srgb, var(--color-primary) 35%, transparent); }
+  .text-primary-40 { color: color-mix(in srgb, var(--color-primary) 40%, transparent); }
+  .text-primary-45 { color: color-mix(in srgb, var(--color-primary) 45%, transparent); }
+  .text-primary-50 { color: color-mix(in srgb, var(--color-primary) 50%, transparent); }
+  .text-primary-55 { color: color-mix(in srgb, var(--color-primary) 55%, transparent); }
+  .text-primary-60 { color: color-mix(in srgb, var(--color-primary) 60%, transparent); }
+  .text-primary-65 { color: color-mix(in srgb, var(--color-primary) 65%, transparent); }
+  .text-primary-70 { color: color-mix(in srgb, var(--color-primary) 70%, transparent); }
+  .text-primary-75 { color: color-mix(in srgb, var(--color-primary) 75%, transparent); }
+  .text-primary-80 { color: color-mix(in srgb, var(--color-primary) 80%, transparent); }
+  .text-primary-85 { color: color-mix(in srgb, var(--color-primary) 85%, transparent); }
+  .text-primary-90 { color: color-mix(in srgb, var(--color-primary) 90%, transparent); }
+  .text-primary-95 { color: color-mix(in srgb, var(--color-primary) 95%, transparent); }
+
+  /* Border with opacity */
+  .border-primary-5  { border-color: color-mix(in srgb, var(--color-primary) 5%,  transparent); }
+  .border-primary-10 { border-color: color-mix(in srgb, var(--color-primary) 10%, transparent); }
+  .border-primary-15 { border-color: color-mix(in srgb, var(--color-primary) 15%, transparent); }
+  .border-primary-20 { border-color: color-mix(in srgb, var(--color-primary) 20%, transparent); }
+  .border-primary-25 { border-color: color-mix(in srgb, var(--color-primary) 25%, transparent); }
+  .border-primary-30 { border-color: color-mix(in srgb, var(--color-primary) 30%, transparent); }
+  .border-primary-35 { border-color: color-mix(in srgb, var(--color-primary) 35%, transparent); }
+  .border-primary-40 { border-color: color-mix(in srgb, var(--color-primary) 40%, transparent); }
+  .border-primary-45 { border-color: color-mix(in srgb, var(--color-primary) 45%, transparent); }
+  .border-primary-50 { border-color: color-mix(in srgb, var(--color-primary) 50%, transparent); }
+  .border-primary-55 { border-color: color-mix(in srgb, var(--color-primary) 55%, transparent); }
+  .border-primary-60 { border-color: color-mix(in srgb, var(--color-primary) 60%, transparent); }
+  .border-primary-65 { border-color: color-mix(in srgb, var(--color-primary) 65%, transparent); }
+  .border-primary-70 { border-color: color-mix(in srgb, var(--color-primary) 70%, transparent); }
+  .border-primary-75 { border-color: color-mix(in srgb, var(--color-primary) 75%, transparent); }
+  .border-primary-80 { border-color: color-mix(in srgb, var(--color-primary) 80%, transparent); }
+  .border-primary-85 { border-color: color-mix(in srgb, var(--color-primary) 85%, transparent); }
+  .border-primary-90 { border-color: color-mix(in srgb, var(--color-primary) 90%, transparent); }
+  .border-primary-95 { border-color: color-mix(in srgb, var(--color-primary) 95%, transparent); }
+
+  .border-primary-dark {
+    border-color: var(--color-primary-dark);
+  }
+  
+  .ring-primary {
+    --tw-ring-color: var(--color-primary);
+  }
+  
+  .gradient-primary {
+    background: linear-gradient(to right, var(--color-primary), var(--color-accent));
+  }
+  
+  .gradient-primary-dark {
+    background: linear-gradient(to bottom, var(--color-primary-dark), var(--color-primary), var(--color-primary-dark));
+  }
+  
+  .hover\:bg-primary:hover {
+    background-color: var(--color-primary);
+  }
+  
+  .hover\:text-primary:hover {
+    color: var(--color-primary);
+  }
+  
+  .hover\:border-primary:hover {
+    border-color: var(--color-primary);
+  }
+  
+  /* Custom Scrollbar Styles */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
+  
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+  
+  .scrollbar-thumb-primary-dark::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .scrollbar-thumb-primary:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+  
+  /* Firefox scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+  
+  /* Prevent scroll jump on navigation */
+  .scrollbar-thin {
+    scroll-behavior: auto;
+    overflow-anchor: none;
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PRINT
+   ───────────────────────────────────────────────────────────────────────
+   Printed output (payment receipts, report cards, ID cards) is built from
+   the same on-screen markup, so these rules strip away everything that
+   only makes sense in a browser and force the document itself to print
+   exactly as designed.
+
+   The single most important rule here is print-color-adjust. Browsers
+   drop background colours and gradients when printing unless the user
+   manually ticks "Background graphics" in the print dialog — which would
+   silently gut the receipt's shaded table header and coloured banners.
+   Forcing it means what's on screen is what comes out of the printer.
+   ═══════════════════════════════════════════════════════════════════════ */
+@media print {
+  /* Keep every fill, gradient and tint the design relies on. */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* The app shell is a scrolling, min-height viewport layout — none of
+     which applies to paper. */
+  html,
+  body,
+  #root {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+
+  /* Sticky/fixed elements would otherwise repeat on every printed page. */
+  .sticky,
+  .fixed {
+    position: static !important;
+  }
+
+  /* Scroll containers must expand so nothing is clipped off the page. */
+  .overflow-x-auto,
+  .overflow-y-auto,
+  .overflow-auto,
+  .overflow-hidden {
+    overflow: visible !important;
+  }
+
+  /* Shadows print as muddy grey boxes on most printers. */
+  .shadow,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl {
+    box-shadow: none !important;
+  }
+
+  /* Never split a receipt, report card, or table row across two pages. */
+  table {
+    page-break-inside: auto;
+  }
+
+  tr,
+  img,
+  svg {
+    page-break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Phones, tablets and the installed app
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Where the sidebar meets the title bar: a lighter edge and an inner shadow, so the two read as separate bars. */
+.sidebar-edge {
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 14px 16px -14px rgba(0, 0, 0, 0.55);
+}
+
+/* Notched phones: keep the header clear of the status bar / notch in the installed app. */
+.safe-top { padding-top: env(safe-area-inset-top); }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); -webkit-tap-highlight-color: transparent; }
+footer { padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
+
+@media (max-width: 767px) {
+  /* iPhones zoom into any field smaller than 16px when it is tapped, and then do not zoom back out. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px !important; }
+
+  /* Comfortable touch targets for the small round / icon buttons. */
+  button[aria-label], a[aria-label] { min-width: 40px; min-height: 40px; }
+
+  /* A dialog never taller than the screen: it scrolls inside, instead of running off the bottom. */
+  .fixed.inset-0.flex > div[class*="max-w-"] { max-height: 92vh; overflow-y: auto; }
+  .fixed.inset-0.flex { padding: 0.5rem; }
+
+  /* Long words / numbers / emails never push the page wider than the screen. */
+  main { overflow-wrap: anywhere; }
+  main table { font-size: 13px; }
+  main pre, main code { white-space: pre-wrap; word-break: break-all; }
+
+  /* Page titles are a little smaller so a long one does not take three lines. */
+  main h1 { font-size: 1.15rem; line-height: 1.35; }
+}
+
+/* Tablets in portrait: a bit more breathing room than a phone, tables may still scroll sideways. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  main { padding-left: 1rem; padding-right: 1rem; }
+}
+
+/* Nothing in the app needs a hover to work; give taps the same feedback. */
+@media (hover: none) {
+  button:active, a:active { opacity: 0.85; }
+}
+
+@media (max-width: 767px) {
+  /* Stat tiles (a card with a number and an icon box): tighter, so the icon stays beside the number. */
+  main .p-5.rounded.shadow { padding: 0.875rem; }
+  main .rounded.shadow .w-12.h-12 { width: 2.5rem; height: 2.5rem; }
+}
+
+/* A row that holds an icon box (stat tiles) stays on one line; only plain button rows wrap. */
+main .flex-wrap:has(> div.w-12.h-12),
+main .flex-wrap:has(> div.w-10.h-10),
+main .flex-wrap:has(> div.w-14.h-14) { flex-wrap: nowrap; }
+
+/* Phones: stat tiles keep the icon beside the number (the text shrinks, the icon box tightens),
+   and tab bars scroll sideways instead of squeezing their labels until the words break. */
+@media (max-width: 767px) {
+  main .flex-wrap:has(> div > svg:only-child) { flex-wrap: nowrap; }
+  main .flex-wrap:has(> div > svg:only-child) > div:first-child { min-width: 0; }
+  main .flex-wrap > div:has(> svg:only-child) { padding: 0.5rem; flex-shrink: 0; }
+  main .flex-wrap > div:has(> svg:only-child) > svg { width: 1.5rem; height: 1.5rem; }
+
+  main nav[class~="-mb-px"] { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  main nav[class~="-mb-px"]::-webkit-scrollbar { display: none; }
+  main nav[class~="-mb-px"] > button, main nav[class~="-mb-px"] > a { flex-shrink: 0; white-space: nowrap; }
+}
+
+/* Same for tab rows that are a plain <div> of underlined buttons (Leave, Library, …). */
+@media (max-width: 767px) {
+  main div.flex.border-b:has(> button[class*="border-b-2"]) { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  main div.flex.border-b:has(> button[class*="border-b-2"])::-webkit-scrollbar { display: none; }
+  main div.flex.border-b:has(> button[class*="border-b-2"]) > button { flex-shrink: 0; white-space: nowrap; }
+}
+
+/* ── Buttons on phones ─────────────────────────────────────────────────────────
+ * <Button>/<ActionLink> show only their icon below 640px. In dialogs and bottom sheets (anything
+ * position:fixed) the words stay: there is room, and a bare icon next to "Cancel" is ambiguous. */
+@media (max-width: 639px) {
+  .fixed .btn-label { display: inline !important; }
+  .fixed .btn-icon { display: none !important; }
+  .fixed .btn-compact { padding-left: 1rem; padding-right: 1rem; }
+}
+
+/* ── Page header: title left, actions right ─────────────────────────────────────
+ * Actions stay right-aligned even when they wrap onto their own line. */
+.page-header > :not(:first-child) {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

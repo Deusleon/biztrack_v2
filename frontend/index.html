@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico?v=1" sizes="any" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=1" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=1" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png?v=1" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png?v=1" />
+    <link rel="icon" type="image/png" sizes="128x128" href="/favicon-128.png?v=1" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#1e3a5f" />
+    <script>
+      // Paint the title bar in the saved theme straight away (before the app loads).
+      try { var t = JSON.parse(localStorage.getItem('biztrack-theme') || 'null'); if (t && t.primary) { var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute('content', t.primaryDark || t.primary); } } catch (e) {}
+    </script>
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="BizTrack" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="application-name" content="BizTrack" />
+    <meta name="msapplication-TileColor" content="#1e3a5f" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <title>BizTrack - Business Management System</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

@@ -1,0 +1,165 @@
+// FILE PATH: frontend/src/services/api.js
+/**
+ * Every call the app makes to the server goes through here, one service object per module — the same
+ * shape as EduTrack's services. BizTrack's server answers with its own bodies ({ categories, pagination },
+ * { customer }, …); these helpers turn them into ONE contract every page can rely on:
+ *
+ *   lists   → { success: true, data: [...], pagination: { currentPage, totalPages, totalItems, limit }, message }
+ *   one row → { success: true, data: {...}, message }
+ *   actions → { success: true, message }
+ *
+ * Failures are thrown by utils/api.js as an object with a readable `.message`.
+ */
+import api from '../utils/api';
+
+const lang = () => { try { return window.__auth_user?.preferred_language || localStorage.getItem('lang') || 'en'; } catch { return 'en'; } };
+
+/** Store the person is working in (set by StoreContext). Most BizTrack routes carry it in the URL. */
+export const currentStoreId = () => localStorage.getItem('currentStoreId');
+
+const pageOf = (p = {}) => ({
+  currentPage: p.page ?? 1,
+  totalPages: p.totalPages ?? 1,
+  totalItems: p.total ?? 0,
+  limit: p.limit ?? 25,
+});
+
+/** Wrap a server body that holds a list under `key` (and optionally a `pagination` block). */
+const asList = (res, key) => ({
+  success: true,
+  message: res.message,
+  data: res[key] ?? [],
+  // Some lists are not paged by the server (price categories): then everything came back on one page.
+  pagination: res.pagination ? pageOf(res.pagination) : { currentPage: 1, totalPages: 1, totalItems: (res[key] ?? []).length, limit: (res[key] ?? []).length || 25 },
+  ...(res.summary ? { summary: res.summary } : {}),
+  raw: res,
+});
+const asOne = (res, key) => ({ success: true, message: res.message, data: res[key] ?? null, raw: res });
+const asDone = (res) => ({ success: true, message: res.message, raw: res });
+
+// ─── auth ─────────────────────────────────────────────────────────────────────────────────────────
+export const authService = {
+  login: (credentials) => api.post('/auth/login', credentials),
+  register: (data) => api.post('/auth/register', data),
+  verifyEmail: (data) => api.post('/auth/verify-email', data),
+  resendEmail: (data) => api.post('/auth/resend-email', data),
+  forgotPassword: (data) => api.post('/auth/forgot-password', data),
+  verifyResetLink: (params) => api.get('/auth/reset-password/verify', { params }),
+  resetPassword: (data) => api.post('/auth/reset-password', data),
+  verifyPassword: (data) => api.post('/auth/verify-password', data),
+  logout: async () => { try { return await api.post('/auth/logout', {}); } catch { return { message: '' }; } },
+  /** Role + permissions of the signed-in person in another store; returns { storeInfo, permissions, token, security }. */
+  switchStore: (storeId) => api.post('/auth/switch-store', { store_id: storeId }),
+  /** Permissions of the signed-in person in the current store. */
+  getPermissions: async () => { const res = await api.get('/user/permissions'); return { success: true, data: res.permissions || [] }; },
+};
+
+// ─── profile (the signed-in person) ───────────────────────────────────────────────────────────────
+export const profileService = {
+  get: async () => { const res = await api.get('/profile'); return { success: true, data: res.profile, raw: res }; },
+  update: (data) => api.put('/profile', data),
+  /** Resolves with { message, token, security } — the token is fresh, because the old ones stop working. */
+  changePassword: (data) => api.put('/profile/password', data),
+  /** The picture is uploaded to Cloudinary by the page first; the server only keeps its address. */
+  setAvatar: (avatar_url, public_id) => api.post('/profile/avatar', { avatar_url, public_id }),
+  removeAvatar: () => api.delete('/profile/avatar'),
+};
+
+// ─── stores ───────────────────────────────────────────────────────────────────────────────────────
+export const storeService = {
+  getMine: async () => { const res = await api.get('/stores'); return { success: true, data: res.stores || [], raw: res }; },
+  getDefault: async () => { const res = await api.get('/stores/default'); return { success: true, data: res.store || null, raw: res }; },
+  create: async (data) => asOne(await api.post('/stores', data), 'store'),
+  update: async (id, data) => asOne(await api.put(`/stores/${id}`, data), 'store'),
+  remove: async (id, password) => asDone(await api.post(`/stores/${id}/delete`, { password })),
+};
+
+// ─── product categories ───────────────────────────────────────────────────────────────────────────
+export const categoryService = {
+  getAll: async (params = {}) => asList(await api.get(`/categories/${params.storeId || currentStoreId()}`, { params: { page: params.page, limit: params.limit, search: params.search } }), 'categories'),
+  create: async (data) => asOne(await api.post('/categories', { ...data, storeId: data.storeId || currentStoreId() }), 'category'),
+  update: async (id, data) => asOne(await api.put(`/categories/${id}`, { ...data, storeId: data.storeId || currentStoreId() }), 'category'),
+  remove: async (id) => asDone(await api.delete(`/categories/${id}`, { data: { storeId: currentStoreId() } })),
+};
+
+// ─── price categories (customer types: wholesale, retail…) ───────────────────────────────────────
+export const priceCategoryService = {
+  getAll: async (params = {}) => asList(await api.get(`/price-categories/${params.storeId || currentStoreId()}`), 'priceCategories'),
+  create: async (data) => asOne(await api.post('/price-categories', { ...data, storeId: data.storeId || currentStoreId() }), 'priceCategory'),
+  update: async (id, data) => asOne(await api.put(`/price-categories/${id}`, { ...data, storeId: data.storeId || currentStoreId() }), 'priceCategory'),
+  remove: async (id) => asDone(await api.delete(`/price-categories/${id}`, { data: { storeId: currentStoreId() } })),
+};
+
+// ─── customers ────────────────────────────────────────────────────────────────────────────────────
+export const customerService = {
+  getAll: async (params = {}) => asList(await api.get(`/customers/${params.storeId || currentStoreId()}`, { params: { page: params.page, limit: params.limit, search: params.search } }), 'customers'),
+  create: async (data) => asOne(await api.post('/customers', { ...data, storeId: data.storeId || currentStoreId() }), 'customer'),
+  update: async (id, data) => asOne(await api.put(`/customers/${id}`, { ...data, storeId: data.storeId || currentStoreId() }), 'customer'),
+  remove: async (id) => asDone(await api.delete(`/customers/${id}`)),
+};
+
+// ─── products ─────────────────────────────────────────────────────────────────────────────────────
+export const productService = {
+  getAll: async (params = {}) => asList(await api.get(`/products/${params.storeId || currentStoreId()}`, { params: { page: params.page, limit: params.limit, search: params.search } }), 'products'),
+  getByBarcode: async (barcode) => asOne(await api.get(`/products/${currentStoreId()}/barcode/${encodeURIComponent(barcode)}`), 'product'),
+  create: async (data) => asOne(await api.post('/products', { ...data, storeId: data.storeId || currentStoreId() }), 'product'),
+  update: async (id, data) => asOne(await api.put(`/products/${id}`, { ...data, storeId: data.storeId || currentStoreId() }), 'product'),
+  remove: async (id) => asDone(await api.delete(`/products/${id}`)),
+  /** Several ids at once. */
+  removeMany: async (ids) => { const out = []; for (const id of ids) out.push(await api.delete(`/products/bulk/${id}`)); return { success: true, message: out[out.length - 1]?.message }; },
+};
+
+// ─── sales (POS, pending orders, history, returns, credit/debits) ───────────────────────────────────
+// The server's own bodies are passed through as-is (the pages need fields like invoice_number, order_number, items…);
+// only the list endpoints that page get the normalized { data, pagination } shape.
+export const salesService = {
+  /** Products with the price of one price category (POS when a category is chosen). */
+  productsWithPrices: (params = {}) => api.get('/pricelist', { params: { priceCategoryId: params.priceCategoryId, page: params.page || 1, limit: params.limit || 500, search: params.search || '', expandBatches: params.expandBatches || false } }),
+  addToCartByBarcode: (payload) => api.post('/sales/cart-by-barcode', { storeId: currentStoreId(), ...payload }),
+  getActiveCart: () => api.get('/sales/active-cart'),
+  syncActiveCart: (payload) => api.post('/sales/sync-cart', payload),
+  /** cash / credit sale → { invoice_number, payment_id, items… } */
+  recordSale: (payload) => api.post('/sales/sell-cart', { storeId: currentStoreId(), ...payload }),
+  saveDraftOrder: (payload) => api.post('/sales/save-order', { storeId: currentStoreId(), ...payload }),
+  saveOrderChanges: (payload) => api.post('/sales/save-order-changes', { storeId: currentStoreId(), ...payload }),
+  // pending orders
+  /** status: 'Saved' (default, waiting orders) or 'Cancelled' */
+  getPendingOrders: (status) => api.get('/sales/get-orders', { params: status ? { status } : undefined }),
+  getOrder: (code) => api.get(`/sales/get-orders/${encodeURIComponent(code)}`),
+  getOrderForEdit: (code) => api.get(`/sales/edit-orders/${encodeURIComponent(code)}`),
+  recordOrderPayments: (payload) => api.post('/sales/order-payments', payload),
+  cancelOrder: (code) => api.put(`/sales/orders/${encodeURIComponent(code)}/cancel`),
+  reopenOrder: (code) => api.put(`/sales/orders/${encodeURIComponent(code)}/reopen`),
+  deleteOrder: (code) => api.delete(`/sales/orders/${encodeURIComponent(code)}`),
+  sellOrder: (code) => api.post(`/sales/orders/${encodeURIComponent(code)}/sell`),
+  // history
+  history: (params = {}) => api.get('/sales/history', { params }),
+  saleDetails: (invoiceNumber) => api.get(`/sales/history/${encodeURIComponent(invoiceNumber)}`),
+  // returns
+  createReturn: (payload) => api.post('/sales/returns', payload),
+  returns: (params = {}) => api.get('/sales/returns', { params }),
+  returnDetails: (id) => api.get(`/sales/returns/${id}`),
+  approveReturn: (id) => api.post(`/sales/returns/${id}/approve`),
+  rejectReturn: (id, reason) => api.post(`/sales/returns/${id}/reject`, { reason }),
+  // credit sales (debits)
+  credit: (params = {}) => api.get('/sales/credit', { params }),
+  creditDetails: (id) => api.get(`/sales/credit/${id}`),
+  recordCreditPayment: (id, payload) => api.post(`/sales/credit/${id}/payment`, payload),
+  notifyCredit: (id, payload) => api.post(`/sales/credit/${id}/notify`, payload),
+  markOverdue: () => api.post('/sales/credit/mark-overdue'),
+};
+
+// ─── dashboard ────────────────────────────────────────────────────────────────────────────────────
+export const dashboardService = {
+  getStats: async () => { const res = await api.get('/dashboard/stats'); return { success: true, data: res.data ?? res, raw: res }; },
+};
+
+// ─── display preferences ──────────────────────────────────────────────────────────────────────────
+// Date format / money decimals / receipt size are kept in this browser for now; the server-side copy
+// arrives with the Settings module (phase 5). PreferencesContext tolerates a failed fetch.
+export const settingsService = {
+  getOverview: async () => { throw new Error('not available yet'); },
+  updateDisplay: async (patch) => ({ success: true, data: patch }),
+};
+
+export { lang };
