@@ -4,7 +4,7 @@ Hali ya uhamisho kwenda BizTrack mpya (muundo wa EduTrack). **Hakuna kipengele k
 
 Njia (route) na majina ya permissions ni yale yale ya BizTrack ya sasa, kwa hiyo ufikiaji wa watumiaji haubadiliki.
 
-## Awamu 1 na 2 — zimehamishwa (10 kati ya 46 za menyu)
+## Awamu 1–4 — zimehamishwa (25 kati ya 46 za menyu)
 
 | Ukurasa | Njia | Permission | Hali |
 |---|---|---|---|
@@ -18,6 +18,21 @@ Njia (route) na majina ya permissions ni yale yale ya BizTrack ya sasa, kwa hiyo
 | sales_history | `/sales/history` | `view_sales_records` | Imehamishwa — Vichujio, export ya kurasa zote, maelezo, risiti, kuanzisha return |
 | sales_returns | `/sales/returns` | `view_sales_returns` | Imehamishwa — Kuunda (kiasi/hali/restock), kuidhinisha, kukataa, ukaguzi wa kiasi |
 | debits | `/sales/debits` | `view_debits` | Imehamishwa — Maelezo, kulipa, kikumbusho cha SMS, mark overdue, muhtasari |
+| purchase_orders | `/purchases/orders` | `view_purchase_orders` | Imehamishwa — PO: kihariri cha bidhaa (punguzo/kodi), rasimu ya server, idhini/kukataa, hariri, futa (rasimu), PDF |
+| goods_received | `/purchases/goods-received` | `view_grn` | Imehamishwa — Kupokea kwa PO (batch, tarehe, bei), njia mbili (idhini mara moja / ukaguzi), futa |
+| suppliers | `/purchases/suppliers` | `view_suppliers` | Imehamishwa — CRUD, utafutaji, export, maelezo |
+| supplier_invoices | `/purchases/invoices` | `view_supplier_invoices` | Imehamishwa — Ankara kutoka GRN, jumla, hariri, idhinisha, malipo, futa, export |
+| supplier_payments | `/purchases/payments` | `view_supplier_payments` | Imehamishwa — Kulipa ankara (si zaidi ya deni), kughairi, export |
+| supplier_returns | `/purchases/returns` | `view_supplier_returns` | Imehamishwa — Return kwa GRN (hali/sababu/njia ya kurudishiwa), idhinisha, futa |
+| current_stock | `/inventory/current-stock` | `view_current_stock` | Imehamishwa — Hali ya stock (ndani/chini/imeisha), muhtasari, expiry, batches na kuhariri batch, export |
+| current_stock_value | `/inventory/stock-value` | `view_current_stock_value` | Imehamishwa — Thamani kwa price category, jumla, export |
+| stock_value_history | `/inventory/stock-value-history` | `view_stock_value_history` | Imehamishwa — Snapshot, maelezo, kufuta |
+| price_list | `/inventory/pricelist` | `view_price_list` | Imehamishwa — Bei kwa price category na batch, kusasisha bei, export |
+| stock_adjustment | `/inventory/adjustment` | `view_stock_adjustment` | Imehamishwa — Ongeza/punguza kwa sababu, batch-wise, historia, tab ya kwa bidhaa |
+| stock_count | `/inventory/stock-count` | `view_stock_count` | Imehamishwa — Kuhesabu, uthibitisho, historia, tab ya harakati (ndani/nje) |
+| stock_transfer | `/inventory/stock-transfer` | `view_stock_transfer` | Imehamishwa — Kutuma, kuidhinisha, kupokea upande wa pili, kughairi, kufuta |
+| import_export | `/inventory/import-export` | `view_imports_exports` | Imehamishwa — Violezo, kupakia Excel kwa uthibitisho, makosa kwa safu, export |
+| expenses | `/expenses` | `view_expenses` | Imehamishwa — Vichujio, jumla, ongeza/hariri/futa, makundi, export |
 
 Kurasa za kuingia zimehamishwa pia: Login, Register, VerifyEmail, ForgotPassword, NewPassword, pamoja na skrini ya "nenosiri limeisha" na ya "subscription imeisha".
 
@@ -28,25 +43,10 @@ Kurasa za kuingia zimehamishwa pia: Login, Register, VerifyEmail, ForgotPassword
 - **Profile:** jina, barua pepe, simu, lugha, picha, kubadilisha nenosiri.
 - **Dashboard:** KPI za leo/mwezi, mwenendo wa mapato, malipo kwa njia, mauzo ya hivi karibuni, bidhaa bora, vitendo vya haraka. **Bado hakuna:** kadi za AI (Awamu 5), "Top Selling", na DefaultDashboard kamili kwa watumiaji wenye ruhusa chache.
 
-## Bado — zinasubiri (36)
+## Bado — zinasubiri (21)
 
 | Ukurasa | Njia | Permission | Awamu |
 |---|---|---|---|
-| purchase_orders | `/purchases/orders` | `view_purchase_orders` | 3 |
-| goods_received | `/purchases/goods-received` | `view_grn` | 3 |
-| suppliers | `/purchases/suppliers` | `view_suppliers` | 3 |
-| supplier_invoices | `/purchases/invoices` | `view_supplier_invoices` | 3 |
-| supplier_payments | `/purchases/payments` | `view_supplier_payments` | 3 |
-| supplier_returns | `/purchases/returns` | `view_supplier_returns` | 3 |
-| current_stock | `/inventory/current-stock` | `view_current_stock` | 4 |
-| current_stock_value | `/inventory/stock-value` | `view_current_stock_value` | 4 |
-| stock_value_history | `/inventory/stock-value-history` | `view_stock_value_history` | 4 |
-| price_list | `/inventory/pricelist` | `view_price_list` | 4 |
-| stock_adjustment | `/inventory/adjustment` | `view_stock_adjustment` | 4 |
-| stock_count | `/inventory/stock-count` | `view_stock_count` | 4 |
-| stock_transfer | `/inventory/stock-transfer` | `view_stock_transfer` | 4 |
-| import_export | `/inventory/import-export` | `view_imports_exports` | 4 |
-| expenses | `/expenses` | `view_expenses` | 4 |
 | sales_reports | `/reports/sales` | `view_sales_reports` | 5 |
 | purchases_reports | `/reports/purchases` | `view_purchase_reports` | 5 |
 | expenses_reports | `/reports/expenses` | `view_supplier_payments` | 5 |
@@ -71,6 +71,8 @@ Kurasa za kuingia zimehamishwa pia: Login, Register, VerifyEmail, ForgotPassword
 
 Kurasa za ndani ambazo hazimo kwenye menyu na bado hazijahamishwa: `/sales/pending/preview`, `/sales/receipt`, `/reports/day-report`, `/biztrack-ai`, `/support/admin`, `/lock` (IdleLock), `/user-manual`.
 
+Haitumiki kwenye app ya asili (code isiyotumika, haikuhamishwa): `PurchaseDashboardTab`, `PurchaseOrderPrintPage`. API zake (`/purchases/dashboard`, statement ya msambazaji) zinafanya kazi na zitatumika kwenye Reports (Awamu 5).
+
 ## Vipengele visivyo kurasa — hali
 | Kipengele | Hali |
 |---|---|
@@ -82,9 +84,9 @@ Kurasa za ndani ambazo hazimo kwenye menyu na bado hazijahamishwa: `/sales/pendi
 | Real-time kupitia socket | Imeunganishwa (orodha zinafetch upya); haijajaribiwa na watumiaji wengi |
 | PWA (desktop na simu) | Manifest, service worker, icons, banner ya kusakinisha; **haijajaribiwa kwenye vifaa** |
 | Injini ya PDF/Excel/CSV ya BizTrack | Imehamishwa bila mabadiliko (`utils/exportUtils.js`) |
-| PDF za risiti, PO, delivery note, subscription | Mafaili yamehamishwa; **risiti imeunganishwa na kujaribiwa (58mm/80mm/A5)**; PO/delivery note ni Awamu 3, subscription Awamu 5 |
+| PDF za risiti, PO, delivery note, subscription | Mafaili yamehamishwa; **risiti (58mm/80mm/A5) imejaribiwa**; **PO PDF na delivery note ya mauzo zimeunganishwa**; subscription Awamu 5 |
 | QZ Tray (kuchapisha moja kwa moja) | Bado (mabaki ya Awamu 2); `/api/qz/sign` bado haina kuingia |
 | Skana ya barcode kwa kamera | Imekamilika kwenye fomu ya Products |
 | IdleLock (skrini ya kufunga), sera ya usalama kwa store | Bado (Awamu 5) |
 | Notifications (kengele), AI, Messaging/SMS, Subscription, Support, Backup ya Google Drive | Bado (Awamu 5); server yake tayari ipo na inapakia |
-| Import / Export kwa wingi | Bado (Awamu 4–5) |
+| Import / Export ya Excel (bidhaa, stock, bei, kamili) | Imekamilika na kujaribiwa; import ya contacts ni Awamu 5 (Messaging) |

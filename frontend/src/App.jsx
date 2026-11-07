@@ -27,6 +27,21 @@ const History = lazy(() => import('./pages/sales/History'));
 const Receipt = lazy(() => import('./pages/sales/Receipt'));
 const Returns = lazy(() => import('./pages/sales/Returns'));
 const Debits = lazy(() => import('./pages/sales/Debits'));
+const PurchaseOrders = lazy(() => import('./pages/purchases/Orders'));
+const GoodsReceived = lazy(() => import('./pages/purchases/GoodsReceived'));
+const Suppliers = lazy(() => import('./pages/purchases/Suppliers'));
+const SupplierInvoices = lazy(() => import('./pages/purchases/Invoices'));
+const SupplierPayments = lazy(() => import('./pages/purchases/Payments'));
+const SupplierReturns = lazy(() => import('./pages/purchases/Returns'));
+const CurrentStock = lazy(() => import('./pages/inventory/CurrentStock'));
+const StockValue = lazy(() => import('./pages/inventory/StockValue'));
+const StockValueHistory = lazy(() => import('./pages/inventory/StockValueHistory'));
+const PriceList = lazy(() => import('./pages/inventory/PriceList'));
+const StockAdjustment = lazy(() => import('./pages/inventory/StockAdjustment'));
+const StockCount = lazy(() => import('./pages/inventory/StockCount'));
+const StockTransfer = lazy(() => import('./pages/inventory/StockTransfer'));
+const ImportExport = lazy(() => import('./pages/inventory/ImportExport'));
+const Expenses = lazy(() => import('./pages/expenses/Expenses'));
 import NotFound from './pages/NotFound';
 import { NAV_SECTIONS } from './utils/navigation';
 
@@ -47,6 +62,21 @@ const READY = {
   '/sales/receipt': <Receipt />,
   '/sales/returns': <Returns />,
   '/sales/debits': <Debits />,
+  '/purchases/orders': <PurchaseOrders />,
+  '/purchases/goods-received': <GoodsReceived />,
+  '/purchases/suppliers': <Suppliers />,
+  '/purchases/invoices': <SupplierInvoices />,
+  '/purchases/payments': <SupplierPayments />,
+  '/purchases/returns': <SupplierReturns />,
+  '/inventory/current-stock': <CurrentStock />,
+  '/inventory/stock-value': <StockValue />,
+  '/inventory/stock-value-history': <StockValueHistory />,
+  '/inventory/pricelist': <PriceList />,
+  '/inventory/adjustment': <StockAdjustment />,
+  '/inventory/stock-count': <StockCount />,
+  '/inventory/stock-transfer': <StockTransfer />,
+  '/inventory/import-export': <ImportExport />,
+  '/expenses': <Expenses />,
 };
 
 const EXTRA_ROUTES = ['/sales/pending/preview', '/sales/receipt', '/reports/day-report', '/profile', '/biztrack-ai', '/support/admin'];

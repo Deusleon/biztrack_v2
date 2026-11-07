@@ -149,6 +149,100 @@ export const salesService = {
   markOverdue: () => api.post('/sales/credit/mark-overdue'),
 };
 
+// ─── suppliers ─────────────────────────────────────────────────────────────────────────────────────
+export const supplierService = {
+  getAll: async (params = {}) => asList(await api.get(`/suppliers/${params.storeId || currentStoreId()}`, { params: { page: params.page, limit: params.limit, search: params.search } }), 'suppliers'),
+  create: async (data) => asOne(await api.post('/suppliers', { ...data, storeId: data.storeId || currentStoreId() }), 'supplier'),
+  update: async (id, data) => asOne(await api.put(`/suppliers/${id}`, { ...data, storeId: data.storeId || currentStoreId() }), 'supplier'),
+  remove: async (id) => asDone(await api.delete(`/suppliers/${id}`)),
+};
+
+// ─── purchases (orders, goods received, supplier invoices / payments / returns) ─────────────────────
+// Every purchase endpoint already answers { success, data, pagination: { page, limit, total, … } }.
+const pList = (res) => ({ success: true, message: res.message, data: res.data ?? [], pagination: pageOf(res.pagination), raw: res });
+const pOne = (res) => ({ success: true, message: res.message, data: res.data ?? null, raw: res });
+const crud = (base) => ({
+  list: async (params = {}) => pList(await api.get(base, { params })),
+  get: async (id) => pOne(await api.get(`${base}/${id}`)),
+  create: async (data) => pOne(await api.post(base, data)),
+  update: async (id, data) => pOne(await api.put(`${base}/${id}`, data)),
+  remove: async (id) => asDone(await api.delete(`${base}/${id}`)),
+});
+export const purchaseService = {
+  orders: {
+    ...crud('/purchases/orders'),
+    approve: async (id, approval_status, rejection_reason) => asDone(await api.post(`/purchases/orders/${id}/approve`, { approval_status, rejection_reason })),
+    activeCart: () => api.get('/purchases/active-cart'),
+    syncCart: (payload) => api.post('/purchases/sync-cart', payload),
+  },
+  grn: { ...crud('/purchases/grn'), inspect: async (id, payload) => asDone(await api.post(`/purchases/grn/${id}/inspect`, payload)) },
+  invoices: crud('/purchases/invoices'),
+  payments: crud('/purchases/payments'),
+  returns: { ...crud('/purchases/returns'), approve: async (id) => asDone(await api.post(`/purchases/returns/${id}/approve`)) },
+  dashboard: (params) => api.get('/purchases/dashboard', { params }),
+  statement: (supplierId, params) => api.get(`/purchases/supplier/${supplierId}/statement`, { params }),
+};
+
+// ─── inventory (stock, adjustments, value, price list, counts, transfers) ───────────────────────────
+export const inventoryService = {
+  storeStock: (params = {}) => api.get('/inventory/store-stock', { params }),
+  batchDetails: (product_id) => api.get('/inventory/batch-details', { params: { product_id } }),
+  expiryRisk: (threshold_days = 30) => api.get('/inventory/check-expiry', { params: { threshold_days, storeId: currentStoreId() } }),
+  lowStock: () => api.get('/inventory/low-stock', { params: { storeId: currentStoreId() } }),
+  movements: (params = {}) => api.get('/inventory/movements', { params: { storeId: currentStoreId(), ...params } }),
+  stockValue: (priceCategoryId, params = {}) => api.get('/inventory/stock-value', { params: { priceCategoryId, ...params } }),
+  saveValueSnapshot: (payload) => api.post('/inventory/stock-value-history', payload),
+  valueHistory: (params = {}) => api.get('/inventory/stock-value-history', { params }),
+  valueHistoryDetail: (id) => api.get(`/inventory/stock-value-history/${id}`),
+  deleteValueHistory: (id) => api.delete(`/inventory/stock-value-history/${id}`),
+  updateBatch: (payload) => api.put('/inventory/batch', payload),
+  createAdjustment: (payload) => api.post('/inventory/adjustment', payload),
+  adjustments: (params = {}) => api.get('/inventory/adjustments', { params }),
+  adjustmentDetail: (id) => api.get(`/inventory/adjustment/${id}`),
+  batchwiseStock: (params = {}) => api.get('/inventory/batchwise-stock', { params }),
+  batchwiseAdjustment: (payload) => api.post('/inventory/adjustment-batchwise', payload),
+  // price list (prices per price category and batch)
+  priceList: (params = {}) => api.get('/pricelist', { params }),
+  updatePrices: (payload) => api.put('/pricelist/update-prices', payload),
+};
+export const stockCountService = {
+  products: (params = {}) => api.get('/stock-count/products', { params }),
+  save: (payload) => api.post('/stock-count/save', payload),
+  history: (params = {}) => api.get('/stock-count/history', { params }),
+  detail: (id) => api.get(`/stock-count/history/${id}`),
+  movements: (params = {}) => api.get('/stock-count/movements', { params }),
+  adjustmentsByProduct: (params = {}) => api.get('/stock-count/adjustments-by-product', { params }),
+  productAdjustments: (id, params = {}) => api.get(`/stock-count/adjustments/${id}`, { params }),
+};
+export const stockTransferService = {
+  create: (payload) => api.post('/stock-transfer', payload),
+  history: (params = {}) => api.get('/stock-transfer/history', { params }),
+  detail: (id) => api.get(`/stock-transfer/${id}`),
+  approve: (id) => api.post(`/stock-transfer/${id}/approve`),
+  receive: (id, items) => api.post(`/stock-transfer/${id}/receive`, { items }),
+  cancel: (id) => api.post(`/stock-transfer/${id}/cancel`),
+  remove: (id) => api.delete(`/stock-transfer/${id}`),
+};
+
+// ─── expenses ───────────────────────────────────────────────────────────────────────────────────────
+export const expenseService = {
+  list: async (params = {}) => { const r = await api.get('/expenses', { params }); return { success: true, data: r.data ?? [], summary: r.summary, pagination: pageOf(r.pagination), raw: r }; },
+  categories: async () => { const r = await api.get('/expenses/categories'); return { success: true, data: r.data ?? [] }; },
+  create: async (data) => { const r = await api.post('/expenses', data); return { success: true, data: r.data, message: r.message }; },
+  update: async (id, data) => { const r = await api.put(`/expenses/${id}`, data); return { success: true, data: r.data, message: r.message }; },
+  remove: async (id) => asDone(await api.delete(`/expenses/${id}`)),
+};
+
+// ─── import / export (Excel) ────────────────────────────────────────────────────────────────────────
+export const importExportService = {
+  /** type: products | stock | prices | full | contacts → a Blob (.xlsx) */
+  template: (type, responseType = 'blob') => api.get(`/import-export/template/${type}`, { responseType }),
+  exportData: (type, responseType = 'blob') => api.get(`/import-export/export/${type}`, { responseType }),
+  /** Uploads an .xlsx/.csv file; resolves with the server's result (counts and per-row errors). */
+  /** When some rows have errors the server answers { requiresConfirmation: true, results } and imports NOTHING until the same file is sent again with { confirmed: true } (valid rows only). */
+  importFile: (type, file, { confirmed = false } = {}) => { const fd = new FormData(); fd.append('file', file); return api.post(`/import-export/${type}`, fd, { params: confirmed ? { confirmed: 'true' } : undefined, headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 }); },
+};
+
 // ─── dashboard ────────────────────────────────────────────────────────────────────────────────────
 export const dashboardService = {
   getStats: async () => { const res = await api.get('/dashboard/stats'); return { success: true, data: res.data ?? res, raw: res }; },

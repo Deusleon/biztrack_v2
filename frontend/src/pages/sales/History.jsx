@@ -14,6 +14,7 @@ import { DataTable, Button, RowActions, ACTION_ICONS } from '../../components/ui
 import FormModal from '../../components/ui/FormModal';
 import { FilterBar, StatusBadge, toPaging, dateOnly } from './common';
 import { formatCurrency } from '../../utils/numberUtils';
+import { generateDeliveryNotePDF } from '../../utils/deliveryNotePdf';
 import { t } from '../../utils/i18n';
 
 const fetchSales = async ({ page, limit, search, saleType, startDate, endDate }) => {
@@ -23,7 +24,7 @@ const fetchSales = async ({ page, limit, search, saleType, startDate, endDate })
 
 export default function History() {
   const { can } = useAuth();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
   const { lang } = useLanguage();
   const { settings } = useStoreSettings();
   const navigate = useNavigate();
@@ -37,6 +38,20 @@ export default function History() {
     catch (err) { showError(err.message); }
   };
   const receipt = (s) => open(s, (d) => navigate('/sales/receipt', { state: { saleData: { ...d, invoice_number: s.invoice_number, items: d.items, paymentInfo: d.payment, customerInfo: { name: s.customer_name, phone: s.customer_phone } } } }));
+
+  // Delivery note (A4, no prices) — same document the original produced
+  const deliveryNote = (s) => open(s, (d) => {
+    try {
+      const st = settings || {};
+      generateDeliveryNotePDF({
+        businessInfo: { name: st.businessName || 'BizTrack', address: st.address || '', phone: st.phone || '', email: st.email || '', tin: st.tinNumber || '', logo: st.logo?.preview || '/icon-192.png' },
+        orderInfo: { invoice_number: s.invoice_number, cashierName: s.cashier_name },
+        customerInfo: { name: s.customer_name || t('walk_in', lang), phone: s.customer_phone || '' },
+        items: (d.items || []).map((i) => ({ name: i.name, quantity: i.quantity })), settings: { ...st },
+      }, 'A4').save(`DeliveryNote-${s.invoice_number}.pdf`);
+      showSuccess('delivery_note_downloaded');
+    } catch (err) { console.error(err); showError(t('something_went_wrong', lang)); }
+  });
 
   const columns = [
     { key: 'invoice_number', label: t('invoice_number', lang), render: (s) => <span className="font-medium text-gray-900">#{s.invoice_number}</span> },
@@ -69,6 +84,7 @@ export default function History() {
           renderActions={(s) => <RowActions actions={[
             { label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(s) },
             { label: t('receipt', lang), icon: ACTION_ICONS.print, onClick: () => receipt(s) },
+            { label: t('delivery_note', lang), icon: ACTION_ICONS.download, onClick: () => deliveryNote(s) },
             { label: t('sales_return', lang), icon: ACTION_ICONS.edit, onClick: () => navigate('/sales/returns', { state: { invoiceNumber: s.invoice_number } }), hidden: !can('create_sales_return') },
           ]} />} />
       </div>
@@ -87,6 +103,7 @@ export default function History() {
             </div>
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
               <Button variant="secondary" onClick={() => { const s = { invoice_number: pay.invoice_number, customer_name: pay.customer_name, customer_phone: pay.customer_phone }; setDetail(null); navigate('/sales/receipt', { state: { saleData: { ...d, invoice_number: s.invoice_number, items: d.items, paymentInfo: d.payment, customerInfo: { name: s.customer_name, phone: s.customer_phone } } } }); }}>{t('receipt', lang)}</Button>
+              <Button variant="secondary" onClick={() => deliveryNote({ invoice_number: pay.invoice_number, customer_name: pay.customer_name, customer_phone: pay.customer_phone, cashier_name: pay.cashier_name })}>{t('delivery_note', lang)}</Button>
               <Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button>
             </div>
           </div>

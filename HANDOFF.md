@@ -5,7 +5,7 @@
 ---
 
 ## 0. In one paragraph
-The user (Deus) runs several apps and wants **BizTrack** (a multi-store retail/POS system: sales, purchases, stock, reports, SMS, AI, subscriptions) rewritten on the same approach and look as his other app **EduTrack**, **without losing any BizTrack function**, with a **safe in-place database upgrade**, installable as a desktop/mobile app (PWA). **Phases 1 and 2 of 5 (foundation + all of Sales) are done and delivered** (this zip). The rest is a page-by-page port with a proven recipe (section 6) and a test harness (section 5).
+The user (Deus) runs several apps and wants **BizTrack** (a multi-store retail/POS system: sales, purchases, stock, reports, SMS, AI, subscriptions) rewritten on the same approach and look as his other app **EduTrack**, **without losing any BizTrack function**, with a **safe in-place database upgrade**, installable as a desktop/mobile app (PWA). **Phases 1–4 of 5 (foundation + Sales + Purchases + Inventory + Expenses) are done and delivered** (this zip). The rest is a page-by-page port with a proven recipe (section 6) and a test harness (section 5).
 
 ## 1. The user and the working agreement
 - **Language:** the user writes Swahili. **Reply in Swahili** (technical terms may stay English). Documentation in the repo is mixed; code and comments are English.
@@ -84,7 +84,7 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/biztrack_test bash tool
 cd frontend && npx vite build && npx eslint src --quiet      # build must pass; lint must show 0 errors (warnings are known debt)
 ```
 - Tests live in `tools/tests/*.mjs` and call the REAL `frontend/src/services/api.js` (the same calls the pages make) against the live backend. **Add a test file for every module you port** (copy `tools/tests/products.mjs`), including: create, update, search, delete, validation refusal, permission/auth refusal.
-- Current suites (74 checks, all pass): categories-customers (14), price-categories (7), products (9), profile (7), **sales (34)**, **receipt-pdf (3, no server needed)**. `python3 tools/dev/check-keys.py` lists/adds missing translation keys (run it after every page).
+- Current suites (165 checks, all pass): categories-customers (14), price-categories (7), products (9), profile (7), sales (34), purchases (29), **inventory (31: adjustments, batches, stock value + snapshots, price list, stock count, movements, expenses)**, **transfers (16, between two stores)**, **import-export (15, real .xlsx files)**, receipt-pdf (3, no server needed). `python3 tools/dev/check-keys.py` lists/adds missing translation keys (run it after every page).
 - Upgrade safety rehearsal (do again if you touch migrations/backup): `db:migrate` on a copy of the DB → `db:verify` (all tables identical) → damage something → `db:restore -- <file> --yes` → `db:verify`.
 - **Sandbox gotchas (these cost time):**
   - A background process dies when the tool call ends → start server + run test + stop it in ONE call (`tools/dev/with-server.sh`). Postgres may also stop between calls: scripts restart it with `service postgresql start`.
@@ -118,7 +118,7 @@ cd frontend && npx vite build && npx eslint src --quiet      # build must pass; 
 9. **Test:** add `tools/tests/<module>.mjs`, run `tools/run-all-tests.sh`, then `npx vite build` and `npx eslint src --quiet` (0 errors).
 10. **Update `MIGRATION_CHECKLIST.md`** (move the row to "done", list what is inside) and report to the user what was verified and what was not.
 
-## 7. Where we are — Phases 1 and 2 (DONE, delivered)
+## 7. Where we are — Phases 1–4 (DONE, delivered)
 Backend: all 166 modules load; migrations/backup/restore/verify rehearsed; security fixes (section 8).
 Frontend (build passes, lint 0 errors / 22 warnings): shell (Sidebar, MainLayout, ProtectedRoute with password-expired / subscription-locked / no-permission states), auth pages (Login, Register, VerifyEmail, ForgotPassword, NewPassword), Dashboard v1, Product Categories, **Price Categories**, Customers, Products (full), Profile (incl. avatar and password), PWA files, i18n.
 **Verified by tests (37 checks, real DB):** login, store switch (176 perms), CRUD for categories/price categories/customers/products incl. bulk delete and barcode lookup, validation refusals, no-token refusal, profile + password change + old-token revocation, dashboard stats.
@@ -130,84 +130,18 @@ How POS works (important for anyone touching it): the **server sells from its ow
 **Verified (`tools/tests/sales.mjs`, real DB):** cash sale (invoice, stock 50→48), same cart cannot be sold twice, selling above stock refused, pending order with a typed new customer, edit, payment on order, cancel/list/reopen, sell pending (stock 48→44), delete, credit sale (stock, due 2500), payments to zero (status paid), overpayment refused, mark overdue, return create/approve (restock 42→43)/reject, over-return refused, 401 without token; `receipt-pdf.mjs` produces real PDFs in all 3 sizes.
 **NOT verified:** the pages in a real browser; the SMS reminder (needs a configured SMS provider); the look of the receipt PDFs next to the original; QZ Tray.
 
-## 8. Security changes made to the original (keep them; mention to the user)
-1. `GET /api/profile` returned `SELECT * FROM users` → **password hash was sent to the client**. Now explicit safe columns.
-2. Tokens stayed valid 7 days after a password change. Now every token carries `pwa` (password-changed stamp, seconds); `authMiddleware` rejects tokens whose stamp is **older** than the account's (`<`, not `!==`, so a stale cache in another process never rejects a fresh token). Tokens without `pwa` (issued before) work until they expire. Helper: `utils/passwordStamp.js`; all 4 `jwt.sign` sites updated.
-3. Store-data GETs that had **no auth** (`/api/categories/:storeId`, `/api/products/:storeId`(+barcode), `/api/price-categories/:storeId`, `/api/suppliers/:storeId`) now require login + store membership (`checkStoreMember` in `middlewares/permissions.js`) — deliberately **no specific permission** so POS/purchasing screens work for every role.
-4. **Still open:** `POST /api/qz/sign` (QZ Tray print signing) has no auth. Ask the user; likely add `verifyToken`.
-Run the "unauthenticated route" scan again at the end (script idea: for each `router.METHOD(` in `backend/src/routes` check the args contain `verifyToken|authMiddleware` or the file has `router.use(authMiddleware)`).
+### Phase 3 — Purchases (DONE)
+Pages (`frontend/src/pages/purchases/`): **Suppliers** · **Orders** (PO list, editor with items/discount/tax and live totals, a NEW order is kept as a server-side draft via `active-cart`/`sync-cart`, detail, approve / reject with reason, edit, delete (drafts only), "Receive goods", PO PDF with `exportPurchaseOrderToPDF`) · **GoodsReceived** (receive against an approved/partially received PO: quantity, unit cost, selling price, batch, mfg/expiry dates; inspection; delete) · **Invoices** (supplier invoices from a GRN with totals, payments, edit, approve, delete) · **Payments** (pay an outstanding invoice, cancel payment) · **Returns** (return received goods per GRN line with condition/reason/refund method; approve; delete). Shared: `common.jsx` (PStatus, PFilters, useSuppliers, useAllProducts, listFetcher), `PaymentModal.jsx`; `supplierService` and `purchaseService` in `services/api.js`.
+Server rules worth knowing (all discovered by `tools/tests/purchases.mjs`): a new GRN is **approved at once and stock increases immediately** unless the store setting `settings.purchases.requireGRNInspection` is true — then it is `pending_inspection`, stock moves only for the ACCEPTED quantity at `inspect` (items are sent as `{ id, accepted_quantity, rejected_quantity, rejection_reason }`; the `id` is the GRN item id; selling price comes from the stored GRN item and is mandatory when `operations.useBatchWisePrice`); a PO can be deleted only while `draft` (a new PO is `pending_approval`); the server refuses payments above the invoice balance (`payment_exceeds_balance`) and returns above the remaining returnable quantity (`return_quantity_exceeds_remaining`); approving a supplier return takes stock out.
+**Verified (29 checks, real DB):** supplier CRUD + search, PO create/update/approve/list/delete rules, GRN in both modes with exact stock (10→35, and 30→38 for 8 accepted of 10), invoice create, payments (5000 then 15000), overpayment refused, payment cancellation restoring the balance, supplier return create/approve (stock 35→30), over-return refused, dashboard endpoint, 401 without token.
+**NOT verified:** the pages in a browser; PO PDF look vs the original.
+**Not ported on purpose:** `PurchaseDashboardTab` and `PurchaseOrderPrintPage` exist in the original but **nothing references them** (dead code); the backend endpoints `/purchases/dashboard` and `/purchases/supplier/:id/statement` work and are wrapped in `purchaseService.dashboard/statement` for the Phase 5 reports. The original `usePurchaseItems` hook was replaced by the editor in `Orders.jsx`.
+**Phase 2 addendum:** while checking Purchases I found the original sales history also had a **Delivery note (A4 PDF)** action; it is now in `pages/sales/History.jsx` (row action + detail button) using the unchanged `utils/deliveryNotePdf.js`.
 
-### 8b. Bugs in the ORIGINAL code found and fixed while porting Sales (tell the user — they also exist in his current BizTrack)
-1. **Saving a pending order for a typed (new) customer always failed** — `saveOrder` declared `customerId` with `const` and then assigned it ("Assignment to constant variable"). Now `let`.
-2. **Cancelling an order always failed** — code writes `cart.status='Cancelled'` but the DB CHECK `cart_status_check` did not allow it. New migration `20261108000000-allow-cancelled-cart-status.js` widens the check by one value (no data touched; `down()` maps Cancelled→Saved). `getOrders` now accepts `?status=Cancelled`; `reopenOrder` turns a cancelled order back into a waiting ("Saved") one.
-3. **Credit payments were not validated** — any amount was accepted (overpayment closed the debt and pushed the customer's balance below what they owe; zero/negative accepted). Now must be a positive number ≤ amount due (`amount_required`, `payment_exceeds_due`).
-4. **Returns were not validated** — one could return more than was sold, or goods not on the invoice. Now checked against the quantity still sold minus returns still waiting for approval (approval already reduces `cart.quantity`) → `return_quantity_exceeds_sold`, `product_not_in_invoice`, `quantity_must_be_positive`.
-5. Raw translation keys appeared in the delivery-note / PO PDFs (`goods_delivery`, `deliver_to`, `product`, …): the keys were missing from the dictionaries; added (layout untouched).
-
-## 9. Known issues, pending decisions, technical debt
-- **`_unattributed_files/`** — while working, the workspace contained files this work did not write (timestamps 14:37–14:42, unreferenced by the app): `PageHeader.jsx`, `TableToolbar.jsx`, `useCrudList.js`, `lib/axios.js`, `ForcePasswordChange.jsx`, `Login.jsx`, `Profile.jsx`, a `src/test/` vitest e2e test (written against a different UI), `src/config/navigation.js`, `validators/password.validator.js`, plus extra vitest entries in `package.json`/`vite.config.js`. They were moved out of the app and are **not used or verified**. The user was asked where they came from and had not answered. Ask once; if he does not recognise them, delete the folder.
-- Password message mismatch: backend locale `password_too_short` says "6 characters incl. number and special character" but the code requires 8 characters. Fix the wording in `backend/src/locales/*.json` and frontend lang files.
-- `view_dashboard` is used as the permission for the Dashboard figures with fallbacks (`view_sales_records`, `view_sales_reports`). Original: `/dashboard` requires `view_dashboard`, otherwise shows `DefaultDashboard`. Port `DefaultDashboard` properly (limited-role dashboard with permission-filtered quick actions).
-- Dashboard v1 lacks: AI summary card, "Ask BizTrack AI" card, "Top Selling" widget, KPI comparisons as in the original (`pages/Dashboard.jsx`, 916 lines).
-- `backend/src/services/backup.service.js` + `backupScheduler.js` (Google Drive cloud backup, original logic: `pg_dump` or JS fallback) still use the ORIGINAL code, not `dumpEngine`. In Phase 5 either move them to `dumpEngine` or confirm their restore keeps triggers/view/function.
-- Backend message keys missing from the frontend dictionary show raw (e.g. `invalid_stock` was added by hand). When a toast shows a raw key, add it to both `lang/*.json`.
-- React 19 lint rules `react-hooks/set-state-in-effect`, `refs`, `immutability`, `preserve-manual-memoization`, `use-memo` are set to **warn** in `frontend/eslint.config.js` (22 warnings): the patterns are common and correct here; refactor gradually.
-- Unused dependencies in `frontend/package.json` (qz-tray until Phase 2, react-to-print, qrcode.react, jwt-decode) — prune at the end if still unused.
-- Schedulers (notification, backup, stock-value history) start when the server starts; in tests they run too. Harmless on the test DB.
-- `Manager` user `lifen980003@gmail.com` has role of another store → 0 permissions in "New Shop" (bad test data, not a bug).
-- **Test data subscription:** "Magomeni Store" is active until 2026-12-02; after that every API call answers 402. `tools/dev/load-test-db.sh` pushes it a year ahead on the test copy.
-- Bundle: first load ≈ 215 kB gzip; heavy libs (pdf, excel, charts, zxing) are lazy chunks. Keep pages `lazy()` in `App.jsx`.
-
-## 10. Test data facts (user's backup)
-| Store (id prefix) | Owner | products / customers / categories | notes |
-|---|---|---|---|
-| **Magomeni Store** (a57fb5ba) | deusleon7@gmail.com | 5 / 4 / 15 | the one to test with; Owner = 176 permissions; subscription active |
-| Named (6336c1e5) | deusleon7@gmail.com | 0 / 0 / 0 | first store on login (6 perms, no subscription → 402 unless X-Store-ID of Magomeni) |
-| New Shop (0a2c7e03) | deusleon6@gmail.com | 1 / 2 / 1 | |
-| SALES SHOP (6815328f) | deusleon7@gmail.com (Admin there) | 0 / 0 / 0 | |
-Other users: lifen9803@gmail.com (Manager, Magomeni, 73 perms). Only the password of the test login is set (by `load-test-db.sh`, on the test copy). `login` picks the user's first store; the frontend then sets `X-Store-ID`; the API reads the store from that header (`req.user.current_store_id`).
-
-## 11. REMAINING WORK (the plan the user agreed to: 5 phases, in order)
-Sizes are the ORIGINAL line counts (page + forms + modals + hooks) — a realistic measure of effort. "Original file" paths are in `docs/ORIGINAL_MAP.md`.
-
-### Phase 2 — Sales: DONE (see §7). Leftovers to schedule (none blocks Phase 3):
-- **QZ Tray silent/direct printing** (`utils/qzPrint.js`, `assets/qz-tray-cert/`, `/api/qz/sign` — still unauthenticated, see §8): the Receipt page offers preview/print/download only. The original printed silently when `settings.enableReceiptPrinting && !receiptPreview`.
-- Sale/Order SMS/notification hooks, the original `SaleDetailModal` "reprint via QZ", and the original on-screen React receipt components (`ReceiptPreview`, `InvoiceReceipt`) — replaced by the PDF preview.
-- POS keyboard/hardware-scanner polish (rapid barcode entry works through the search box + Enter), summary bottom-sheet on phones, offline queueing: not in the original either unless noted in `docs/ORIGINAL_MAP.md` (`InvoiceSalePage.jsx`).
-- Sales tests leave sales behind (sales cannot be deleted): re-run `tools/dev/load-test-db.sh` to reset.
-
-### Phase 3 — Purchases (≈ 11,560 original lines in `pages/purchases/`; backend `purchaseOrder.controller.js` ~1,730, `supplierInvoice.controller.js` ~1,650, `supplier.controller.js`, `purchase.routes.js`)
-
-**Scope:** purchase orders (create/approve/send/receive; `purchase_orders*`, `purchase_approvals`, `purchase_carts*`; PDF `utils/purchaseOrderPdf.js`), goods received (GRN: `goods_received_notes`, `grn_items`; PDF `utils/deliveryNotePdf.js`), suppliers (the supplier list GET is now auth-protected), supplier invoices (+ items, credit notes), supplier payments, supplier returns.
-**Watch out:** receiving stock creates batches/inventory movements and updates cost price; partial receipts; invoice ↔ GRN ↔ payment balances (`supplier_invoices`, `supplier_payments`, `supplier_credit_notes`, `supplier_returns*`); approvals/permissions per step; SMS/notification hooks.
-**Acceptance:** `tools/tests/purchases.mjs`: PO → approve → receive (partial then full) → stock and cost correct → invoice → payment → balance zero → supplier return; PDFs for PO and delivery note unchanged in look.
-
-| Route | Original page file | Lines | Route permission(s) in the original |
-|---|---|---|---|
-| `/purchases/orders` | `src/pages/purchases/PurchasesPage.jsx` | 1313 | ["view_purchase_orders","create_purchase_orders","update_purchase_orders","approve_purchase_orders","delete_purchase_orders"] |
-| `/purchases/goods-received` | `src/pages/purchases/GoodsReceivedPage.jsx` | 956 | ["view_grn","create_grn","approve_grn","delete_grn"] |
-| `/purchases/suppliers` | `src/pages/purchases/SuppliersPage.jsx` | 388 | ["view_suppliers","create_suppliers","update_suppliers","delete_suppliers"] |
-| `/purchases/invoices` | `src/pages/purchases/SupplierInvoicesPage.jsx` | 1098 | ["view_supplier_invoices","create_supplier_invoices","update_supplier_invoices","delete_supplier_invoices"] |
-| `/purchases/payments` | `src/pages/purchases/SupplierPaymentsPage.jsx` | 1010 | ["view_supplier_payments","create_supplier_payments","delete_supplier_payments"] |
-| `/purchases/returns` | `src/pages/purchases/SupplierReturnsPage.jsx` | 1430 | ["view_supplier_returns","create_supplier_returns","approve_supplier_returns","delete_supplier_returns"] |
-
-### Phase 4 — Inventory (rest) + Expenses (≈ 7,300 original lines in `pages/inventory/` excluding Products, + `pages/expenses/` 493)
-
-**Scope:** current stock, current stock value, stock value history (snapshots written by `stockValueHistoryScheduler`), price list (`selling_prices`, `price_changes`, `UpdatePriceModal`, `EditBatchModal`), stock adjustment (+ history modal), stock count (`stock_counts*`), **stock transfer between stores** (`stock_transfers*`, receive modal, cross-store permissions), import/export (Excel via `exceljs`/`xlsx`, `importExport.controller.js`; large files — `statement_timeout=0` is used by the importer), expenses (`expenses` table; small).
-**Watch out:** every stock-changing action must create `inventory_movements`; negative stock obeys `settings.allowNegativeStock`; expiry/batch rules `settings.allowExpireDate`; transfers touch two stores (check membership in both).
-**Acceptance:** tests for adjustment (+/−), count (variance posted), transfer (send → receive, both stores' stock correct), price update (price history row), import dry-run and import (counts), expense CRUD; value history snapshot visible.
-
-| Route | Original page file | Lines | Route permission(s) in the original |
-|---|---|---|---|
-| `/inventory/current-stock` | `src/pages/inventory/CurrentStockPage.jsx` | 313 | ["view_current_stock"] |
-| `/inventory/stock-value` | `src/pages/inventory/CurrentStockValuePage.jsx` | 449 | ["view_current_stock_value"] |
-| `/inventory/pricelist` | `src/pages/inventory/PricelistPage.jsx` | 345 | ["view_price_list","manage_price_list"] |
-| `/inventory/stock-value-history` | `src/pages/inventory/StockValueHistoryPage.jsx` | 618 | ["view_stock_value_history"] |
-| `/inventory/adjustment` | `src/pages/inventory/StockAdjustmentPage.jsx` | 837 | ["view_stock_adjustment","create_stock_adjustment"] |
-| `/inventory/stock-count` | `src/pages/inventory/StockCountPage.jsx` | 816 | ["view_stock_count","create_stock_count","approve_stock_count"] |
-| `/inventory/stock-transfer` | `src/pages/inventory/StockTransferPage.jsx` | 1224 | ["view_stock_transfer","create_stock_transfer","approve_stock_transfer"] |
-| `/inventory/import-export` | `src/pages/inventory/ImportExportPage.jsx` | 530 | ["view_products","create_products","update_products"] |
-| `/expenses` | `src/pages/expenses/ExpensesPage.jsx` | 309 | — |
+### Phase 4 — Inventory + Expenses: DONE (see §7). Leftovers (none blocks Phase 5):
+- Quick-adjust from the stock list and the per-product adjustment modal are reachable through the Adjustment page (filters / "by product" tab) — no separate modal like the original.
+- `import-export` for contacts → Phase 5 Messaging.
+- Tests leave products, snapshots, transfers and expenses in the TEST database (re-run `tools/dev/load-test-db.sh` to reset).
 
 ### Phase 5 — Reports, administration, messaging, settings, subscription, AI, support (≈ 16,000+ original lines)
 
@@ -265,7 +199,7 @@ Sizes are the ORIGINAL line counts (page + forms + modals + hooks) — a realist
 ## 12. Questions to put to the user early (one at a time)
 1. Is the `_unattributed_files/` work his? (keep / merge / delete)
 2. Add auth to `POST /api/qz/sign`? (recommended yes)
-3. Start Phase 3 with Purchases (PO 1,313 lines, GRN, invoices, payments, returns) — or does he prefer another order?
+3. Phase 5 is the largest (≈16,000 original lines): propose splitting it into 5a Reports (the 4,547-line `report.controller`), 5b Users/Roles/Permissions/Stores/Settings/Security/Notifications/IdleLock, 5c Messaging, Subscription, Support, AI, Profile extras — and ask which he wants first.
 4. Can he give a backup of the REAL database (not only test data) for the final rehearsal, and which hosting does he use (cPanel Node app per `.cpanel.yml`)?
 5. Any OpenAI/Gemini/ClickPesa/SMS credentials available for testing Phase 5 integrations, or should they be mocked?
 

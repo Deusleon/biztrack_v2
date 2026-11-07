@@ -17,6 +17,8 @@ export DATABASE_URL="postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$DB"
 # the scripts seed a few rows (permissions, plans, integrations) that clash with the backup's own copies: empty everything first
 psql -q -d "$DB" -c "DO \$\$ DECLARE r record; BEGIN FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename NOT IN ('SequelizeMeta') LOOP EXECUTE 'TRUNCATE TABLE public.'||quote_ident(r.tablename)||' CASCADE'; END LOOP; END \$\$;" 2>/dev/null
 psql -q -d "$DB" -v ON_ERROR_STOP=1 -f "$SQL" >/dev/null
+# permissions that exist in the code but not in the backup (Owner roles receive them automatically)
+( cd "$ROOT/backend" && npm run -s permissions:sync >/dev/null )
 HASH="$(cd "$ROOT/backend" && node -e "import('bcryptjs').then(b=>console.log(b.default.hashSync(process.argv[1],10)))" "$PASS")"
 psql -q -d "$DB" -c "UPDATE users SET password='$HASH', is_verified=true, status=true, failed_login_attempts=0, account_locked_until=NULL, password_changed_at=now() WHERE email='$EMAIL';"
 # the test data's subscription ends 2026-12-02: push it a year out so the API does not answer 402 during tests

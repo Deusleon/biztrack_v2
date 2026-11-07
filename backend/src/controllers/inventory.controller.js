@@ -1,3 +1,4 @@
+import { createStockValueSnapshot } from '../services/stockValueSnapshot.service.js';
 import pool from '../config/db.js';
 import { logActivity } from '../utils/activityLog.js';
 import { t } from '../utils/translate.js';

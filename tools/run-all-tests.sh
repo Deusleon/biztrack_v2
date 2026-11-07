@@ -5,7 +5,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 : "${DATABASE_URL:?set DATABASE_URL to the TEST database}"
 rc=0
-for t in categories-customers price-categories products profile sales receipt-pdf; do
+for t in categories-customers price-categories products profile sales purchases inventory transfers import-export receipt-pdf; do
   echo "=== $t"; bash tools/dev/with-server.sh "node tools/tests/$t.mjs" || rc=1
 done
 exit $rc

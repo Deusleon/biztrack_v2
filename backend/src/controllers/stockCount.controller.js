@@ -98,6 +98,7 @@ export const getStockMovementsByType = async (req, res) => {
       SELECT COUNT(*) 
       FROM inventory_movements im
       LEFT JOIN products p ON im.product_id = p.id
+      LEFT JOIN product_categories c ON p.category_id = c.id
       WHERE im.store_id = $1
     `;
     const countParams = [storeId];
@@ -143,25 +144,11 @@ export const getStockMovementsByType = async (req, res) => {
     const countResult = await pool.query(countQuery, countParams);
     const total = Number(countResult.rows[0].count);
 
-    // Calculate totals for summary
-    let totalQuery = `
-      SELECT 
-        COUNT(*) AS total_movements,
-        COALESCE(SUM(quantity), 0) AS total_quantity
-      FROM inventory_movements im
-      LEFT JOIN products p ON im.product_id = p.id
-      WHERE im.store_id = $1
-    `;
-
-    if (movement_type) {
-      totalQuery += ` AND im.type = '${movement_type}'`;
-    }
-
-    if (startDate && endDate) {
-      totalQuery += ` AND im.created_at >= '${startDate}' AND im.created_at < ('${endDate}'::date + interval '1 day')`;
-    }
-
-    const totalResult = await pool.query(totalQuery, [storeId]);
+    // Totals for the summary: the same filters (and the same bound parameters) as the list, so the cards match what is shown.
+    const totalResult = await pool.query(
+      countQuery.replace("SELECT COUNT(*)", "SELECT COUNT(*) AS total_movements, COALESCE(SUM(im.quantity), 0) AS total_quantity"),
+      countParams,
+    );
 
     res.status(200).json({
       success: true,

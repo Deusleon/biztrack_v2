@@ -33,7 +33,7 @@ router.get("/template/:type", authMiddleware, importExportController.downloadTem
 router.post(
   "/products",
   authMiddleware,
-  checkPermission(["manage_products", "edit_products"], false),
+  checkPermission(["import_products", "manage_products", "edit_products"], false),
   upload.single("file"),
   importExportController.importProducts
 );
@@ -41,7 +41,7 @@ router.post(
 router.post(
   "/stock",
   authMiddleware,
-  checkPermission(["manage_inventory", "manage_stock"], false),
+  checkPermission(["import_stock", "manage_inventory", "manage_stock"], false),
   upload.single("file"),
   importExportController.importStock
 );
@@ -49,7 +49,7 @@ router.post(
 router.post(
   "/prices",
   authMiddleware,
-  checkPermission(["manage_products", "manage_prices"], false),
+  checkPermission(["import_prices", "manage_products", "manage_prices"], false),
   upload.single("file"),
   importExportController.importPrices
 );
@@ -74,6 +74,7 @@ router.post(
 router.get(
   "/export/:type",
   authMiddleware,
+  checkPermission(["view_imports_exports", "export_products", "export_stock", "export_prices"], false),
   importExportController.exportData
 );
 

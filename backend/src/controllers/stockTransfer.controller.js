@@ -33,6 +33,12 @@ export const createStockTransfer = async (req, res) => {
 
     const destStore = destStoreResult.rows[0];
 
+    // Sending stock to the store it is already in would only create movements out of and back into the same shelf.
+    if (destination_store_id === sourceStoreId) {
+      await client.query("ROLLBACK");
+      return respondWithError(req, res, 400, "cannot_transfer_to_same_store");
+    }
+
     // Get source store name
     const sourceStoreResult = await client.query(
       `SELECT name FROM stores WHERE id = $1`,
