@@ -2,6 +2,7 @@ import * as _n49 from 'express';
 const express = _n49.default ?? _n49;
 import * as toolsController from '../controllers/tools.controller.js';
 import authMiddleware from '../middlewares/authMiddleware.js';
+import { checkStorePermission } from '../middlewares/permissions.js';
 const router = express.Router();
 
 // Data export (SQL)
@@ -14,7 +15,7 @@ router.get("/backup", authMiddleware, toolsController.backupDatabase);
 router.get("/db-health", authMiddleware, toolsController.dbHealthCheck);
 
 // Clear cache (log event)
-router.post("/clear-cache", authMiddleware, toolsController.clearCache);
+router.post("/clear-cache", authMiddleware, checkStorePermission(['view_tools']), toolsController.clearCache);
 
 // Activity / system logs
 router.get("/logs", authMiddleware, toolsController.getSystemLogs);

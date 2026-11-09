@@ -4,8 +4,8 @@ const router = express.Router();
 import authMiddleware from '../middlewares/authMiddleware.js';
 import * as expenseController from '../controllers/expense.controller.js';
 import { checkStorePermission } from '../middlewares/permissions.js';
-router.get('/', authMiddleware, expenseController.getExpenses);
-router.get('/categories', authMiddleware, expenseController.getExpenseCategories);
+router.get('/', authMiddleware, checkStorePermission(['view_expenses', 'create_expenses', 'update_expenses']), expenseController.getExpenses);
+router.get('/categories', authMiddleware, checkStorePermission(['view_expenses', 'create_expenses', 'update_expenses']), expenseController.getExpenseCategories);
 
 router.post(
   '/',

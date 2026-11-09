@@ -1,4 +1,5 @@
 ﻿// path: backend/controllers/importExport.controller.js
+import { normalizeContactPhone } from '../utils/phoneNumber.js';
 import pool from '../config/db.js';
 import * as _n7 from 'xlsx';
 const XLSX = _n7.default ?? _n7;
@@ -1435,7 +1436,13 @@ async function processContactsRows(client, rows, storeId, lang) {
 
     if (String(row.name || row.phone || "").trimStart().startsWith("#")) continue;
 
-    const phone = String(row.phone || "").trim();
+    const rawPhone = String(row.phone || "").trim();
+    const phone = normalizeContactPhone(rawPhone);
+    if (rawPhone && !phone) {
+      results.failed++;
+      results.errors.push({ row: rowNum, errorKey: "invalid_phone", error: `Invalid phone number: ${rawPhone}` });
+      continue;
+    }
     if (!phone) {
       results.failed++;
       results.errors.push({ row: rowNum, errorKey: "phone_required", error: "Phone number is required" });

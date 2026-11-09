@@ -27,7 +27,7 @@ const upload = multer({
 });
 
 // Templates
-router.get("/template/:type", authMiddleware, importExportController.downloadTemplate);
+router.get("/template/:type", authMiddleware, checkPermission(["view_imports_exports", "import_products", "import_stock", "import_prices", "view_products", "manage_inventory"], false), importExportController.downloadTemplate);
 
 // Import routes (require file upload)
 router.post(
@@ -65,7 +65,7 @@ router.post(
 router.post(
   "/contacts",
   authMiddleware,
-  checkPermission(["manage_integration", "view_integration"], false),
+  checkPermission(["manage_contacts", "manage_integration", "view_bulk_operations"], false),
   upload.single("file"),
   importExportController.importContacts
 );

@@ -89,10 +89,15 @@ export const createUserForStore = async (req, res) => {
       return res.status(400).json({ message: t('email_exists', lang) });
     }
  
-    const roleRes = await client.query('SELECT id FROM roles WHERE name = $1', [role]);
+    // the role must belong to THIS store (a name like "Manager" exists in every store), and nobody is made an Owner here
+    const roleRes = await client.query('SELECT id, name FROM roles WHERE store_id = $1 AND (name = $2 OR id::text = $2)', [storeId, String(role)]);
     if (roleRes.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ message: t('role_not_found', lang) });
+    }
+    if (String(roleRes.rows[0].name).toLowerCase() === 'owner') {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ message: t('owner_role_not_assignable', lang) });
     }
     const roleId = roleRes.rows[0].id;
  
@@ -282,9 +287,18 @@ export const updateStoreUserRole = async (req, res) => {
         const storeUser = storeUserResult.rows[0];
 
         // 2. Hakikisha role mpya ipo
-        const roleCheckResult = await pool.query('SELECT id FROM roles WHERE id = $1', [role]);
+        // the Owner can't be changed here, and nobody can be made an Owner here (an `edit_users` holder could otherwise promote themselves)
+        const currentRole = await pool.query('SELECT name FROM roles WHERE id = $1', [storeUser.role_id]);
+        if (String(currentRole.rows[0]?.name || '').toLowerCase() === 'owner') {
+            return res.status(403).json({ message: t('cannot_edit_owner', lang) });
+        }
+        // the new role must belong to THIS store
+        const roleCheckResult = await pool.query('SELECT id, name FROM roles WHERE id = $1 AND store_id = $2', [role, currentStoreId]);
         if (roleCheckResult.rows.length === 0) {
             return res.status(404).json({ message: t('role_not_found', lang) });
+        }
+        if (String(roleCheckResult.rows[0].name).toLowerCase() === 'owner') {
+            return res.status(403).json({ message: t('owner_role_not_assignable', lang) });
         }
         const newRoleId = roleCheckResult.rows[0].id;
 
@@ -298,10 +312,8 @@ export const updateStoreUserRole = async (req, res) => {
         const updatedStoreUser = updateStoreUserResult.rows[0];
 
         // 4. Update status kwenye users table
-        await pool.query(
-            `UPDATE users SET status = $1 WHERE id = $2`,
-            [status, id]
-        );
+        // (the original also set users.status here, which switched the person off in EVERY store they belong to;
+        //  the per-store status above is what the store's permission checks honour)
 
 
         // 5. Rudisha tena data kamili (JOIN kwenye users, roles, stores)
@@ -377,18 +389,36 @@ export const updateStoreUserRole = async (req, res) => {
 
 // Remove a user from a store
 export const removeUserFromStore = async (req, res) => {
-    const { id } = req.params; // store_user id
+    const { id } = req.params; // the person's USER id
     const lang = req.user.preferred_language || req.headers['x-language'] || 'en';
 
     try {
-        // Check if store_user exists
-        const storeUser = await pool.query('SELECT * FROM store_users WHERE user_id = $1', [id]);
+        const storeId = req.user.current_store_role.store_id;
+        // The person must belong to THIS store. (The original looked them up in every store and then deleted the whole account —
+        // anyone with the permission could delete any account in the system, the owner of another shop included.)
+        const storeUser = await pool.query(
+            'SELECT su.id, r.name AS role_name FROM store_users su LEFT JOIN roles r ON r.id = su.role_id WHERE su.user_id = $1 AND su.store_id = $2',
+            [id, storeId]
+        );
         if (storeUser.rows.length === 0) {
             return res.status(404).json({ message: t('store_user_not_found', lang) });
         }
-        const storeId = req.user.current_store_role.store_id;
-        // Delete the store_user
-        await pool.query('DELETE FROM users WHERE id = $1', [id]);
+        if (String(storeUser.rows[0].role_name || '').toLowerCase() === 'owner') {
+            return res.status(403).json({ message: t('cannot_delete_owner', lang) });
+        }
+        if (id === req.user.id) {
+            return res.status(403).json({ message: t('cannot_remove_self', lang) });
+        }
+        // Take them out of THIS store only.
+        await pool.query('DELETE FROM store_users WHERE user_id = $1 AND store_id = $2', [id, storeId]);
+        // If they now belong to no store at all, remove the account too — unless it already created records (sales, customers…),
+        // in which case it is switched off instead so that history keeps its author.
+        const left = await pool.query('SELECT 1 FROM store_users WHERE user_id = $1 LIMIT 1', [id]);
+        const owns = await pool.query('SELECT 1 FROM stores WHERE owner_id = $1 LIMIT 1', [id]);
+        if (left.rows.length === 0 && owns.rows.length === 0) {
+            try { await pool.query('DELETE FROM users WHERE id = $1', [id]); }
+            catch (e) { if (e.code === '23503') await pool.query('UPDATE users SET status = false WHERE id = $1', [id]); else throw e; }
+        }
 
         const io = getIO();
         io.to(`store_${storeId}_Owner`).emit("userDeleted", {

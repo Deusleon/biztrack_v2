@@ -68,7 +68,7 @@ async function getStoreMembership(userId, storeId) {
     `SELECT r.name AS role_name
        FROM store_users su
        LEFT JOIN roles r ON r.id = su.role_id
-      WHERE su.user_id = $1 AND su.store_id = $2
+      WHERE su.user_id = $1 AND su.store_id = $2 AND su.status = true
       LIMIT 1`,
     [userId, storeId]
   );

@@ -671,6 +671,7 @@ async function sendSubscriptionFailureNotification({ subscription, transaction }
   return result;
 }
 
+const webhookLooks = new Map();
 async function processWebhook(payload) {
   const eventId = payload?.data?.id;
   const eventType = payload?.event;
@@ -700,101 +701,38 @@ async function processWebhook(payload) {
     return { eventId, processed: false, reason: 'missing_reference' };
   }
 
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    let paymentResult = null;
-
-    const transactionResult = await client.query(
-      `SELECT * FROM subscription_transactions
-       WHERE id::text = $1 OR request_id = $1 OR provider_reference = $1
-       ORDER BY created_at DESC
-       LIMIT 1
-       FOR UPDATE`,
-      [transactionRef]
-    );
-
-    if (transactionResult.rows.length === 0) {
-      await client.query(
-        `UPDATE payment_webhook_events
-         SET status = 'failed', error_message = 'Transaction not found', processed_at = NOW()
-         WHERE provider = 'clickpesa' AND event_id = $1`,
-        [eventId]
-      );
-
-      await client.query('COMMIT');
-      return { eventId, processed: false, reason: 'transaction_not_found' };
-    }
-
-    const transaction = transactionResult.rows[0];
-    if (normalizedStatus === 'paid') {
-      paymentResult = await applySuccessfulPayment({
-        client,
-        transaction,
-        providerReference: payload?.data?.orderReference || null,
-        paymentMethod: payload?.data?.channel || null,
-        rawResponse: payload,
-      });
-    } else {
-      await markFailedPayment({
-        client,
-        transaction,
-        normalizedStatus,
-        rawResponse: payload,
-      });
-    }
-
-    await client.query(
-      `UPDATE payment_webhook_events
-       SET status = 'processed', processed_at = NOW()
+  // The webhook is only a TRIGGER. Anybody can POST to this public address, so nothing in the notice is trusted (its status least of all):
+  // the real status is always read from ClickPesa by reconcileTransaction(). (The original applied the payment straight from the
+  // notice, so a forged "paid" notice for a known transaction id gave a free subscription.)
+  const found = await pool.query(
+    `SELECT id FROM subscription_transactions
+     WHERE id::text = $1 OR request_id = $1 OR provider_reference = $1
+     ORDER BY created_at DESC LIMIT 1`,
+    [transactionRef]
+  );
+  if (found.rows.length === 0) {
+    await pool.query(
+      `UPDATE payment_webhook_events SET status = 'failed', error_message = 'Transaction not found', processed_at = NOW()
        WHERE provider = 'clickpesa' AND event_id = $1`,
       [eventId]
     );
-
-    await client.query('COMMIT');
-
-    await emitSubscriptionPaymentUpdate({
-      accountId: transaction.account_id,
-      storeId: transaction.store_id,
-      transactionId: transaction.id,
-      status: normalizedStatus,
-      eventId,
-      source: 'webhook',
-    });
-
-    if (normalizedStatus === 'paid') {
-      try {
-        await sendSubscriptionSuccessNotification({
-          subscription: (await getStoreSubscription(transaction.account_id)) || paymentResult?.subscription || null,
-          transaction,
-        });
-      } catch (notifyError) {
-        console.error('Subscription SMS notification error:', notifyError.message);
-      }
-    }
-    if (normalizedStatus === 'failed') {
-      try {
-        await sendSubscriptionFailureNotification({
-          subscription: (await getStoreSubscription(transaction.account_id)) || paymentResult?.subscription || null,
-          transaction,
-        });
-      } catch (notifyError) {
-        console.error('Subscription SMS notification error:', notifyError.message);
-      }
-    }
-
-    return { eventId, processed: true, status: normalizedStatus };
+    return { eventId, processed: false, reason: 'transaction_not_found' };
+  }
+  const transactionId = found.rows[0].id;
+  // do not let a stream of notices hammer the payment provider: one look per transaction every 5 seconds
+  const last = webhookLooks.get(transactionId) || 0;
+  if (Date.now() - last < 5000) {
+    await pool.query("UPDATE payment_webhook_events SET status = 'processed', processed_at = NOW() WHERE provider = 'clickpesa' AND event_id = $1", [eventId]);
+    return { eventId, processed: false, reason: 'throttled' };
+  }
+  webhookLooks.set(transactionId, Date.now());
+  try {
+    const verified = await reconcileTransaction(transactionId);
+    await pool.query("UPDATE payment_webhook_events SET status = 'processed', processed_at = NOW() WHERE provider = 'clickpesa' AND event_id = $1", [eventId]);
+    return { eventId, processed: true, status: verified.status };
   } catch (error) {
-    await client.query('ROLLBACK');
-    await pool.query(
-      `UPDATE payment_webhook_events
-       SET status = 'failed', error_message = $2, retry_count = retry_count + 1, processed_at = NOW()
-       WHERE provider = 'clickpesa' AND event_id = $1`,
-      [eventId, error.message]
-    );
+    await pool.query("UPDATE payment_webhook_events SET status = 'failed', error_message = $2, processed_at = NOW() WHERE provider = 'clickpesa' AND event_id = $1", [eventId, String(error.message).slice(0, 300)]);
     throw error;
-  } finally {
-    client.release();
   }
 }
 

@@ -6,8 +6,11 @@ import * as _n4 from 'bcryptjs';
 const bcrypt = _n4.default ?? _n4;
 // Create a new store with default settings
 export const createStore = async (req, res) => {
-  const { name, store_code, location } = req.body;
+  const { name, store_code, location } = req.body || {};
   const lang = req.user.lang || req.headers["x-language"] || "en";
+  if (!String(name || '').trim() || !String(store_code || '').trim()) {
+    return res.status(400).json({ message: t("all_fields_required", lang) });
+  }
   const codeToCheck = store_code.trim();
   const userId = req.user.id;
   const logDescription = {
@@ -259,7 +262,7 @@ export const updateStore = async (req, res) => {
 // Delete a store
 export const deleteStore = async (req, res) => {
   const { id } = req.params;
-  const { password } = req.body;
+  const { password } = req.body || {};
   const userId = req.user.id;
   const currentStoreId = req.user.current_store_role?.store_id;
   const isCurrentStore = currentStoreId === id;

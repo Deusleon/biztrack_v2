@@ -1,4 +1,5 @@
 // path: backend/controllers/messaging.controller.js
+import { normalizeContactPhone } from '../utils/phoneNumber.js';
 import crypto from 'crypto';
 import pool from '../config/db.js';
 import { respondWithError } from '../utils/response.js';
@@ -786,6 +787,14 @@ export const createContact = async (req, res) => {
   if (!phone || !String(phone).trim()) {
     return res.status(400).json({ message: "Phone number is required." });
   }
+  const phoneClean = normalizeContactPhone(phone);
+  if (!phoneClean) {
+    return res.status(400).json({ message: "Enter the phone number in international format, e.g. 255712345678." });
+  }
+  {
+    const dup = await pool.query("SELECT id FROM messaging_contacts WHERE store_id = $1 AND phone = $2 LIMIT 1", [storeId, phoneClean]);
+    if (dup.rows.length > 0) return res.status(409).json({ message: "A contact with this phone number already exists." });
+  }
 
   const client = await pool.connect();
   try {
@@ -794,7 +803,7 @@ export const createContact = async (req, res) => {
     const contactResult = await client.query(
       `INSERT INTO messaging_contacts (store_id, name, phone)
        VALUES ($1, $2, $3) RETURNING id, name, phone, created_at`,
-      [storeId, (name || "").trim() || null, String(phone).trim()]
+      [storeId, (name || "").trim() || null, phoneClean]
     );
     const contact = contactResult.rows[0];
 
@@ -852,9 +861,11 @@ export const addContacts = async (req, res) => {
   const storeId = req.user.current_store_id;
   const incoming = Array.isArray(req.body.contacts) ? req.body.contacts : [req.body];
 
-  const cleaned = incoming
-    .map((c) => ({ name: (c.name || "").trim() || null, phone: String(c.phone || "").trim() }))
-    .filter((c) => c.phone);
+  const rawContacts = incoming.map((c) => ({ name: (c.name || "").trim() || null, raw: String(c.phone || "").trim() })).filter((c) => c.raw);
+  if (rawContacts.some((c) => !normalizeContactPhone(c.raw))) {
+    return res.status(400).json({ message: "Enter the phone numbers in international format, e.g. 255712345678." });
+  }
+  const cleaned = rawContacts.map((c) => ({ name: c.name, phone: normalizeContactPhone(c.raw) }));
 
   if (cleaned.length === 0) {
     return res.status(400).json({ message: "At least one contact with a phone number is required." });
@@ -1006,6 +1017,14 @@ export const updateContact = async (req, res) => {
   if (!phone || !String(phone).trim()) {
     return res.status(400).json({ message: "Phone number is required." });
   }
+  const phoneClean = normalizeContactPhone(phone);
+  if (!phoneClean) {
+    return res.status(400).json({ message: "Enter the phone number in international format, e.g. 255712345678." });
+  }
+  {
+    const dupU = await pool.query("SELECT id FROM messaging_contacts WHERE store_id = $1 AND phone = $2 AND id <> $3 LIMIT 1", [req.user.current_store_id, phoneClean, req.params.id]);
+    if (dupU.rows.length > 0) return res.status(409).json({ message: "A contact with this phone number already exists." });
+  }
 
   try {
     const storeId = req.user.current_store_id;
@@ -1013,7 +1032,7 @@ export const updateContact = async (req, res) => {
       `UPDATE messaging_contacts SET name = $1, phone = $2
        WHERE id = $3 AND store_id = $4
        RETURNING id, name, phone, created_at`,
-      [(name || "").trim() || null, String(phone).trim(), req.params.id, storeId]
+      [(name || "").trim() || null, phoneClean, req.params.id, storeId]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: "Contact not found." });
     return res.status(200).json(result.rows[0]);
