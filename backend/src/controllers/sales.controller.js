@@ -2589,7 +2589,7 @@ export const approveSalesReturn = async (req, res) => {
              created_by,
              transaction_date
            )
-           VALUES ($1::uuid, $2::uuid, $3::uuid, $4::numeric, 'IN', $5, $6::uuid, NOW())`,
+           VALUES ($1::uuid, $2::uuid, $3::uuid, $4::numeric, 'IN', $5::text, $6::uuid, NOW())`,
           [
             storeId,
             item.product_id,
@@ -2801,7 +2801,7 @@ export const approveSalesReturn = async (req, res) => {
         `UPDATE credit_sales
          SET total_amount = $1, amount_paid = $2, amount_due = $3, status = $4::varchar,
              paid_at = CASE WHEN $4::varchar = 'paid' THEN COALESCE(paid_at, NOW()) ELSE NULL END,
-             notes = CONCAT_WS(E'\n', NULLIF(notes, ''), $5),
+             notes = CONCAT_WS(E'\n', NULLIF(notes, ''), $5::text),
              updated_at = NOW()
          WHERE id = $6`,
         [round2(newTotal), appliedPaid, newDue, creditStatus, `Return ${salesReturn.return_number}`, credit.id],
@@ -2827,14 +2827,14 @@ export const approveSalesReturn = async (req, res) => {
     await client.query(
       `UPDATE payments
        SET
-         subtotal = $1,
-         total_discount = $2,
-         total_vat = $3,
-         total_amount = $4,
-         amount_paid = $5,
-         amount_due = $6
+         subtotal = $1::numeric,
+         total_discount = $2::numeric,
+         total_vat = $3::numeric,
+         total_amount = $4::numeric,
+         amount_paid = $5::numeric,
+         amount_due = $6::numeric
        WHERE invoice_number = $7
-         AND store_id = $8`,
+         AND store_id = $8::uuid`,
       [
         newSubtotal,
         newDiscount,
