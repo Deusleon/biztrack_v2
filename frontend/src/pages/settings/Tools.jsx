@@ -64,8 +64,15 @@ export default function Tools() {
           {logs.loaded && logs.rows.length < logs.total && <div className="text-center"><Button variant="secondary" loading={logs.loading} onClick={() => loadLogs(logs.page + 1)}>{t('load_more', lang)} ({logs.rows.length}/{logs.total})</Button></div>}
         </div>
       </div>
-      <FormModal isOpen={!!detail} onClose={() => setDetail(null)} size="md" title={detail?.action}>
-        {detail && <div className="space-y-3 text-left text-sm"><p className="text-gray-500">{when(detail.created_at)} · {detail.user_name || '—'}</p>{Object.keys(d).length === 0 ? <p className="text-gray-400">{t('no_changes', lang)}</p> : <ul className="divide-y divide-gray-100 border border-gray-100 rounded">{Object.entries(d).map(([k, v]) => <li key={k} className="px-3 py-1.5 flex justify-between gap-4"><span className="text-gray-500">{k}</span><span className="text-gray-800 break-all text-right">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span></li>)}</ul>}<div className="flex justify-end"><Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button></div></div>}
+      <FormModal isOpen={!!detail} onClose={() => setDetail(null)} size="xl" title={detail?.action}>
+        {detail && <div className="space-y-5 text-left">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[[t('log_time', lang), when(detail.created_at)], [t('log_user', lang), detail.user_name], [t('action', lang), detail.action], ['IP', detail.ip_address]].map(([k, v]) => <div key={k} className="rounded-md bg-gray-50 px-3 py-2.5"><p className="text-[11px] uppercase tracking-wide text-gray-400">{k}</p><p className="text-sm font-medium text-gray-900 mt-0.5 break-words">{v || '—'}</p></div>)}
+          </div>
+          {Object.keys(d).length === 0 ? <p className="text-sm text-gray-400">{t('no_changes', lang)}</p> : <div className="overflow-x-auto border border-gray-200 rounded-md"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('name', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('details', lang)}</th></tr></thead>
+            <tbody>{Object.entries(d).map(([k, v]) => <tr key={k} className="border-t border-gray-100"><td className="px-3 py-2.5 text-gray-500">{k}</td><td className="px-3 py-2.5 break-all">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</td></tr>)}</tbody></table></div>}
+          <div className="flex justify-end"><Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button></div>
+        </div>}
       </FormModal>
       <ConfirmModal isOpen={confirmCache} variant="warning" title={t('clear_cache', lang)} confirmText={t('confirm', lang)} cancelText={t('ui_cancel', lang)} message={t('clear_cache_confirm', lang)} onClose={() => setConfirmCache(false)} onConfirm={() => { setConfirmCache(false); run('cache', () => toolsService.clearCache(), 'cache_cleared_msg'); }} />
     </MainLayout>

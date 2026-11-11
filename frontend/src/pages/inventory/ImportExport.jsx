@@ -100,7 +100,7 @@ export default function ImportExport({ bulk = false }) {
         )}
       </div>
 
-      <FormModal isOpen={!!confirm} onClose={() => setConfirm(null)} size="lg" title={t('import_has_errors_title', lang)}>
+      <FormModal isOpen={!!confirm} onClose={() => setConfirm(null)} size="xl" title={t('import_has_errors_title', lang)}>
         {confirm && (<div className="space-y-4 text-left">
           <p className="text-sm text-gray-600">{t('import_confirmation_message', lang)}</p>
           <p className="text-sm"><span className="text-green-700 font-medium">{t('successful', lang)}: {confirm.results?.success ?? 0}</span> · <span className="text-red-600 font-medium">{t('failed', lang)}: {confirm.results?.failed ?? 0}</span></p>

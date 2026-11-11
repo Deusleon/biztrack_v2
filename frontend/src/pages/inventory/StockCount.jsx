@@ -9,7 +9,7 @@ import { stockCountService, categoryService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import { DataTable, Button, RowActions, ACTION_ICONS, Input, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
-import { toPaging, dateOnly } from '../sales/common';
+import { toPaging, dateOnly, DetailGrid } from '../sales/common';
 import { formatNumberWithCommas } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
@@ -112,15 +112,18 @@ export default function StockCount() {
         </>)}
       </div>
 
-      <FormModal isOpen={confirm} onClose={() => !saving && setConfirm(false)} size="md" title={t('save_stock_count', lang)}>
+      <FormModal isOpen={confirm} onClose={() => !saving && setConfirm(false)} size="lg" title={t('save_stock_count', lang)}>
         <div className="space-y-4 text-left"><p className="text-sm text-gray-600">{t('stock_count_confirm', lang, { count: entries.length })}</p><Textarea rows={2} label={t('notes', lang)} value={notes} onChange={(e) => setNotes(e.target.value)} />
-          <ul className="text-xs text-gray-500 max-h-40 overflow-auto divide-y divide-gray-100">{entries.map(([id, v]) => <li key={id} className="py-1 flex justify-between"><span>{names[id]}</span><span>{v}</span></li>)}</ul>
+          <div className="overflow-x-auto border border-gray-200 rounded-md max-h-64"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('counted_quantity', lang)}</th></tr></thead>
+            <tbody>{entries.map(([id, v]) => <tr key={id} className="border-t border-gray-100"><td className="px-3 py-2.5">{names[id]}</td><td className="px-3 py-2.5 text-right font-medium">{v}</td></tr>)}</tbody></table></div>
           <div className="flex justify-end gap-3"><Button loading={saving} onClick={save}>{t('save', lang)}</Button><Button variant="secondary" onClick={() => setConfirm(false)}>{t('ui_cancel', lang)}</Button></div></div>
       </FormModal>
-      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="lg" title={`${t('stock_count', lang)} ${d?.reference_number || ''}`}>
-        {d && (<div className="space-y-3 text-left"><p className="text-sm text-gray-500">{dateOnly(d.created_at)}{d.notes ? ` · ${d.notes}` : ''}</p>
-          <div className="overflow-x-auto border border-gray-100 rounded"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-3 py-2 text-right">{t('system_stock', lang)}</th><th className="px-3 py-2 text-right">{t('counted_quantity', lang)}</th><th className="px-3 py-2 text-right">{t('difference', lang)}</th></tr></thead>
-            <tbody>{(d.items || []).map((i) => <tr key={i.id} className="border-t border-gray-100"><td className="px-3 py-2">{i.product_name}</td><td className="px-3 py-2 text-right">{formatNumberWithCommas(i.system_qty)}</td><td className="px-3 py-2 text-right">{formatNumberWithCommas(i.counted_qty)}</td><td className={`px-3 py-2 text-right font-medium ${num(i.difference) < 0 ? 'text-red-600' : 'text-green-700'}`}>{num(i.difference) > 0 ? '+' : ''}{formatNumberWithCommas(i.difference)}</td></tr>)}</tbody></table></div>
+      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="xl" title={`${t('stock_count', lang)} ${d?.reference_number || ''}`}>
+        {d && (<div className="space-y-5 text-left">
+          <DetailGrid items={[[t('date', lang), dateOnly(d.created_at)], [t('created_by', lang), d.created_by_name], [t('items_checked', lang), d.items_checked ?? (d.items || []).length], [t('adjustments_made', lang), d.adjustments_made ?? (d.items || []).filter((i) => num(i.difference) !== 0).length]]} />
+          <div className="overflow-x-auto border border-gray-200 rounded-md"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('system_stock', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('counted_quantity', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('difference', lang)}</th></tr></thead>
+            <tbody>{(d.items || []).map((i) => <tr key={i.id} className="border-t border-gray-100"><td className="px-3 py-2.5">{i.product_name}</td><td className="px-3 py-2.5 text-right">{formatNumberWithCommas(i.system_qty)}</td><td className="px-3 py-2.5 text-right">{formatNumberWithCommas(i.counted_qty)}</td><td className={`px-3 py-2.5 text-right font-medium ${num(i.difference) < 0 ? 'text-red-600' : num(i.difference) > 0 ? 'text-green-700' : ''}`}>{num(i.difference) > 0 ? '+' : ''}{formatNumberWithCommas(i.difference)}</td></tr>)}</tbody></table></div>
+          <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-600"><p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{t('notes', lang)}</p>{d.notes || '—'}</div>
           <div className="flex justify-end"><Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button></div></div>)}
       </FormModal>
     </MainLayout>

@@ -10,9 +10,9 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { expenseService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, NumberInput, Select, Textarea } from '../../components/ui';
+import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, DatePicker, Input, NumberInput, Select, Textarea } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
-import { dateOnly } from '../sales/common';
+import { dateOnly, DetailGrid } from '../sales/common';
 import { formatCurrency, removeNumberFormatting } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
@@ -37,6 +37,7 @@ export default function Expenses() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [view, setView] = useState(null);
   const money = (v) => formatCurrency(Number(v) || 0, settings);
   const canCreate = can('create_expenses'); const canUpdate = can('update_expenses'); const canDelete = can('delete_expenses');
   const loadCats = () => expenseService.categories().then((r) => setCats(r.data.map((c) => (typeof c === 'string' ? c : c.name || c.category)))).catch(() => setCats([]));
@@ -66,13 +67,12 @@ export default function Expenses() {
     { key: 'payment_method', label: t('payment_method', lang), render: (e) => t(e.payment_method, lang) },
     { key: 'reference_number', label: t('reference_number', lang), render: (e) => e.reference_number || '—' },
     { key: 'amount', label: t('amount', lang), align: 'right', render: (e) => <span className="font-medium">{money(e.amount)}</span> },
+    { key: 'recorded_by', label: t('recorded_by', lang), render: (e) => e.recorded_by || '—' },
   ];
   const exportCols = [{ key: 'index', title: 'no.', width: '45px' }, { key: 'expense_date', title: 'date' }, { key: 'category', title: 'category' }, { key: 'description', title: 'description' }, { key: 'payment_method', title: 'payment_method' }, { key: 'amount', title: 'amount' }];
   const toRows = (rows, off = 0) => rows.map((e, i) => ({ index: `${off + i + 1}.`, expense_date: dateOnly(e.expense_date), category: e.category, description: e.description || '', payment_method: t(e.payment_method, lang), amount: money(e.amount) }));
   const exportRows = useMemo(() => toRows(list.rows, (list.pagination.currentPage - 1) * list.pagination.limit), [list.rows, settings, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   const loadAll = async () => { const all = []; let p = 1; let pages = 1; do { const r = await fetchExpenses({ ...list.filters, page: p, limit: 100 }); all.push(...r.data); pages = r.pagination.totalPages; p += 1; } while (p <= pages && p <= 200); return toRows(all); };
-  const hasActions = canUpdate || canDelete;
-
   return (
     <MainLayout>
       <div className="space-y-4">
@@ -82,21 +82,34 @@ export default function Expenses() {
         </div>
         <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
           <Select value={list.filters.category || ''} onChange={(e) => list.setFilter('category', e.target.value)} options={[{ value: '', label: t('all_categories', lang) }, ...cats.map((c) => ({ value: c, label: c }))]} />
-          <Input type="date" value={list.filters.startDate || ''} onChange={(e) => list.setFilter('startDate', e.target.value)} aria-label={t('from', lang)} />
-          <Input type="date" value={list.filters.endDate || ''} onChange={(e) => list.setFilter('endDate', e.target.value)} aria-label={t('to', lang)} />
+          <DatePicker value={list.filters.startDate || ''} onChange={(e) => list.setFilter('startDate', e.target.value)} placeholder={t('from', lang)} />
+          <DatePicker align="right" value={list.filters.endDate || ''} onChange={(e) => list.setFilter('endDate', e.target.value)} placeholder={t('to', lang)} />
           <div className="text-left"><p className="text-xs uppercase tracking-wide text-gray-400">{t('total', lang)}</p><p className="text-lg font-bold text-gray-900">{money(list.summary?.total_amount)}</p></div>
         </div>
         <DataTable columns={columns} data={list.rows} loading={list.loading} emptyMessage={list.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={list.pagination} onPageChange={list.setPage}
-          renderActions={hasActions ? (e) => <RowActions actions={[
+          renderActions={(e) => <RowActions actions={[
+            { label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => setView(e) },
             { label: t('edit', lang), icon: ACTION_ICONS.edit, onClick: () => openEdit(e), hidden: !canUpdate },
             { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ id: e.id, name: `${e.category} · ${money(e.amount)}` }), hidden: !canDelete },
-          ]} /> : undefined} />
+          ]} />} />
       </div>
-      <FormModal isOpen={!!modal} onClose={() => !saving && setModal(null)} size="md" title={modal?.mode === 'edit' ? t('edit_expense', lang) : t('add_expense', lang)}>
+      <FormModal isOpen={!!view} onClose={() => setView(null)} size="xl" title={view?.category || t('expenses', lang)}>
+        {view && (
+          <div className="space-y-5 text-left">
+            <DetailGrid items={[[t('category', lang), view.category], [t('amount', lang), money(view.amount)], [t('date', lang), dateOnly(view.expense_date)], [t('payment_method', lang), t(view.payment_method, lang)], [t('reference_number', lang), view.reference_number], [t('recorded_by', lang), view.recorded_by]]} />
+            <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-600"><p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{t('description', lang)}</p>{view.description || '—'}</div>
+            <div className="flex justify-end gap-2">
+              {canUpdate && <Button variant="secondary" onClick={() => { const row = view; setView(null); openEdit(row); }}>{t('edit', lang)}</Button>}
+              <Button variant="secondary" onClick={() => setView(null)}>{t('close', lang)}</Button>
+            </div>
+          </div>
+        )}
+      </FormModal>
+      <FormModal isOpen={!!modal} onClose={() => !saving && setModal(null)} size="lg" title={modal?.mode === 'edit' ? t('edit_expense', lang) : t('add_expense', lang)}>
         {modal && (
           <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>
             <div><Input label={t('category', lang)} required list="expense-categories" value={form.category} onChange={set('category')} placeholder={t('type_or_choose_category', lang)} /><datalist id="expense-categories">{cats.map((c) => <option key={c} value={c} />)}</datalist></div>
-            <div className="grid grid-cols-2 gap-3"><NumberInput label={t('amount', lang)} required value={form.amount} onChange={set('amount')} /><Input type="date" label={t('date', lang)} value={form.expense_date} onChange={set('expense_date')} /></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><NumberInput label={t('amount', lang)} required value={form.amount} onChange={set('amount')} /><DatePicker label={t('date', lang)} value={form.expense_date} onChange={set('expense_date')} /></div>
             <div className="grid grid-cols-2 gap-3"><Select label={t('payment_method', lang)} value={form.payment_method} onChange={set('payment_method')} options={METHODS.map((m) => ({ value: m, label: t(m, lang) }))} /><Input label={t('reference_number', lang)} value={form.reference_number} onChange={set('reference_number')} /></div>
             <Textarea rows={2} label={t('description', lang)} value={form.description} onChange={set('description')} />
             <div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{modal.mode === 'edit' ? t('ui_update', lang) : t('save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setModal(null)}>{t('ui_cancel', lang)}</Button></div>

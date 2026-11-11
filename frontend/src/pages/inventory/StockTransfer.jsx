@@ -11,8 +11,8 @@ import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
-import { toPaging, dateOnly } from '../sales/common';
-import { PStatus, useAllProducts, Dl } from '../purchases/common';
+import { toPaging, dateOnly, DetailGrid } from '../sales/common';
+import { PStatus, useAllProducts } from '../purchases/common';
 import { formatNumberWithCommas } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
@@ -70,6 +70,7 @@ export default function StockTransfer() {
     { key: 'items_count', label: t('items', lang), align: 'right' },
     { key: 'total_quantity', label: t('quantity', lang), align: 'right', render: (x) => formatNumberWithCommas(x.total_quantity) },
     { key: 'status', label: t('status', lang), render: (x) => <PStatus value={x.status} /> },
+    { key: 'created_by_name', label: t('created_by', lang), render: (x) => x.created_by_name || '—' },
   ];
   const d = detail; const pending = (x) => ['pending_approval', 'pending'].includes(x?.status);
   const toReceive = (x) => incoming(x) && ['approved', 'in_transit'].includes(x.status) && can('create_stock_transfer');
@@ -115,7 +116,7 @@ export default function StockTransfer() {
           ]} />} />
       </div>
 
-      <FormModal isOpen={!!create} onClose={() => !busy && setCreate(null)} size="lg" title={t('new_transfer', lang)}>
+      <FormModal isOpen={!!create} onClose={() => !busy && setCreate(null)} size="xl" title={t('new_transfer', lang)}>
         {create && (
           <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>
             <Select label={t('destination_store', lang)} required value={create.destination} onChange={(e) => setCreate((c) => ({ ...c, destination: e.target.value }))} placeholder={t('select_destination_store', lang)} options={others.map((s) => ({ value: s.id, label: s.name }))} />
@@ -133,13 +134,13 @@ export default function StockTransfer() {
         )}
       </FormModal>
 
-      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="lg" title={`${t('stock_transfer', lang)} ${d?.reference_number || ''}`}>
+      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="xl" title={`${t('stock_transfer', lang)} ${d?.reference_number || ''}`}>
         {d && (
-          <div className="space-y-4">
-            <Dl items={[[t('source_store', lang), d.source_store_name], [t('destination_store', lang), d.destination_store_name], [t('date', lang), dateOnly(d.created_at)], [t('status', lang), <PStatus key="s" value={d.status} />]]} />
-            <div className="overflow-x-auto border border-gray-100 rounded"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-3 py-2 text-right">{t('quantity', lang)}</th><th className="px-3 py-2 text-right">{t('received', lang)}</th><th className="px-3 py-2 text-left">{t('batch_number', lang)}</th></tr></thead>
-              <tbody>{(d.items || []).map((i) => <tr key={i.id} className="border-t border-gray-100"><td className="px-3 py-2 text-left">{i.product_name}</td><td className="px-3 py-2 text-right">{formatNumberWithCommas(i.quantity)} {t(i.product_unit, lang)}</td><td className="px-3 py-2 text-right">{i.received_quantity == null ? '—' : formatNumberWithCommas(i.received_quantity)}</td><td className="px-3 py-2">{i.batch_number || '—'}</td></tr>)}</tbody></table></div>
-            {d.notes && <p className="text-sm text-gray-600 text-left">{d.notes}</p>}
+          <div className="space-y-5 text-left">
+            <DetailGrid items={[[t('source_store', lang), d.source_store_name], [t('destination_store', lang), d.destination_store_name], [t('date', lang), dateOnly(d.created_at)], [t('status', lang), <PStatus key="s" value={d.status} />], [t('created_by', lang), d.created_by_name], [t('approved_by', lang), d.approved_by_name], [t('received_by', lang), d.received_by_name]]} />
+            <div className="overflow-x-auto border border-gray-200 rounded-md"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('quantity', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('received', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('batch_number', lang)}</th></tr></thead>
+              <tbody>{(d.items || []).map((i) => <tr key={i.id} className="border-t border-gray-100"><td className="px-3 py-2.5 text-left">{i.product_name}</td><td className="px-3 py-2.5 text-right">{formatNumberWithCommas(i.quantity)} {t(i.product_unit, lang)}</td><td className="px-3 py-2.5 text-right">{i.received_quantity == null ? '—' : formatNumberWithCommas(i.received_quantity)}</td><td className="px-3 py-2.5">{i.batch_number || '—'}</td></tr>)}</tbody></table></div>
+            <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-600"><p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{t('notes', lang)}</p>{d.notes || '—'}</div>
             <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-gray-100">
               {canApprove && pending(d) && !incoming(d) && <Button loading={busy} onClick={() => setConfirm({ kind: 'approve', transfer: d })}>{t('approve', lang)}</Button>}
               {toReceive(d) && <Button onClick={() => openReceive(d)}>{t('receive', lang)}</Button>}

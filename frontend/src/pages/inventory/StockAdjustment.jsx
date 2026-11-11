@@ -11,7 +11,7 @@ import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { DataTable, Button, RowActions, ACTION_ICONS, Input, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
-import { toPaging, dateOnly } from '../sales/common';
+import { toPaging, dateOnly, DetailGrid } from '../sales/common';
 import { useAllProducts } from '../purchases/common';
 import { formatNumberWithCommas } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
@@ -107,12 +107,12 @@ export default function StockAdjustment() {
           renderActions={(a) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(a) }]} />} />
         </>)}
       </div>
-      <FormModal isOpen={!!prodHist} onClose={() => setProdHist(null)} size="lg" title={`${t('adjustment_history', lang)} · ${prodHist?.product?.name || ''}`}>
-        {prodHist && <div className="space-y-3 text-left"><div className="overflow-x-auto border border-gray-100 rounded"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('date', lang)}</th><th className="px-3 py-2 text-left">{t('type', lang)}</th><th className="px-3 py-2 text-right">{t('quantity', lang)}</th><th className="px-3 py-2 text-left">{t('reason', lang)}</th><th className="px-3 py-2 text-left">{t('created_by', lang)}</th></tr></thead>
-          <tbody>{prodHist.rows.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">{t('ui_nothing_yet', lang)}</td></tr>}{prodHist.rows.map((a) => <tr key={a.id} className="border-t border-gray-100"><td className="px-3 py-2">{dateOnly(a.created_at)}</td><td className="px-3 py-2">{t(a.adjustment_type === 'add' ? 'stock_add' : 'stock_subtract', lang)}</td><td className="px-3 py-2 text-right">{formatNumberWithCommas(a.quantity)}</td><td className="px-3 py-2">{t(a.reason, lang)}</td><td className="px-3 py-2">{a.created_by_name || '—'}</td></tr>)}</tbody></table></div><div className="flex justify-end"><Button variant="secondary" onClick={() => setProdHist(null)}>{t('close', lang)}</Button></div></div>}
+      <FormModal isOpen={!!prodHist} onClose={() => setProdHist(null)} size="xl" title={`${t('adjustment_history', lang)} · ${prodHist?.product?.name || ''}`}>
+        {prodHist && <div className="space-y-4 text-left"><div className="overflow-x-auto border border-gray-200 rounded-md"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('date', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('type', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('quantity', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('reason', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('created_by', lang)}</th></tr></thead>
+          <tbody>{prodHist.rows.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">{t('ui_nothing_yet', lang)}</td></tr>}{prodHist.rows.map((a) => <tr key={a.id} className="border-t border-gray-100"><td className="px-3 py-2.5">{dateOnly(a.created_at)}</td><td className="px-3 py-2.5">{t(a.adjustment_type === 'add' ? 'stock_add' : 'stock_subtract', lang)}</td><td className="px-3 py-2.5 text-right">{formatNumberWithCommas(a.quantity)}</td><td className="px-3 py-2.5">{t(a.reason, lang)}</td><td className="px-3 py-2.5">{a.created_by_name || '—'}</td></tr>)}</tbody></table></div><div className="flex justify-end"><Button variant="secondary" onClick={() => setProdHist(null)}>{t('close', lang)}</Button></div></div>}
       </FormModal>
 
-      <FormModal isOpen={!!form} onClose={() => !saving && setForm(null)} size="md" title={t('new_adjustment', lang)}>
+      <FormModal isOpen={!!form} onClose={() => !saving && setForm(null)} size="lg" title={t('new_adjustment', lang)}>
         {form && (
           <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>
             <Select label={t('product_name', lang)} required searchable value={form.product_id} onChange={(e) => setForm((f) => ({ ...f, product_id: e.target.value, batch_id: '' }))} placeholder={t('select_product', lang)} options={products.map((p) => ({ value: p.id, label: p.name }))} />
@@ -128,8 +128,12 @@ export default function StockAdjustment() {
           </form>
         )}
       </FormModal>
-      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="sm" title={t('stock_adjustment', lang)}>
-        {d && <div className="space-y-3 text-sm text-left">{[['product_name', d.product_name], ['type', t(d.adjustment_type === 'add' ? 'stock_add' : 'stock_subtract', lang)], ['quantity', `${formatNumberWithCommas(d.quantity)} ${t(d.product_unit, lang)}`], ['reason', t(d.reason, lang)], ['created_by', d.created_by_name], ['date', dateOnly(d.created_at)]].map(([k, v]) => <div key={k} className="flex justify-between gap-4"><span className="text-gray-500">{t(k, lang)}</span><span>{v || '—'}</span></div>)}{d.notes && <p className="text-gray-600 border-t border-gray-100 pt-2">{d.notes}</p>}</div>}
+      <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="xl" title={t('stock_adjustment', lang)}>
+        {d && <div className="space-y-5 text-left">
+          <DetailGrid items={[[t('product_name', lang), d.product_name], [t('type', lang), t(d.adjustment_type === 'add' ? 'stock_add' : 'stock_subtract', lang)], [t('quantity', lang), `${formatNumberWithCommas(d.quantity)} ${t(d.product_unit, lang)}`], [t('reason', lang), t(d.reason, lang)], [t('created_by', lang), d.created_by_name], [t('date', lang), dateOnly(d.created_at)]]} />
+          <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-600"><p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{t('notes', lang)}</p>{d.notes || '—'}</div>
+          <div className="flex justify-end"><Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button></div>
+        </div>}
       </FormModal>
     </MainLayout>
   );

@@ -93,7 +93,7 @@ export default function ProductCategories() {
         />
       </div>
 
-      <FormModal isOpen={modal.isOpen} onClose={close} size="sm" title={modal.mode === 'edit' ? t('update_category', lang) : t('new_category', lang)}>
+      <FormModal isOpen={modal.isOpen} onClose={close} size="md" title={modal.mode === 'edit' ? t('update_category', lang) : t('new_category', lang)}>
         <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4">
           <Input label={t('category_name', lang)} required autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
           <Textarea label={t('description', lang)} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />

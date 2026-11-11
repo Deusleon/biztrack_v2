@@ -56,7 +56,7 @@ export default function ProductForm({ isOpen, onClose, product, categories, sett
 
   return (
     <>
-      <FormModal isOpen={isOpen} onClose={onClose} size="lg" title={t('product_form', lang)}>
+      <FormModal isOpen={isOpen} onClose={onClose} size="xl" title={t('product_form', lang)}>
         <form onSubmit={submit} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label={t('product_name', lang)} required autoFocus value={form.product_name} onChange={set('product_name')} error={errors.product_name} disabled={saving} />

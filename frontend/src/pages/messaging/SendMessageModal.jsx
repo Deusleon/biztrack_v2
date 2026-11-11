@@ -37,7 +37,7 @@ export default function SendMessageModal({ isOpen, onClose, group, groups = [], 
   };
 
   return (
-    <FormModal isOpen={isOpen} onClose={() => !sending && onClose()} size="md" title={t('send_message', lang)}>
+    <FormModal isOpen={isOpen} onClose={() => !sending && onClose()} size="lg" title={t('send_message', lang)}>
       <form onSubmit={(e) => { e.preventDefault(); send(); }} className="space-y-4 text-left" noValidate>
         <div className="flex gap-2">{[['individual', 'individual_numbers'], ['group', 'group']].map(([k, label]) => <button key={k} type="button" onClick={() => setMode(k)} className={`px-3 py-1.5 text-sm rounded border ${mode === k ? 'border-primary bg-primary-10 text-primary font-medium' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>{t(label, lang)}</button>)}</div>
         {mode === 'individual'

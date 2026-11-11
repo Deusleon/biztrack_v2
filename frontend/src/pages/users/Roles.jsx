@@ -60,7 +60,7 @@ export default function Roles() {
             { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ id: r.id, name: r.name }), hidden: !canDelete || Number(r.user_count) > 0 },
           ]} /> : undefined} />
       </div>
-      <FormModal isOpen={!!modal} onClose={() => !saving && setModal(null)} size="sm" title={modal?.id ? t('update_role', lang) : t('new_role', lang)}>
+      <FormModal isOpen={!!modal} onClose={() => !saving && setModal(null)} size="md" title={modal?.id ? t('update_role', lang) : t('new_role', lang)}>
         {modal && <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4"><Input label={t('role_name', lang)} required autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /><Textarea label={t('description', lang)} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} /><p className="text-xs text-gray-500 text-left">{t('role_permissions_help', lang)}</p><div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{modal.id ? t('ui_update', lang) : t('ui_create', lang)}</Button><Button type="button" variant="secondary" onClick={() => setModal(null)}>{t('ui_cancel', lang)}</Button></div></form>}
       </FormModal>
       <ConfirmModal isOpen={!!confirm} variant="danger" title={t('delete', lang)} confirmText={t('delete', lang)} cancelText={t('ui_cancel', lang)} message={t('ui_confirm_delete', lang, { name: confirm?.name })} onClose={() => setConfirm(null)} onConfirm={remove} />

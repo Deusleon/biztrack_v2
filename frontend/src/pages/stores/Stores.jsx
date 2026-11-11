@@ -67,7 +67,7 @@ export default function Stores() {
             { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setDel({ store: s, password: '' }), hidden: !canDelete || !mine(s) },
           ]} /> : undefined} />
       </div>
-      <FormModal isOpen={!!modal} onClose={() => !saving && setModal(null)} size="sm" title={modal?.id ? t('edit_store', lang) : t('add_store', lang)}>
+      <FormModal isOpen={!!modal} onClose={() => !saving && setModal(null)} size="md" title={modal?.id ? t('edit_store', lang) : t('add_store', lang)}>
         {modal && <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4"><Input label={t('store_name', lang)} required autoFocus value={form.name} onChange={set('name')} /><Input label={t('store_code', lang)} required value={form.store_code} onChange={set('store_code')} /><Input label={t('location', lang)} value={form.location} onChange={set('location')} /><div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{modal.id ? t('ui_update', lang) : t('ui_create', lang)}</Button><Button type="button" variant="secondary" onClick={() => setModal(null)}>{t('ui_cancel', lang)}</Button></div></form>}
       </FormModal>
       <FormModal isOpen={!!del} onClose={() => !saving && setDel(null)} size="sm" title={t('delete_store', lang)}>

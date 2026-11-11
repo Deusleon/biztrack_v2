@@ -48,10 +48,16 @@ export default function Recent() {
         <DataTable columns={columns} data={shown.slice((cur - 1) * PAGE, cur * PAGE)} loading={loading} rowId="batch_id" emptyMessage={search || status ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={{ currentPage: cur, totalPages: pages, totalItems: shown.length, limit: PAGE }} onPageChange={setPage} renderActions={(r) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(r) }]} />} />
       </div>
       <SendMessageModal isOpen={send} onClose={() => setSend(false)} groups={groups} onSent={load} />
-      <FormModal isOpen={!!detail} onClose={() => setDetail(null)} size="md" title={t('message_details', lang)}>
-        {detail && <div className="space-y-3 text-left text-sm"><p className="text-gray-500">{dateTime(detail.created_at)} · {detail.sent_by || '—'}{detail.group_name ? ` · ${t('group', lang)}: ${detail.group_name}` : ''}</p><p className="bg-gray-50 border border-gray-100 rounded p-3 whitespace-pre-wrap">{detail.message}</p>
-          <p className="text-gray-600">{t('sent', lang)}: <b className="text-green-700">{detail.recipients.filter((r) => r.status === 'sent').length}</b> · {t('failed', lang)}: <b className="text-red-600">{detail.recipients.filter((r) => r.status === 'failed').length}</b></p>
-          <ul className="divide-y divide-gray-100 border border-gray-100 rounded max-h-64 overflow-auto">{detail.recipients.map((r) => <li key={r.id} className="px-3 py-1.5 flex justify-between gap-3"><span>{r.recipient_name ? `${r.recipient_name} · ` : ''}{r.recipient}</span><span className={r.status === 'sent' ? 'text-green-700' : 'text-red-600'} title={r.error || ''}>{r.status}</span></li>)}</ul><div className="flex justify-end"><Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button></div></div>}
+      <FormModal isOpen={!!detail} onClose={() => setDetail(null)} size="xl" title={t('message_details', lang)}>
+        {detail && <div className="space-y-5 text-left">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[[t('date', lang), dateTime(detail.created_at)], [t('sent_by', lang), detail.sent_by], [t('group', lang), detail.group_name], [t('status', lang), t(detail.status === 'partial' ? 'partially_sent' : detail.status, lang)]].map(([k, v]) => <div key={k} className="rounded-md bg-gray-50 px-3 py-2.5"><p className="text-[11px] uppercase tracking-wide text-gray-400">{k}</p><p className="text-sm font-medium text-gray-900 mt-0.5 break-words">{v || '—'}</p></div>)}
+          </div>
+          <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-700 whitespace-pre-wrap">{detail.message}</div>
+          <div className="overflow-x-auto border border-gray-200 rounded-md max-h-72"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('contacts', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('status', lang)}</th></tr></thead>
+            <tbody>{detail.recipients.map((r) => <tr key={r.id} className="border-t border-gray-100"><td className="px-3 py-2.5">{r.recipient_name ? `${r.recipient_name} · ` : ''}{r.recipient}</td><td className={`px-3 py-2.5 ${r.status === 'sent' ? 'text-green-700' : 'text-red-600'}`} title={r.error || ''}>{t(r.status, lang)}</td></tr>)}</tbody></table></div>
+          <div className="flex justify-end"><Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button></div>
+        </div>}
       </FormModal>
     </MainLayout>
   );

@@ -70,7 +70,7 @@ export default function PriceList() {
         <DataTable columns={columns} data={list.rows} loading={list.loading} rowId="id" emptyMessage={t('ui_nothing_yet', lang)} pagination={list.pagination} onPageChange={list.setPage}
           renderActions={canManage ? (r) => <RowActions actions={[{ label: t('update_price', lang), icon: ACTION_ICONS.edit, onClick: () => setEdit({ row: r, sellingPrice: String(num(r.sellingPrice)), buyingPrice: String(num(r.buyingPrice)) }) }]} /> : undefined} />
       </div>
-      <FormModal isOpen={!!edit} onClose={() => !saving && setEdit(null)} size="sm" title={t('update_price', lang)}>
+      <FormModal isOpen={!!edit} onClose={() => !saving && setEdit(null)} size="md" title={t('update_price', lang)}>
         {edit && <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4"><p className="text-sm text-gray-600 text-left">{edit.row.productName}{edit.row.batchNumber ? ` · ${edit.row.batchNumber}` : ''} · {catName}</p><Input label={t('selling_price', lang)} required autoFocus value={edit.sellingPrice} onChange={(e) => setEdit((x) => ({ ...x, sellingPrice: e.target.value }))} /><Input label={t('cost_price', lang)} value={edit.buyingPrice} onChange={(e) => setEdit((x) => ({ ...x, buyingPrice: e.target.value }))} /><div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{t('ui_update', lang)}</Button><Button type="button" variant="secondary" onClick={() => setEdit(null)}>{t('ui_cancel', lang)}</Button></div></form>}
       </FormModal>
     </MainLayout>

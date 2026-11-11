@@ -28,7 +28,7 @@ export default function ProductDetails({ product, isOpen, onClose, settings = {}
   const level = stock <= 0 ? 'out' : stock <= minimum ? 'low' : 'ok';
 
   return (
-    <FormModal isOpen={isOpen} onClose={onClose} size="lg" title={t('product_details', lang)}>
+    <FormModal isOpen={isOpen} onClose={onClose} size="xl" title={t('product_details', lang)}>
       <div className="space-y-4 text-left">
         <div className="flex gap-4">
           <div className="w-24 h-24 rounded border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">

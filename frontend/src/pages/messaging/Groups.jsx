@@ -72,7 +72,7 @@ export default function Groups() {
         {edit && <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>{edit.parentGroupId && <p className="text-xs text-gray-500 text-left">{t('under_group', lang)}: <b>{groups.find((g) => g.id === edit.parentGroupId)?.name}</b></p>}<Input label={t('group_name', lang)} required autoFocus value={edit.name} onChange={(e) => setEdit((x) => ({ ...x, name: e.target.value }))} /><div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{t('save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setEdit(null)}>{t('cancel', lang)}</Button></div></form>}
       </FormModal>
 
-      <FormModal isOpen={!!open} onClose={() => setOpen(null)} size="lg" title={`${t('contacts_in_group', lang)} · ${open?.name || ''}`}>
+      <FormModal isOpen={!!open} onClose={() => setOpen(null)} size="xl" title={`${t('contacts_in_group', lang)} · ${open?.name || ''}`}>
         {open && (
           <div className="space-y-4 text-left">
             <ul className="divide-y divide-gray-100 border border-gray-100 rounded max-h-56 overflow-auto">{members.length === 0 && <li className="px-3 py-4 text-center text-sm text-gray-400">{t('no_contacts_yet', lang)}</li>}{members.map((c) => <li key={c.id} className="px-3 py-1.5 flex items-center justify-between gap-3 text-sm"><span>{c.name ? `${c.name} · ` : ''}{c.phone}</span>{manageContacts && <button type="button" className="text-xs text-red-600 hover:underline" onClick={() => removeMember(c)}>{t('remove_from_group', lang)}</button>}</li>)}</ul>
