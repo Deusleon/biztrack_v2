@@ -216,6 +216,14 @@ async function emitSubscriptionPaymentUpdate({
   }
 }
 
+function quotePrepaidMonths(monthlyAmount, months) {
+  const count = Math.min(24, Math.max(1, Math.round(Number(months) || 1)));
+  const gross = (Number(monthlyAmount) || 0) * count;
+  const rate = count >= 18 ? 0.15 : count >= 12 ? 0.1 : count >= 6 ? 0.05 : 0;
+  const discount = Math.round(gross * rate);
+  return { months: count, gross, rate, discount, amount: gross - discount };
+}
+
 async function createCheckout({
   storeId,
   userId,
@@ -250,14 +258,11 @@ async function createCheckout({
   }
 
   const plan = planResult.rows[0];
-  const prepaidMonths = cycle === 'annual'
-    ? 12
-    : cycle === 'quarterly'
-      ? 3
-      : Math.min(24, Math.max(1, Math.round(Number(months) || 1)));
-  const amount = cycle === 'annual'
-    ? Number(plan.annual_amount)
-    : Number(plan.monthly_amount) * prepaidMonths;
+  const quoted = cycle === 'annual'
+    ? { months: 12, gross: Number(plan.annual_amount), rate: 0, discount: 0, amount: Number(plan.annual_amount) }
+    : quotePrepaidMonths(plan.monthly_amount, cycle === 'quarterly' ? 3 : months);
+  const prepaidMonths = quoted.months;
+  const amount = quoted.amount;
   const requestId = crypto.randomUUID();
 
   const client = await pool.connect();
@@ -318,7 +323,7 @@ async function createCheckout({
         normalizedPhoneNumber,
         requestId,
         userId,
-        JSON.stringify({ planCode: plan.code, billingCycle: cycle, months: prepaidMonths }),
+        JSON.stringify({ planCode: plan.code, billingCycle: cycle, months: prepaidMonths, gross: quoted.gross, discount: quoted.discount, discountRate: quoted.rate }),
       ]
     );
 

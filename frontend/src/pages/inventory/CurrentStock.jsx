@@ -65,6 +65,13 @@ export default function CurrentStock() {
   const exportRows = useMemo(() => toRows(list.rows, (list.pagination.currentPage - 1) * list.pagination.limit), [list.rows, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   const loadAll = async () => { const all = []; let p = 1; let pages = 1; do { const r = await fetchStock({ ...list.filters, page: p, limit: 100 }); all.push(...r.data); pages = r.pagination.totalPages; p += 1; } while (p <= pages && p <= 200); return toRows(all); };
   const sm = list.summary || {};
+  const stockCount = (key) => { const v = Number(sm[key.camel] ?? sm[key.snake]); return Number.isFinite(v) ? v : 0; };
+  const stockCards = [
+    ['all', { camel: 'all', snake: 'all_total' }],
+    ['in-stock', { camel: 'inStock', snake: 'in_stock_count' }],
+    ['low-stock', { camel: 'lowStock', snake: 'low_stock_count' }],
+    ['out-of-stock', { camel: 'outOfStock', snake: 'out_of_stock_count' }],
+  ];
 
   return (
     <MainLayout>
@@ -74,8 +81,8 @@ export default function CurrentStock() {
           {(can('export_inventory_pdf') || can('view_current_stock')) && <ExportMenu rows={exportRows} columns={exportCols} title="current_stock" loadRows={loadAll} disabled={list.loading || list.rows.length === 0} />}
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[['all', sm.all_total], ['in-stock', sm.in_stock_count], ['low-stock', sm.low_stock_count], ['out-of-stock', sm.out_of_stock_count]].map(([k, v]) => (
-            <button key={k} type="button" onClick={() => list.setFilter('stockFilter', k)} className={`bg-white p-4 rounded shadow text-left border-2 ${list.filters.stockFilter === k ? 'border-primary' : 'border-transparent'}`}><p className="text-xs uppercase tracking-wide text-gray-400">{t(FILTER_LABEL[k], lang)}</p><p className="text-xl font-bold text-gray-900 mt-1">{v ?? 0}</p></button>
+          {stockCards.map(([k, keys]) => (
+            <button key={k} type="button" onClick={() => list.setFilter('stockFilter', k)} className={`bg-white p-4 rounded shadow text-left border-2 ${list.filters.stockFilter === k ? 'border-primary' : 'border-transparent'}`}><p className="text-xs uppercase tracking-wide text-gray-400">{t(FILTER_LABEL[k], lang)}</p><p className="text-xl font-bold text-gray-900 mt-1">{stockCount(keys)}</p></button>
           ))}
         </div>
         <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 gap-3"><Input value={list.searchText} onChange={(e) => list.setFilter('search', e.target.value)} placeholder={t('ui_search_placeholder', lang)} /><Select value={list.filters.stockFilter || 'all'} onChange={(e) => list.setFilter('stockFilter', e.target.value)} options={FILTERS.map((f) => ({ value: f, label: t(FILTER_LABEL[f], lang) }))} /></div>

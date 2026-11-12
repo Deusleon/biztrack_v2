@@ -15,6 +15,14 @@ import { normalizePhone } from '../messaging/common';
 import { t } from '../../utils/i18n';
 
 const money = (v, cur = 'TZS') => `${cur} ${formatNumberWithCommas(Number(v) || 0)}`;
+/** 6–11 months 5%, 12–17 months 10%, 18–24 months 15%. Must match the server. */
+const prepaidQuote = (monthly, count) => {
+  const months = Math.min(24, Math.max(1, parseInt(count, 10) || 1));
+  const gross = (Number(monthly) || 0) * months;
+  const rate = months >= 18 ? 0.15 : months >= 12 ? 0.1 : months >= 6 ? 0.05 : 0;
+  const discount = Math.round(gross * rate);
+  return { months, gross, rate, discount, amount: gross - discount };
+};
 const day = (v) => (v ? new Date(v).toLocaleDateString() : '—');
 const daysLeft = (v) => (v ? Math.ceil((new Date(v).getTime() - Date.now()) / 864e5) : null);
 const TONE = { active: 'bg-green-50 text-green-700', grace: 'bg-amber-50 text-amber-700', expired: 'bg-red-50 text-red-700', paid: 'bg-green-50 text-green-700', pending: 'bg-amber-50 text-amber-700', failed: 'bg-red-50 text-red-700', cancelled: 'bg-gray-100 text-gray-600', expired_tx: 'bg-red-50 text-red-700' };
@@ -64,7 +72,8 @@ export default function Subscription() {
   const left = daysLeft(sub?.ends_at); const state = !sub ? null : left != null && left >= 0 ? 'active' : sub.grace_ends_at && daysLeft(sub.grace_ends_at) >= 0 ? 'grace' : 'expired';
   const saving = (p) => { const m = Number(p.monthly_amount) * 12; return m > 0 ? Math.round((1 - Number(p.annual_amount) / m) * 100) : 0; };
   const months = cycle === 'monthly' ? Math.min(24, Math.max(1, parseInt(monthCount, 10) || 1)) : 1;
-  const due = (plan) => (cycle === 'annual' ? Number(plan.annual_amount) : Number(plan.monthly_amount) * months);
+  const quote = (plan) => prepaidQuote(plan.monthly_amount, months);
+  const due = (plan) => (cycle === 'annual' ? Number(plan.annual_amount) : quote(plan).amount);
   const periodLabel = cycle === 'annual' ? t('year', lang) : months === 1 ? t('month', lang) : `${months} ${t('months', lang)}`;
 
   return (
@@ -91,6 +100,7 @@ export default function Subscription() {
             <div key={p.id} className={`bg-white rounded shadow p-5 text-left space-y-3 border-2 ${mine ? 'border-primary' : 'border-transparent'}`}>
               <div><h3 className="text-base font-bold text-gray-900">{p.name}{mine && <span className="ml-2 text-xs text-primary">● {t('current', lang)}</span>}</h3><p className="text-xs text-gray-500">{p.description}</p></div>
               <p className="text-2xl font-bold text-gray-900">{money(due(p), p.currency)}<span className="text-xs font-normal text-gray-500"> / {periodLabel}</span></p>
+              {cycle === 'monthly' && quote(p).discount > 0 && <p className="text-xs text-green-700">{t('prepaid_discount', lang, { percent: Math.round(quote(p).rate * 100) })} · <span className="line-through text-gray-400">{money(quote(p).gross, p.currency)}</span></p>}
               {cycle === 'annual' && saving(p) > 0 && <p className="text-xs text-green-700">{t('save', lang)} {saving(p)}%</p>}
               <ul className="text-sm text-gray-600 space-y-1">{p.metadata?.maxUsers != null && <li>• {t('up_to_users', lang, { count: p.metadata.maxUsers })}</li>}{p.metadata?.maxStores != null && <li>• {t('up_to_stores', lang, { count: p.metadata.maxStores })}</li>}</ul>
               {canPay && <Button className="w-full" variant={mine ? 'secondary' : 'primary'} onClick={() => start(p)}>{t(mine ? 'renew' : 'choose', lang)}</Button>}
@@ -105,7 +115,7 @@ export default function Subscription() {
         )}
       </div>
       <FormModal isOpen={!!checkout} onClose={() => !busy && setCheckout(null)} size="md" title={`${t('pay_for', lang)} ${checkout?.plan?.name || ''}`}>
-        {checkout && <form onSubmit={(e) => { e.preventDefault(); pay(); }} className="space-y-4 text-left" noValidate><p className="text-sm text-gray-700">{t('amount_to_pay', lang)}: <b>{money(due(checkout.plan), checkout.plan.currency)}</b> · {periodLabel}</p>{cycle === 'monthly' && <Input label={t('months_to_pay', lang)} inputMode="numeric" value={monthCount} onChange={(e) => setMonthCount(e.target.value.replace(/\D/g, '').slice(0, 2))} helperText={t('months_to_pay_hint', lang)} />}<Input label={t('mobile_money_phone', lang)} required autoFocus value={checkout.phone} onChange={(e) => setCheckout((c) => ({ ...c, phone: e.target.value }))} placeholder="255712345678" helperText={t('payment_prompt_hint', lang)} /><Input label={t('full_name', lang)} value={checkout.name} onChange={(e) => setCheckout((c) => ({ ...c, name: e.target.value }))} /><Input type="email" label={t('email', lang)} value={checkout.email} onChange={(e) => setCheckout((c) => ({ ...c, email: e.target.value }))} /><div className="flex justify-end gap-3"><Button type="submit" loading={busy}>{t('pay_now', lang)}</Button><Button type="button" variant="secondary" onClick={() => setCheckout(null)}>{t('cancel', lang)}</Button></div></form>}
+        {checkout && <form onSubmit={(e) => { e.preventDefault(); pay(); }} className="space-y-4 text-left" noValidate><p className="text-sm text-gray-700">{t('amount_to_pay', lang)}: <b>{money(due(checkout.plan), checkout.plan.currency)}</b> · {periodLabel}{cycle === 'monthly' && quote(checkout.plan).discount > 0 ? ` · ${t('prepaid_discount', lang, { percent: Math.round(quote(checkout.plan).rate * 100) })}` : ''}</p>{cycle === 'monthly' && <Input label={t('months_to_pay', lang)} inputMode="numeric" value={monthCount} onChange={(e) => setMonthCount(e.target.value.replace(/\D/g, '').slice(0, 2))} helperText={t('months_to_pay_hint', lang)} />}<Input label={t('mobile_money_phone', lang)} required autoFocus value={checkout.phone} onChange={(e) => setCheckout((c) => ({ ...c, phone: e.target.value }))} placeholder="255712345678" helperText={t('payment_prompt_hint', lang)} /><Input label={t('full_name', lang)} value={checkout.name} onChange={(e) => setCheckout((c) => ({ ...c, name: e.target.value }))} /><Input type="email" label={t('email', lang)} value={checkout.email} onChange={(e) => setCheckout((c) => ({ ...c, email: e.target.value }))} /><div className="flex justify-end gap-3"><Button type="submit" loading={busy}>{t('pay_now', lang)}</Button><Button type="button" variant="secondary" onClick={() => setCheckout(null)}>{t('cancel', lang)}</Button></div></form>}
       </FormModal>
     </MainLayout>
   );

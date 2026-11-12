@@ -35,8 +35,9 @@ export default function Permissions() {
   const toggle = (p) => change(p.id, () => permissionService.set({ roleId, permissionId: p.id, isAllowed: !p.is_allowed }));
   const bulk = (module, submodule, isAllowed) => change(`${module}/${submodule || ''}`, async () => { const r = await permissionService.setMany({ roleId, module, submodule, isAllowed }); showSuccess(r.message); });
 
+  const phrase = (text) => { const key = String(text || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); return key ? t(key, lang) : text; };
   const q = search.trim().toLowerCase();
-  const view = useMemo(() => Object.entries(matrix).map(([module, subs]) => [module, Object.entries(subs).map(([sub, perms]) => [sub, perms.filter((p) => !q || `${p.name} ${p.description}`.toLowerCase().includes(q))]).filter(([, perms]) => perms.length)]).filter(([, subs]) => subs.length), [matrix, q]);
+  const view = useMemo(() => Object.entries(matrix).map(([module, subs]) => [module, Object.entries(subs).map(([sub, perms]) => [sub, perms.filter((p) => !q || `${p.name} ${p.description} ${t(p.name, lang)}`.toLowerCase().includes(q))]).filter(([, perms]) => perms.length)]).filter(([, subs]) => subs.length), [matrix, q, lang]);
   const role = roles.find((r) => r.id === roleId);
 
   return (
@@ -49,15 +50,16 @@ export default function Permissions() {
         {!loading && view.length === 0 && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('no_data', lang)}</div>}
         {!loading && view.map(([module, subs]) => (
           <div key={module} className="bg-white rounded shadow">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3"><h2 className="text-sm font-semibold text-gray-800">{module}</h2>
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3"><h2 className="text-sm font-semibold text-gray-800">{phrase(module)}</h2>
               {canEdit && <div className="flex gap-3 text-xs"><button type="button" className="text-primary hover:underline disabled:opacity-50" disabled={!!busy} onClick={() => bulk(module, undefined, true)}>{t('allow_all', lang)}</button><button type="button" className="text-gray-500 hover:underline disabled:opacity-50" disabled={!!busy} onClick={() => bulk(module, undefined, false)}>{t('deny_all', lang)}</button></div>}</div>
             <div className="p-5 space-y-4">{subs.map(([sub, perms]) => (
               <div key={sub}>
-                <div className="flex items-center justify-between mb-1.5"><h3 className="text-xs uppercase tracking-wide text-gray-400 text-left">{sub}</h3>
+                <div className="flex items-center justify-between mb-1.5"><h3 className="text-xs uppercase tracking-wide text-gray-400 text-left">{phrase(sub)}</h3>
                   {canEdit && <div className="flex gap-3 text-[11px]"><button type="button" className="text-primary hover:underline disabled:opacity-50" disabled={!!busy} onClick={() => bulk(module, sub, true)}>{t('allow_all', lang)}</button><button type="button" className="text-gray-500 hover:underline disabled:opacity-50" disabled={!!busy} onClick={() => bulk(module, sub, false)}>{t('deny_all', lang)}</button></div>}</div>
-                <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-16 md:gap-x-32 lg:gap-x-48 xl:gap-x-64">{perms.map((p) => (
-                  <li key={p.id}><label className={`flex items-center justify-between gap-3 py-1.5 text-sm ${canEdit ? 'cursor-pointer' : ''}`}><span className="text-gray-700 text-left">{p.description || p.name}<span className="block text-[11px] text-gray-400">{p.name}</span></span>
-                    <input type="checkbox" className="h-4 w-4 accent-[var(--color-primary)]" checked={!!p.is_allowed} disabled={!canEdit || busy === p.id} onChange={() => toggle(p)} aria-label={p.name} /></label></li>))}</ul>
+                <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-gray-300">{[perms.slice(0, Math.ceil(perms.length / 2)), perms.slice(Math.ceil(perms.length / 2))].filter((col) => col.length).map((col, i) => (
+                  <ul key={i} className={i === 0 ? 'md:pr-10' : 'md:pl-10'}>{col.map((p) => (
+                  <li key={p.id}><label className={`flex items-center justify-between gap-3 py-1.5 text-sm ${canEdit ? 'cursor-pointer' : ''}`}><span className="text-gray-700 text-left">{t(p.name, lang)}</span>
+                    <input type="checkbox" className="h-4 w-4 accent-[var(--color-primary)]" checked={!!p.is_allowed} disabled={!canEdit || busy === p.id} onChange={() => toggle(p)} aria-label={t(p.name, lang)} /></label></li>))}</ul>))}</div>
               </div>))}</div>
           </div>
         ))}

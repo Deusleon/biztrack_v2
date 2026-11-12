@@ -487,16 +487,23 @@ main .flex-wrap:has(> div.w-14.h-14) { flex-wrap: nowrap; }
 .page-header > :first-child,
 .page-header h1,
 .page-header p {
-  text-align: left;
+  text-align: left !important;
 }
 
-.page-header > :not(:first-child) {
+/* Action controls sit on the right. A description paragraph stays a normal left-aligned block. */
+.page-header > :not(:first-child):not(p) {
   margin-left: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+.page-header > p {
+  display: block;
+  width: 100%;
+  margin-left: 0;
 }
 
 /* Dark color scheme. Accent colours stay on the sidebar; the page surface flips.

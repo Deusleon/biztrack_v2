@@ -16,7 +16,7 @@ const NavIcon = ({ name }) => (
   </svg>
 );
 
-const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed }) => {
+const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed, onHelp }) => {
   const location = useLocation();
   const { user, can } = useAuth();
   const { locked } = useSubscription();
@@ -95,6 +95,12 @@ const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed }) => {
             ))}
           </nav>
 
+          <div className={`border-t border-primary-dark ${isCollapsed ? 'lg:px-2' : ''}`}>
+            <button type="button" onClick={onHelp} title={t('help_and_support', lang)} className={`w-full flex items-center py-3 text-sm font-medium text-white opacity-90 hover:bg-primary-dark hover:opacity-100 ${isCollapsed ? 'lg:justify-center lg:px-2 px-4' : 'px-7'}`}>
+              <span className={isCollapsed ? 'lg:mr-0 mr-3' : 'mr-3'}><NavIcon name="help" /></span>
+              <span className={isCollapsed ? 'lg:hidden' : ''}>{t('help_and_support', lang)}</span>
+            </button>
+          </div>
           <div className={`p-4 border-t border-primary-dark ${isCollapsed ? 'lg:px-2' : ''}`}>
             <Link to="/profile" className={`flex items-center rounded bg-primary-dark bg-opacity-50 p-3 space-x-3 hover:bg-opacity-70 ${isCollapsed ? 'lg:flex-col lg:space-x-0 lg:space-y-2 lg:p-2' : ''}`}>
               {user?.avatar_url

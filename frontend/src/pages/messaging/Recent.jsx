@@ -53,11 +53,11 @@ export default function Recent() {
     <MainLayout>
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3"><div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('recently_sent', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('recently_sent_desc', lang)}</p></div>{can('manage_messaging') && <Button onClick={() => setSend(true)} mobileLabel={t('send_message', lang)}>{t('send_message', lang)}</Button>}</div>
-        <div className="bg-white p-4 rounded shadow flex flex-wrap items-end gap-3">
-          <div className="w-full max-w-xs"><Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={t('ui_search_placeholder', lang)} /></div>
-          <div className="w-full max-w-xs"><Select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} options={[{ value: '', label: t('all', lang) }, ...['sent', 'partial', 'failed'].map((x) => ({ value: x, label: t(x === 'partial' ? 'partially_sent' : x, lang) }))]} /></div>
-          <div className="w-full max-w-xs"><DatePicker label={t('start_date', lang)} value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} /></div>
-          <div className="w-full max-w-xs"><DatePicker label={t('end_date', lang)} align="right" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} /></div>
+        <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-end">
+          <Input className="w-full min-w-0" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={t('ui_search_placeholder', lang)} />
+          <Select className="w-full min-w-0" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} options={[{ value: '', label: t('all', lang) }, ...['sent', 'partial', 'failed'].map((x) => ({ value: x, label: t(x === 'partial' ? 'partially_sent' : x, lang) }))]} />
+          <DatePicker className="w-full min-w-0" label={t('start_date', lang)} value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} />
+          <DatePicker className="w-full min-w-0" label={t('end_date', lang)} align="right" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} />
         </div>
         <DataTable columns={columns} data={shown.slice((cur - 1) * PAGE, cur * PAGE)} loading={loading} rowId="batch_id" emptyMessage={search || status || from || to ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={{ currentPage: cur, totalPages: pages, totalItems: shown.length, limit: PAGE }} onPageChange={setPage} renderActions={(r) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(r) }]} />} />
       </div>

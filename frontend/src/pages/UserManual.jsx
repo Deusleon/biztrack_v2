@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { t } from '../utils/i18n';
 
-const UPDATES = ['returns', 'purchases', 'modals', 'messaging', 'daily_summary', 'appearance', 'subscription', 'activity'];
+const UPDATES = ['returns', 'purchases', 'modals', 'messaging', 'daily_summary', 'appearance', 'subscription', 'activity', 'help', 'stock', 'lock'];
 
 const MANUALS = {
   en: { titleKey: 'manual_title_en', languageKey: 'manual_english', pdf: '/manuals/BizTrack_User_Manual.pdf' },

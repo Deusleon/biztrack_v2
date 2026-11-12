@@ -281,37 +281,41 @@ export const requestTopup = async (req, res) => {
       }
     }
 
-    const recipients = getSupportRecipients();
-    let emailed = false;
-    if (recipients.length === 0) {
-      console.error("Top-up request: no support email configured (SUPPORT_EMAIL / SUPPORT_ADMIN_EMAILS / DEVELOPER_EMAIL).");
-    } else {
-      const result = await sendEmail({
-        to: recipients,
-        subject: `SMS top-up request: ${store.name || "Unknown business"}`,
-        html: buildEmailHtml({
-          recipientName: "Support Team",
-          title: "sms_topup_request",
-          message: note ? `${baseMessage} Note from client: ${note}` : baseMessage,
-          meta: {
-            requested_by: `${user.name || "Unknown"} <${email || "-"}>`,
-            phone: user.phone || undefined,
-            business: store.name ? `${store.name} (${store.id})` : String(storeId || ""),
-            system_domain: domain,
-            sms_gateway: gatewayLabel(active.gatewayKey),
-            amount_tzs: amount || undefined,
-            ticket_number: ticketNumber || undefined,
-            role: req.user?.current_store_role?.role_name || undefined,
-            requested_at: new Date().toISOString(),
-          },
-        }),
-      });
-      emailed = !!result?.success;
-      if (!emailed) console.error("Top-up request email failed:", result?.error || "unknown");
+    const developers = getDeveloperEmails();
+    const recipients = [...new Set([...developers, ...getSupportRecipients().map((address) => address.toLowerCase())])];
+    const mail = {
+      subject: `SMS top-up request: ${store.name || "Unknown business"}`,
+      html: buildEmailHtml({
+        recipientName: "Support Team",
+        title: "SMS top-up request",
+        message: note ? `${baseMessage}\n\nNote from client: ${note}` : baseMessage,
+        meta: {
+          requested_by: `${user.name || "Unknown"} <${email || "-"}>`,
+          phone: user.phone || undefined,
+          business: store.name ? `${store.name} (${store.id})` : String(storeId || ""),
+          system_domain: domain,
+          sms_gateway: gatewayLabel(active.gatewayKey),
+          amount_tzs: amount || undefined,
+          ticket_number: ticketNumber || undefined,
+          role: req.user?.current_store_role?.role_name || undefined,
+          requested_at: new Date().toISOString(),
+        },
+      }),
+    };
+    const deliveries = recipients.length
+      ? await Promise.all(recipients.map((to) => sendEmail({ to, ...mail })))
+      : [];
+    const developerEmailed = developers.length > 0 && developers.every((address) => {
+      const sent = deliveries[recipients.indexOf(address)];
+      return sent?.success === true;
+    });
+    if (!developerEmailed) {
+      console.error("Top-up request: developer email was not sent.", deliveries.map((d) => d?.error).filter(Boolean).join("; ") || "DEVELOPER_EMAIL is empty or the mail provider rejected the message.");
     }
 
-    if (!ticketNumber && !emailed) {
-      return res.status(503).json({ message: t("topup_request_failed", lang) });
+    if (!ticketNumber || !developerEmailed) {
+      const message = ticketNumber ? t("topup_request_email_failed", lang) : t("topup_request_failed", lang);
+      return res.status(503).json({ message: ticketNumber ? `${message} (${ticketNumber})` : message });
     }
 
     topupRequestCooldown.set(cooldownKey, true);

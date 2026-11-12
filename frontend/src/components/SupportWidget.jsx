@@ -34,7 +34,7 @@ export default function SupportWidget({ isOpen, onClose }) {
     catch (err) { showError(err.message); } finally { setBusy(false); }
   };
   return (
-    <FormModal isOpen={isOpen} onClose={onClose} size="md" title={t('help_and_support', lang)}>
+    <FormModal isOpen={isOpen} onClose={onClose} size="xl" title={t('help_and_support', lang)}>
       <div className="space-y-4 text-left">
         <div className="flex gap-2 border-b border-gray-200">{[['new', 'new_ticket'], ['mine', 'my_tickets']].map(([k, label]) => <button key={k} type="button" onClick={() => setTab(k)} className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${tab === k ? 'border-primary text-primary' : 'border-transparent text-gray-500'}`}>{t(label, lang)}{k === 'mine' && mine.length > 0 ? ` (${mine.length})` : ''}</button>)}</div>
         {tab === 'new' ? (

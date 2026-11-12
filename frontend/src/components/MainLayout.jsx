@@ -57,7 +57,7 @@ export default function MainLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen((o) => !o)} closeSidebar={closeSidebar} isCollapsed={collapsed} />
+      <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen((o) => !o)} closeSidebar={closeSidebar} isCollapsed={collapsed} onHelp={() => { setSidebarOpen(false); setHelpOpen(true); }} />
 
       <div className={`transition-all duration-300 min-h-screen min-w-0 flex flex-col ${collapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <header className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200 print:hidden safe-top">
@@ -86,6 +86,7 @@ export default function MainLayout({ children }) {
 
             <div className="flex items-center gap-2">
               <NotificationBell />
+              <button type="button" onClick={() => setHelpOpen(true)} className="p-2 rounded text-gray-600 hover:bg-gray-100" title={t('help_and_support', lang)} aria-label={t('help_and_support', lang)}><Svg d={ICON_PATHS.help} className="w-5 h-5" /></button>
               <button type="button" onClick={forceLock} className="p-2 rounded text-gray-600 hover:bg-gray-100" title={t('lock_screen', lang)} aria-label={t('lock_screen', lang)}><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 11V8a4 4 0 10-8 0v3m-1 0h10a1 1 0 011 1v7a1 1 0 01-1 1H7a1 1 0 01-1-1v-7a1 1 0 011-1z" /></svg></button>
               <button
                 onClick={() => setLang(lang === 'sw' ? 'en' : 'sw')}
