@@ -4,7 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { t } from '../utils/i18n';
 
-const UPDATES = ['returns', 'purchases', 'modals', 'messaging', 'email', 'daily_summary', 'appearance', 'subscription', 'activity', 'help', 'stock', 'lock', 'printing'];
+/** Notes for the current update only. Replace this list, and the matching
+ *  manual_<key>_title and manual_<key>_body strings in en.json and sw.json,
+ *  each time a new update ships. */
+const UPDATES = ['subscription', 'permissions', 'guide'];
 
 const MANUALS = {
   en: { titleKey: 'manual_title_en', languageKey: 'manual_english', pdf: '/manuals/BizTrack_User_Manual.pdf' },
