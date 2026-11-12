@@ -15,11 +15,11 @@ import { normalizePhone } from '../messaging/common';
 import { t } from '../../utils/i18n';
 
 const money = (v, cur = 'TZS') => `${cur} ${formatNumberWithCommas(Number(v) || 0)}`;
-/** 6–11 months 5%, 12–17 months 10%, 18–24 months 15%. Must match the server. */
+/** 6–11 months 10%. From 12 months, 15% — the same rate as a year. Must match the server. */
 const prepaidQuote = (monthly, count) => {
   const months = Math.min(24, Math.max(1, parseInt(count, 10) || 1));
   const gross = (Number(monthly) || 0) * months;
-  const rate = months >= 18 ? 0.15 : months >= 12 ? 0.1 : months >= 6 ? 0.05 : 0;
+  const rate = months >= 12 ? 0.15 : months >= 6 ? 0.1 : 0;
   const discount = Math.round(gross * rate);
   return { months, gross, rate, discount, amount: gross - discount };
 };

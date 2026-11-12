@@ -52,15 +52,39 @@ export default function Permissions() {
           <div key={module} className="bg-white rounded shadow">
             <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3"><h2 className="text-sm font-semibold text-gray-800">{phrase(module)}</h2>
               {canEdit && <div className="flex gap-3 text-xs"><button type="button" className="text-primary hover:underline disabled:opacity-50" disabled={!!busy} onClick={() => bulk(module, undefined, true)}>{t('allow_all', lang)}</button><button type="button" className="text-gray-500 hover:underline disabled:opacity-50" disabled={!!busy} onClick={() => bulk(module, undefined, false)}>{t('deny_all', lang)}</button></div>}</div>
-            <div className="p-5 space-y-4">{subs.map(([sub, perms]) => (
-              <div key={sub}>
-                <div className="flex items-center justify-between mb-1.5"><h3 className="text-xs uppercase tracking-wide text-gray-400 text-left">{phrase(sub)}</h3>
-                  {canEdit && <div className="flex gap-3 text-[11px]"><button type="button" className="text-primary hover:underline disabled:opacity-50" disabled={!!busy} onClick={() => bulk(module, sub, true)}>{t('allow_all', lang)}</button><button type="button" className="text-gray-500 hover:underline disabled:opacity-50" disabled={!!busy} onClick={() => bulk(module, sub, false)}>{t('deny_all', lang)}</button></div>}</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 items-stretch">{[perms.slice(0, Math.ceil(perms.length / 2)), perms.slice(Math.ceil(perms.length / 2))].filter((col) => col.length).map((col, i) => (
-                  <ul key={i} className={`h-full ${i === 0 ? 'md:pr-10 md:border-r-2 md:border-solid md:border-gray-400' : 'md:pl-10'}`}>{col.map((p) => (
-                  <li key={p.id}><label className={`flex items-center justify-between gap-3 py-1.5 text-sm ${canEdit ? 'cursor-pointer' : ''}`}><span className="text-gray-700 text-left">{t(p.name, lang)}</span>
-                    <input type="checkbox" className="h-4 w-4 accent-[var(--color-primary)]" checked={!!p.is_allowed} disabled={!canEdit || busy === p.id} onChange={() => toggle(p)} aria-label={t(p.name, lang)} /></label></li>))}</ul>))}</div>
-              </div>))}</div>
+            {(() => {
+              const flat = subs.flatMap(([sub, perms]) => perms.map((p) => ({ ...p, sub })));
+              const mid = Math.ceil(flat.length / 2);
+              const columns = [flat.slice(0, mid), flat.slice(mid)].filter((col) => col.length);
+              const groupsOf = (col) => col.reduce((groups, p) => {
+                const last = groups[groups.length - 1];
+                if (!last || last.sub !== p.sub) groups.push({ sub: p.sub, perms: [p] });
+                else last.perms.push(p);
+                return groups;
+              }, []);
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 md:items-stretch">
+                  {columns.map((col, i) => (
+                    <div key={i} className={`h-full px-5 py-4 space-y-4 ${i === 0 && columns.length > 1 ? 'md:border-r md:border-solid md:border-gray-200' : ''}`}>
+                      {groupsOf(col).map((group) => (
+                        <div key={group.sub || 'group'}>
+                          {group.sub && (
+                            <div className="flex items-center justify-between gap-3 mb-1.5">
+                              <h3 className="text-xs uppercase tracking-wide text-gray-400 text-left">{phrase(group.sub)}</h3>
+                              {canEdit && <div className="flex gap-3 text-[11px]"><button type="button" className="text-primary hover:underline disabled:opacity-50" disabled={!!busy} onClick={() => bulk(module, group.sub, true)}>{t('allow_all', lang)}</button><button type="button" className="text-gray-500 hover:underline disabled:opacity-50" disabled={!!busy} onClick={() => bulk(module, group.sub, false)}>{t('deny_all', lang)}</button></div>}
+                            </div>
+                          )}
+                          <ul>{group.perms.map((p) => (
+                            <li key={p.id}><label className={`flex items-center justify-between gap-3 py-1.5 text-sm ${canEdit ? 'cursor-pointer' : ''}`}><span className="text-gray-700 text-left">{t(p.name, lang)}</span>
+                              <input type="checkbox" className="h-4 w-4 accent-[var(--color-primary)]" checked={!!p.is_allowed} disabled={!canEdit || busy === p.id} onChange={() => toggle(p)} aria-label={t(p.name, lang)} /></label></li>
+                          ))}</ul>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         ))}
         {role && <p className="text-xs text-gray-400 text-left">{t('permissions_apply_note', lang, { role: role.name })}</p>}
