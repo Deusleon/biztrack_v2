@@ -520,5 +520,22 @@
   "amount_required": "Kiasi kinahitajika",
   "payment_method_required": "Njia ya malipo inahitajika",
   "invalid_amount": "Kiasi si sahihi",
-  "message_required": "Ujumbe unahitajika."
+  "message_required": "Ujumbe unahitajika.",
+  "smtp_host_required": "Weka seva ya SMTP, kwa mfano mail.yourdomain.com.",
+  "smtp_from_required": "Weka barua pepe ya kutuma, au jina la mtumiaji la kisanduku.",
+  "test_email_sent": "Barua pepe ya majaribio imetumwa kwa {{to}}.",
+  "smtp_verified": "Imeunganishwa na {{host}} kwenye port {{port}}. Hakuna ujumbe uliotumwa.",
+  "smtp_auth_failed": "{{host}} imekataa jina la mtumiaji au nenosiri. Jina la mtumiaji kwa kawaida ni anwani kamili ya kisanduku.",
+  "smtp_host_not_found": "Seva ya SMTP \"{{host}}\" haijapatikana. Kagua tahajia, kwa mfano mail.yourdomain.com.",
+  "smtp_connection_refused": "{{host}} imekataa muunganiko kwenye port {{port}}. Jaribu 587, au 465 na TLS unapounganisha.",
+  "smtp_tls_required": "Port {{port}} inahitaji TLS unapounganisha. Weka tiki, au tumia port 587 na uache bila tiki.",
+  "smtp_tls_unexpected": "TLS unapounganisha imewekwa tiki, lakini port {{port}} kwa kawaida hutumia STARTTLS. Ondoa tiki, au tumia port 465.",
+  "smtp_certificate": "Cheti cha {{host}} hakikuthibitishwa. Tumia jina la seva linaloonekana kwenye cPanel.",
+  "smtp_timeout": "Hakuna jibu kutoka {{host}} kwenye port {{port}}. Jaribu nyingine kati ya 587 na 465, na ulinganishe tiki ya TLS na port.",
+  "smtp_from_rejected": "Kisanduku kimeingia, lakini kimekataa anwani ya kutuma. Weka From email kuwa kisanduku hicho hicho.",
+  "smtp_unknown": "Seva ya barua pepe imejibu: {{detail}}",
+  "swala_topup_unavailable": "Kununua salio hapa kunapatikana SwalaSMS ikiwa ndiyo lango lililowashwa.",
+  "swala_units_required": "Weka idadi ya salio la SMS la kununua, au chagua kifurushi.",
+  "swala_topup_link": "Ongezeko limeundwa. Fungua kiungo cha malipo ili umalizie. Salio linafika malipo yakishaidhinishwa.",
+  "swala_topup_prompt": "Ombi la malipo limetumwa. Lidhinishe kwenye simu ili upokee salio."
 }

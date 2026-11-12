@@ -14,6 +14,7 @@ import { buildEmailHtml } from '../services/notification.service.js';
 import { TtlCache } from '../utils/ttlCache.js';
 import { isDeveloper, getDeveloperEmails } from '../middlewares/developerOnly.js';
 import { getSupportAdminEmails } from '../middlewares/supportAdmin.js';
+import { notifyDeveloperTicketSms } from './support.controller.js';
 const GATEWAYS = {
   beem_africa: beemAfrica,
   next_sms: nextSMS,
@@ -161,7 +162,8 @@ export const getGatewayInfo = async (req, res) => {
       // Paying the gateway directly is a developer action. Everyone else asks support.
       topupUssd: dev && has("buyCreditsUssd"),
       topupZenoPay: dev && has("createZenoPayOrder"),
-      topupRequest: !!active.config && !!mod && (!dev || !direct),
+      topupSwala: dev && active.gatewayKey === "swala_sms" && has("getWalletOptions"),
+      topupRequest: !!active.config && !!mod && (!dev || (!direct && active.gatewayKey !== "swala_sms")),
     };
 
     const body = {
@@ -319,6 +321,7 @@ export const requestTopup = async (req, res) => {
     }
 
     topupRequestCooldown.set(cooldownKey, true);
+    notifyDeveloperTicketSms({ ticketNumber, name: user.name, subject: `SMS top-up: ${store.name || 'store'}` });
     return res.status(200).json({
       message: ticketNumber ? `${t("topup_request_sent", lang)} (${ticketNumber})` : t("topup_request_sent", lang),
       ticket_number: ticketNumber,
@@ -1333,6 +1336,80 @@ export const deleteTemplate = async (req, res) => {
     return res.status(200).json({ message: "Template deleted." });
   } catch (err) {
     console.error("Messaging deleteTemplate error:", err);
+    return respondWithError(req, res, 500, "server_error");
+  }
+};
+
+async function requireSwala(req, res) {
+  const active = await getActiveGateway();
+  if (active.gatewayKey !== "swala_sms" || !active.config?.api_key) {
+    res.status(400).json({ message: t("swala_topup_unavailable", langOf(req)) });
+    return null;
+  }
+  return active;
+}
+
+export const getWalletOptions = async (req, res) => {
+  try {
+    const active = await requireSwala(req, res);
+    if (!active) return;
+    const result = await swalaSms.getWalletOptions(active.config, req.query.country_uid || undefined);
+    if (!result.success) return res.status(400).json({ message: result.error });
+    return res.status(200).json({ success: true, data: result.data });
+  } catch (err) {
+    console.error("Swala wallet options error:", err);
+    return respondWithError(req, res, 500, "server_error");
+  }
+};
+
+export const quoteWalletTopUp = async (req, res) => {
+  try {
+    const active = await requireSwala(req, res);
+    if (!active) return;
+    const units = Number(req.body?.units);
+    if (!Number.isInteger(units) || units < 1) return res.status(400).json({ message: t("swala_units_required", langOf(req)) });
+    const result = await swalaSms.quoteTopUp(active.config, { countryUid: req.body.country_uid, units });
+    if (!result.success) return res.status(400).json({ message: result.error });
+    return res.status(200).json({ success: true, data: result.data });
+  } catch (err) {
+    console.error("Swala wallet quote error:", err);
+    return respondWithError(req, res, 500, "server_error");
+  }
+};
+
+export const createWalletTopUp = async (req, res) => {
+  try {
+    const active = await requireSwala(req, res);
+    if (!active) return;
+    const { units, package_uid, payment_gateway, phone, country_uid } = req.body || {};
+    if (!package_uid && !(Number.isInteger(Number(units)) && Number(units) >= 1 && Number(units) <= 1000000)) {
+      return res.status(400).json({ message: t("swala_units_required", langOf(req)) });
+    }
+    if (!payment_gateway) return res.status(400).json({ message: t("payment_method_required", langOf(req)) });
+    const result = await swalaSms.createTopUp(active.config, {
+      countryUid: country_uid, units, packageUid: package_uid, paymentGateway: payment_gateway, billingPhone: phone,
+    });
+    if (!result.success) return res.status(400).json({ message: result.error });
+    const order = result.data;
+    const message = order.payment?.redirectUrl
+      ? t("swala_topup_link", langOf(req))
+      : t("swala_topup_prompt", langOf(req));
+    return res.status(200).json({ success: true, message, data: order });
+  } catch (err) {
+    console.error("Swala wallet top-up error:", err);
+    return respondWithError(req, res, 500, "server_error");
+  }
+};
+
+export const checkWalletTopUp = async (req, res) => {
+  try {
+    const active = await requireSwala(req, res);
+    if (!active) return;
+    const result = await swalaSms.getTopUp(active.config, req.params.orderUid);
+    if (!result.success) return res.status(400).json({ message: result.error });
+    return res.status(200).json({ success: true, data: result.data });
+  } catch (err) {
+    console.error("Swala wallet status error:", err);
     return respondWithError(req, res, 500, "server_error");
   }
 };

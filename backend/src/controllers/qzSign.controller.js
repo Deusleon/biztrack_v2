@@ -5,15 +5,21 @@ const __dirname = _path.dirname(__filename);
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-// backend/certs/qz-private-key.pem — the same place relative to the project as before (override with QZ_PRIVATE_KEY_PATH).
+// Prefer the key pasted in .env (QZ_PRIVATE_KEY). A file path is the fallback (QZ_PRIVATE_KEY_PATH or backend/certs/qz-private-key.pem).
 const PRIVATE_KEY_PATH = process.env.QZ_PRIVATE_KEY_PATH || path.join(__dirname, '..', '..', 'certs', 'qz-private-key.pem');
 
-let privateKey;
-try {
-  privateKey = fs.readFileSync(PRIVATE_KEY_PATH, 'utf8');
-} catch (err) {
-  console.error('QZ Tray private key not found at', PRIVATE_KEY_PATH);
+function loadPrivateKey() {
+  const inline = String(process.env.QZ_PRIVATE_KEY || '').trim();
+  if (inline) return inline.replace(/\\n/g, '\n');
+  try {
+    return fs.readFileSync(PRIVATE_KEY_PATH, 'utf8');
+  } catch {
+    console.error('QZ Tray private key is not set. Add QZ_PRIVATE_KEY to backend/.env, or set QZ_PRIVATE_KEY_PATH.');
+    return null;
+  }
 }
+
+const privateKey = loadPrivateKey();
 
 export const sign = (req, res) => {
   const { request } = req.body;

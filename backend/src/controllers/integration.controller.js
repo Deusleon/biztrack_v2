@@ -12,20 +12,55 @@ const GATEWAYS = {
   swala_sms: swalaSms,
 };
 const BACKUP_PROVIDERS = new Set(['cloud_backup', 'google_drive']);
-const SUPPORTED_PROVIDERS = new Set([...Object.keys(GATEWAYS), ...BACKUP_PROVIDERS]);
+const SUPPORTED_PROVIDERS = new Set([...Object.keys(GATEWAYS), ...BACKUP_PROVIDERS, 'cpanel_smtp']);
 import { notifyStore } from '../services/notification.service.js';
 import { isDeveloper } from '../middlewares/developerOnly.js';
+import { describeSmtpError, verifyEmailGateway, sendGatewayTestEmail } from '../utils/emailService.js';
+const EMAIL_PROVIDER = 'cpanel_smtp';
 // Fields that must be masked when returning config to the frontend
-const SENSITIVE_KEYS = ["secret_key", "password", "api_key", "client_secret", "refresh_token", "token"];
+const SENSITIVE_KEYS = ["secret_key", "password", "api_key", "client_secret", "refresh_token", "token", "smtp_password"];
+
+function isSensitive(key) {
+  return SENSITIVE_KEYS.includes(key) || /password|secret|token|api_key/i.test(key);
+}
 
 function maskConfig(config) {
-  const masked = { ...config };
-  for (const key of SENSITIVE_KEYS) {
-    if (masked[key]) {
-      masked[key] = "••••••••";
-    }
+  const masked = { ...(config || {}) };
+  for (const key of Object.keys(masked)) {
+    if (isSensitive(key) && masked[key]) masked[key] = "••••••••";
   }
   return masked;
+}
+
+function integrationType(provider) {
+  if (provider === EMAIL_PROVIDER) return 'email';
+  if (BACKUP_PROVIDERS.has(provider)) return 'backup';
+  return 'sms';
+}
+
+function mergeSecrets(existingConfig, incoming) {
+  const merged = { ...(existingConfig || {}), ...(incoming || {}) };
+  for (const key of Object.keys(incoming || {})) {
+    if (isSensitive(key) && (incoming[key] === "••••••••" || incoming[key] === "")) {
+      merged[key] = existingConfig?.[key] ?? "";
+    }
+  }
+  return merged;
+}
+
+function smtpFrom(saved, incoming) {
+  const config = mergeSecrets(saved || {}, incoming || {});
+  return {
+    smtp_host: String(config.smtp_host || '').trim(),
+    smtp_port: Number(config.smtp_port) || 587,
+    smtp_secure: config.smtp_secure === true || config.smtp_secure === 'true',
+    smtp_username: String(config.smtp_username || '').trim(),
+    smtp_password: config.smtp_password || '',
+    from_email: String(config.from_email || '').trim(),
+    from_name: String(config.from_name || '').trim(),
+    system_from_email: String(config.system_from_email || '').trim(),
+    system_from_name: String(config.system_from_name || '').trim(),
+  };
 }
 
 // GET /api/integrations/access
@@ -39,7 +74,7 @@ export const checkAccess = async (req, res) => {
 export const getIntegrations = async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id, provider, type, config, is_active, created_at, updated_at FROM integrations WHERE type IN ('sms', 'backup') ORDER BY type, provider"
+      "SELECT id, provider, type, config, is_active, created_at, updated_at FROM integrations WHERE type IN ('sms', 'backup', 'email') ORDER BY type, provider"
     );
 
     const integrations = result.rows
@@ -80,14 +115,7 @@ export const saveIntegration = async (req, res) => {
     );
 
     const existingConfig = existing.rows.length > 0 ? existing.rows[0].config : {};
-
-    // Merge: only overwrite sensitive fields when the incoming value is NOT the mask
-    const mergedConfig = { ...existingConfig, ...config };
-    for (const key of SENSITIVE_KEYS) {
-      if (config[key] === "••••••••") {
-        mergedConfig[key] = existingConfig[key] ?? "";
-      }
-    }
+    const mergedConfig = mergeSecrets(existingConfig, config);
 
     // NextSMS now authenticates with username + password. Drop the legacy
     // API token so it is not kept around in the database.
@@ -97,10 +125,10 @@ export const saveIntegration = async (req, res) => {
 
     await pool.query(
       `INSERT INTO integrations (provider, type, config, is_active, updated_at)
-       VALUES ($1, $2, $3, true, NOW())
+       VALUES ($1, $2, $3, $4, NOW())
        ON CONFLICT (provider, type)
-       DO UPDATE SET config = $3, is_active = true, updated_at = NOW()`,
-      [provider, BACKUP_PROVIDERS.has(provider) ? 'backup' : 'sms', mergedConfig]
+       DO UPDATE SET config = $3, is_active = $4, updated_at = NOW()`,
+      [provider, integrationType(provider), mergedConfig, provider === EMAIL_PROVIDER ? mergedConfig.is_active === true : true]
     );
 
     return res.status(200).json({ message: t("integration_saved", lang) });
@@ -118,6 +146,29 @@ export const verifyIntegration = async (req, res) => {
   const lang = req.user?.lang || req.headers["x-language"] || "en";
   const { provider } = req.params;
 
+  if (provider === EMAIL_PROVIDER) {
+    try {
+      const saved = await pool.query(
+        "SELECT config FROM integrations WHERE provider = $1 AND type = 'email' LIMIT 1",
+        [provider],
+      );
+      const gateway = smtpFrom(saved.rows[0]?.config, req.body?.config);
+      if (!gateway.smtp_host) return res.status(400).json({ message: t("smtp_host_required", lang) });
+      if (!gateway.from_email && !gateway.smtp_username) return res.status(400).json({ message: t("smtp_from_required", lang) });
+      const sendTo = String(req.body?.send_to || '').trim();
+      if (sendTo) {
+        const purpose = req.body?.send_as === 'system' ? 'system' : 'user';
+        await sendGatewayTestEmail(gateway, sendTo, purpose);
+        return res.status(200).json({ success: true, message: t("test_email_sent", { to: sendTo }, lang) });
+      }
+      const checked = await verifyEmailGateway(gateway);
+      return res.status(200).json({ success: true, message: t("smtp_verified", { host: checked.host, port: checked.port }, lang) });
+    } catch (err) {
+      const described = describeSmtpError(err, smtpFrom({}, req.body?.config));
+      return res.status(400).json({ message: t(described.key, described.vars, lang) });
+    }
+  }
+
   if (!GATEWAYS[provider] || typeof GATEWAYS[provider].verifyCredentials !== "function") {
     return res.status(400).json({ message: t("invalid_gateway_provider", lang) });
   }
@@ -131,14 +182,7 @@ export const verifyIntegration = async (req, res) => {
     const incoming = req.body?.config && typeof req.body.config === "object" ? req.body.config : null;
 
     let config = savedConfig;
-    if (incoming) {
-      config = { ...savedConfig, ...incoming };
-      for (const key of SENSITIVE_KEYS) {
-        if (incoming[key] === "••••••••" || incoming[key] === "") {
-          config[key] = savedConfig[key] ?? "";
-        }
-      }
-    }
+    if (incoming) config = mergeSecrets(savedConfig, incoming);
 
     if (!config || Object.keys(config).length === 0) {
       return res.status(400).json({ message: t("gateway_not_configured", lang) });

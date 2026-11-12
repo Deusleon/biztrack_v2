@@ -7,6 +7,8 @@ import { buildEmailHtml } from '../services/notification.service.js';
 import { logActivity } from '../utils/activityLog.js';
 import { emitToUser } from '../utils/socket.js';
 import { getSupportAdminEmails } from '../middlewares/supportAdmin.js';
+import { getDeveloperEmails } from '../middlewares/developerOnly.js';
+import { send as sendSms } from '../utils/smsService.js';
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || null;
 const CATEGORIES = new Set(["bug", "billing", "feature_request", "question", "other"]);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -95,6 +97,7 @@ export const createTicket = async (req, res) => {
     // Emails + live staff notifications are best-effort — the ticket exists regardless
     notifySupportTeam({ ticketNumber, name, email, phone, category: safeCategory, subject, message, userId });
     sendConfirmationEmail({ ticketNumber, name, email, subject });
+    notifyDeveloperTicketSms({ ticketNumber, name, subject });
     notifySupportStaffLive({ ticketNumber, name, category: safeCategory, subject });
 
     return res.status(201).json({
@@ -510,6 +513,45 @@ async function sendStatusEmail(ticket, messageKey) {
 }
 
 // ─── Email helpers (best-effort) ─────────────────────────────────────────────
+
+function smsPhone(raw) {
+  let digits = String(raw || '').replace(/\D/g, '');
+  if (digits.startsWith('0')) digits = `255${digits.slice(1)}`;
+  else if (digits.length === 9) digits = `255${digits}`;
+  return digits;
+}
+
+/** One short SMS to the developer when a ticket is opened, so it can be handled without waiting on email. */
+export async function notifyDeveloperTicketSms({ ticketNumber, name, subject }) {
+  try {
+    const emails = getDeveloperEmails();
+    const found = emails.length
+      ? await pool.query(
+        'SELECT phone, preferred_language FROM users WHERE lower(email) = ANY($1::text[])',
+        [emails],
+      )
+      : { rows: [] };
+    const targets = [];
+    for (const row of found.rows) {
+      const phone = smsPhone(row.phone);
+      if (phone) targets.push({ phone, lang: String(row.preferred_language || '').toLowerCase().startsWith('sw') ? 'sw' : 'en' });
+    }
+    for (const raw of String(process.env.DEVELOPER_PHONE || '').split(',')) {
+      const phone = smsPhone(raw);
+      if (phone && !targets.some((item) => item.phone === phone)) targets.push({ phone, lang: 'en' });
+    }
+    const who = String(name || 'Customer').replace(/\s+/g, ' ').trim().slice(0, 24);
+    const about = String(subject || '').replace(/\s+/g, ' ').trim().slice(0, 70);
+    for (const target of targets) {
+      const text = target.lang === 'sw'
+        ? `BizTrack: tiketi ${ticketNumber}. ${who}. ${about}`
+        : `BizTrack: ticket ${ticketNumber}. ${who}. ${about}`;
+      await sendSms(target.phone, text.slice(0, 160), { purpose: 'system' });
+    }
+  } catch (err) {
+    console.error('Developer ticket SMS failed:', err.message);
+  }
+}
 
 async function notifySupportTeam({ ticketNumber, name, email, phone, category, subject, message, userId }) {
   if (!SUPPORT_EMAIL) return;

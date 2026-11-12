@@ -520,5 +520,22 @@
   "amount_required": "Amount is required",
   "payment_method_required": "Payment method is required",
   "invalid_amount": "Invalid amount",
-  "message_required": "Message is required."
+  "message_required": "Message is required.",
+  "smtp_host_required": "Enter the SMTP host, for example mail.yourdomain.com.",
+  "smtp_from_required": "Enter the From email, or the mailbox username.",
+  "test_email_sent": "Test email sent to {{to}}.",
+  "smtp_verified": "Connected to {{host}} on port {{port}}. No message was sent.",
+  "smtp_auth_failed": "{{host}} rejected the username or password. The username is usually the full mailbox address.",
+  "smtp_host_not_found": "The SMTP host \"{{host}}\" could not be found. Check the spelling, for example mail.yourdomain.com.",
+  "smtp_connection_refused": "{{host}} refused the connection on port {{port}}. Try 587, or 465 with TLS on connect.",
+  "smtp_tls_required": "Port {{port}} expects TLS on connect. Tick that box, or use port 587 and leave it unticked.",
+  "smtp_tls_unexpected": "TLS on connect is ticked, but port {{port}} normally uses STARTTLS. Untick the box, or use port 465.",
+  "smtp_certificate": "The certificate of {{host}} could not be verified. Use the host name shown in cPanel.",
+  "smtp_timeout": "No answer from {{host}} on port {{port}}. Try the other of 587 and 465, and match the TLS box to the port.",
+  "smtp_from_rejected": "The mailbox logged in, but refused the From address. Set From email to the same mailbox.",
+  "smtp_unknown": "The mail server replied: {{detail}}",
+  "swala_topup_unavailable": "Buying credit here is available when SwalaSMS is the active gateway.",
+  "swala_units_required": "Enter how many SMS credits to buy, or choose a package.",
+  "swala_topup_link": "Top-up created. Open the payment link to finish. The credits arrive once the payment clears.",
+  "swala_topup_prompt": "A payment prompt has been sent. Approve it on the phone to receive the credits."
 }

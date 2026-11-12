@@ -122,4 +122,89 @@ async function listSenderIds(config) {
   };
 }
 
-export { sendSms, getAccountStats, verifyCredentials, listSenderIds };
+function walletData(result) {
+  return result?.data?.data ?? result?.data ?? {};
+}
+
+/** Markets, fixed packages and the ways a market can be paid. */
+async function getWalletOptions(config, countryUid) {
+  const apiKey = String(config?.api_key || '').trim();
+  if (!apiKey) return { success: false, error: 'SwalaSMS: API key is required.' };
+  const query = countryUid ? `?country_uid=${encodeURIComponent(countryUid)}` : '';
+  const packagesRes = await request('GET', `/v1/wallet/packages${query}`, apiKey);
+  if (!packagesRes.success) return packagesRes;
+  const d = walletData(packagesRes);
+  const countries = d.countries || [];
+  const selected = d.selected_country || countries.find((c) => c.uid === countryUid) || countries[0] || null;
+  const country = countryUid || selected?.uid || selected?.country_uid || null;
+  let paymentMethods = [];
+  const methodsRes = await request('GET', `/v1/wallet/payment-methods${country ? `?country_uid=${encodeURIComponent(country)}` : ''}`, apiKey);
+  if (methodsRes.success) {
+    const list = walletData(methodsRes);
+    paymentMethods = Array.isArray(list) ? list : (list.payment_methods || list.methods || []);
+  }
+  return {
+    success: true,
+    data: {
+      countries,
+      selected_country: selected,
+      country_uid: country,
+      packages: d.packages || [],
+      tiers: d.tiers || [],
+      payment_methods: paymentMethods,
+    },
+  };
+}
+
+async function quoteTopUp(config, { countryUid, units }) {
+  const apiKey = String(config?.api_key || '').trim();
+  if (!apiKey) return { success: false, error: 'SwalaSMS: API key is required.' };
+  const result = await request('POST', '/v1/wallet/quote', apiKey, { country_uid: countryUid, units: Number(units) });
+  if (!result.success) return result;
+  return { success: true, data: walletData(result) };
+}
+
+function readTopUp(result) {
+  const d = walletData(result);
+  const order = d.order || d;
+  const payment = d.payment || null;
+  return {
+    orderUid: order.uid || null,
+    reference: order.reference || null,
+    units: order.units ?? null,
+    amount: order.amount ?? null,
+    currency: order.currency || null,
+    status: order.status || null,
+    sandbox: Boolean(order.sandbox || result.data?.mode === 'sandbox'),
+    payment: payment ? {
+      mode: payment.mode || null,
+      status: payment.status || null,
+      redirectUrl: payment.redirect_url || null,
+      reference: payment.reference || null,
+    } : null,
+  };
+}
+
+async function createTopUp(config, { countryUid, units, packageUid, paymentGateway, billingPhone }) {
+  const apiKey = String(config?.api_key || '').trim();
+  if (!apiKey) return { success: false, error: 'SwalaSMS: API key is required.' };
+  const phone = billingPhone ? toE164(billingPhone) : '';
+  const result = await request('POST', '/v1/wallet/topups', apiKey, {
+    ...(countryUid ? { country_uid: countryUid } : {}),
+    ...(packageUid ? { package_uid: packageUid } : { units: Number(units) }),
+    payment_gateway: paymentGateway,
+    ...(phone ? { billing_phone: phone } : {}),
+  });
+  if (!result.success) return result;
+  return { success: true, data: readTopUp(result) };
+}
+
+async function getTopUp(config, orderUid) {
+  const apiKey = String(config?.api_key || '').trim();
+  if (!apiKey) return { success: false, error: 'SwalaSMS: API key is required.' };
+  const result = await request('GET', `/v1/wallet/topups/${encodeURIComponent(orderUid)}`, apiKey);
+  if (!result.success) return result;
+  return { success: true, data: readTopUp(result) };
+}
+
+export { sendSms, getAccountStats, verifyCredentials, listSenderIds, getWalletOptions, quoteTopUp, createTopUp, getTopUp };

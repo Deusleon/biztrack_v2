@@ -41,6 +41,10 @@ router.get("/sender-ids", authMiddleware, developerOnly, viewOrManageAccount, me
 router.post("/sender-ids", authMiddleware, developerOnly, manageAccount, messagingController.requestSenderId);
 
 // Buy SMS credit
+router.get("/wallet/options", authMiddleware, developerOnly, manageAccount, messagingController.getWalletOptions);
+router.post("/wallet/quote", authMiddleware, developerOnly, manageAccount, messagingController.quoteWalletTopUp);
+router.post("/wallet/topup", authMiddleware, developerOnly, manageAccount, messagingController.createWalletTopUp);
+router.get("/wallet/topup/:orderUid", authMiddleware, developerOnly, manageAccount, messagingController.checkWalletTopUp);
 router.post("/topup/ussd", authMiddleware, developerOnly, manageAccount, messagingController.buyCreditsUssd);
 router.post("/topup/zenopay", authMiddleware, developerOnly, manageAccount, messagingController.createZenoPayOrder);
 router.get("/topup/zenopay/status", authMiddleware, developerOnly, viewOrManageAccount, messagingController.checkZenoPayStatus);

@@ -151,7 +151,7 @@ async function getStoreTransactionHistory(accountId, limit = 100) {
   const { rows } = await pool.query(
     `SELECT st.id, st.status, st.billing_cycle, st.amount, st.currency, st.payment_method,
             st.phone_number, st.provider, st.provider_reference, st.request_id,
-            st.checkout_url, st.paid_at, st.failed_reason, st.created_at,
+            st.checkout_url, st.paid_at, st.failed_reason, st.raw_request, st.created_at,
             sp.code AS plan_code, sp.name AS plan_name
      FROM subscription_transactions st
      LEFT JOIN subscription_plans sp ON sp.id = st.plan_id
@@ -224,6 +224,14 @@ function quotePrepaidMonths(monthlyAmount, months) {
   return { months: count, gross, rate, discount, amount: gross - discount };
 }
 
+/** A year is the monthly price times 12, then 15% off. */
+function quoteAnnual(monthlyAmount) {
+  const gross = (Number(monthlyAmount) || 0) * 12;
+  const rate = 0.15;
+  const discount = Math.round(gross * rate);
+  return { months: 12, gross, rate, discount, amount: gross - discount };
+}
+
 async function createCheckout({
   storeId,
   userId,
@@ -259,7 +267,7 @@ async function createCheckout({
 
   const plan = planResult.rows[0];
   const quoted = cycle === 'annual'
-    ? { months: 12, gross: Number(plan.annual_amount), rate: 0, discount: 0, amount: Number(plan.annual_amount) }
+    ? quoteAnnual(plan.monthly_amount)
     : quotePrepaidMonths(plan.monthly_amount, cycle === 'quarterly' ? 3 : months);
   const prepaidMonths = quoted.months;
   const amount = quoted.amount;

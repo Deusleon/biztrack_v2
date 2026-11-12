@@ -1,4 +1,5 @@
 import { respondWithError } from '../utils/response.js';
+import { isDeveloper } from './developerOnly.js';
 /**
  * Support-team guard. The support team is BizTrack's own staff (not store
  * owners), so access is granted by email through an env variable:
@@ -20,7 +21,7 @@ function isSupportAdmin(user) {
 }
 
 function supportAdminOnly(req, res, next) {
-  if (!isSupportAdmin(req.user)) {
+  if (!isSupportAdmin(req.user) && !isDeveloper(req.user)) {
     return respondWithError(req, res, 403, "forbidden");
   }
   next();
