@@ -219,7 +219,7 @@ async function emitSubscriptionPaymentUpdate({
 function quotePrepaidMonths(monthlyAmount, months) {
   const count = Math.min(24, Math.max(1, Math.round(Number(months) || 1)));
   const gross = (Number(monthlyAmount) || 0) * count;
-  const rate = count >= 12 ? 0.15 : count >= 6 ? 0.1 : 0;
+  const rate = count >= 24 ? 0.2 : count >= 12 ? 0.15 : count >= 6 ? 0.1 : 0;
   const discount = Math.round(gross * rate);
   return { months: count, gross, rate, discount, amount: gross - discount };
 }
