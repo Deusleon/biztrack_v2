@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   const permMap = useRef(toMap(permissions));
-  permMap.current = toMap(permissions);
+  permMap.current = toMap(permissions); // eslint-disable-line react-hooks/refs -- can() is called while pages render, so the map must be current at that moment (an effect would be one render late)
 
   // ── clearing the session ───────────────────────────────────────────────────────────────────────
   const clearSession = useCallback(() => {

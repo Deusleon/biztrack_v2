@@ -3267,5 +3267,22 @@
   "manual_permissions_title": "Ruhusa",
   "manual_permissions_body": "Katika sasisho hili kila sehemu ya ruhusa, kama vile BizTrack AI, ina ruhusa za kushoto upande wa kushoto na za kulia upande wa kulia. Mstari mwepesi mmoja unazitenganisha kwa urefu wote wa sehemu hiyo.",
   "manual_guide_title": "Mwongozo wa mtumiaji",
-  "manual_guide_body": "Katika sasisho hili ukurasa huu unaitwa Mwongozo wa Mtumiaji. Maelezo hapa chini yanaeleza mabadiliko ya sasisho la sasa tu, na yanabadilishwa kila kunapokuwa na sasisho jipya."
+  "manual_guide_body": "Katika sasisho hili ukurasa huu unaitwa Mwongozo wa Mtumiaji. Maelezo hapa chini yanaeleza mabadiliko ya sasisho la sasa tu, na yanabadilishwa kila kunapokuwa na sasisho jipya.",
+  "ui_error_title": "Hitilafu imetokea",
+  "ui_error_body": "Ukurasa huu umekutana na tatizo lisilotarajiwa. Kilichohifadhiwa tayari kiko salama. Jaribu tena, au pakia upya ukurasa.",
+  "ui_error_try_again": "Jaribu tena",
+  "ui_error_reload": "Pakia upya",
+  "ui_error_update_title": "Toleo jipya lipo",
+  "ui_error_update_body": "BizTrack imesasishwa wakati ukurasa huu ukiwa wazi. Pakia upya ili uendelee na toleo jipya.",
+  "ui_print_qz": "Chapisha kwa QZ Tray",
+  "manual_speed_title": "Kufunguka kwa haraka zaidi",
+  "manual_speed_body": "BizTrack sasa inafunguka kwa upakuaji mwepesi zaidi. Zana za PDF na Excel hupakiwa tu mara ya kwanza unapohamisha au kuchapisha hati, hivyo skrini ya kwanza inaonekana mapema kwenye simu na mtandao wa polepole.",
+  "manual_reports_title": "Ripoti: safu, jumla na michoro",
+  "manual_reports_body": "Kila ripoti inaonyesha safu zake za kawaida na safu ya Jumla, pia kwenye PDF, Excel, CSV na Chapisha. Ripoti za mwenendo huchora mstari, na ripoti za kupanga (kwa bidhaa, mhudumu, mteja, kundi, malipo) huchora nguzo za safu kumi kubwa. Ripoti ya Siku nayo inaishia na jumla.",
+  "manual_qz_title": "Kuchapisha kwa QZ Tray kila mahali",
+  "manual_qz_body": "Risiti zinaweza kwenda moja kwa moja kwenye printa kutoka Ankara, Oda Zinazosubiri (Uza) na Historia ya Mauzo pale Onyesha Risiti imezimwa kwenye Mipangilio → Usanidi. Ukurasa wa Risiti una kitufe kipya cha Chapisha kwa QZ Tray karibu na Chapisha. QZ Tray lazima iwe inafanya kazi kwenye kompyuta hiyo.",
+  "manual_limited_title": "Dashibodi kwa majukumu machache",
+  "manual_limited_body": "Ikiwa jukumu lako halijumuishi takwimu za dashibodi, Dashibodi sasa inaonyesha ujumbe mfupi na kadi kwa kila ukurasa ambao ruhusa zako zinaruhusu, badala ya ukurasa tupu.",
+  "manual_safety_title": "Kuingia salama zaidi na skrini ya hitilafu",
+  "manual_safety_body": "Baada ya majaribio 10 ya nenosiri yasiyo sahihi kwa barua pepe ile ile ndani ya dakika 15, kuingia husimama na kukuambia muda wa kusubiri; kuingia kwa usahihi hakuhesabiwi. Ukurasa ukikutana na tatizo sasa unaona kadi yenye Jaribu tena, Pakia upya na Rudi kwenye Dashibodi badala ya skrini tupu."
 }

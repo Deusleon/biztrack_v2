@@ -1,6 +1,6 @@
 // FILE PATH: frontend/src/pages/reports/ReportPage.jsx
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import MainLayout from '../../components/MainLayout';
 import ExportMenu from '../../components/ExportMenu';
 import ExplainReportPanel from '../../components/ExplainReportPanel';
@@ -14,6 +14,7 @@ import { reportService, categoryService } from '../../services/api';
 import { DataTable, Input, Select, DatePicker } from '../../components/ui';
 import { useAllProducts } from '../purchases/common';
 import { REPORT_GROUPS, FILTER_OPTIONS } from './catalog';
+import { REPORT_LAYOUTS } from './layouts';
 import { kindOf, columnsFor, formatValue, labelOf } from './format';
 import { t } from '../../utils/i18n';
 
@@ -64,18 +65,39 @@ export default function ReportPage({ group }) {
     return () => clearTimeout(timer);
   }, [report?.id, filters, currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const cols = useMemo(() => columnsFor(state.data), [state.data]);
+  // The columns, headings and totals of this report as the original BizTrack laid them out (layouts.js); a report without a
+  // layout shows every column the server sends. Columns the server did not send are skipped rather than shown empty.
+  const layout = report ? REPORT_LAYOUTS[`${group}.${report.id}`] : null;
+  const cols = useMemo(() => (layout?.cols ? (state.data.length ? layout.cols.filter((k) => state.data.some((r) => k in r)) : []) : columnsFor(state.data)), [state.data, layout]);
+  const titleOf = (k) => layout?.titles?.[k] || k;
   const fmt = (k, v) => formatValue(k, v, { settings, lang });
   const rows = useMemo(() => state.data.map((r, i) => ({ ...r, __i: i })), [state.data]);
   const shown = useMemo(() => { const q = search.trim().toLowerCase(); return q ? rows.filter((r) => cols.some((k) => fmt(k, r[k]).toLowerCase().includes(q))) : rows; }, [rows, search, cols, settings, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   const pages = Math.max(1, Math.ceil(shown.length / PAGE));
   const pageRows = shown.slice((Math.min(page, pages) - 1) * PAGE, Math.min(page, pages) * PAGE);
-  const columns = cols.map((k) => ({ key: k, label: labelOf(k, lang), nowrap: true, align: ['money', 'number', 'percent'].includes(kindOf(k)) ? 'right' : 'left', render: (r) => fmt(k, r[k]) }));
-  const exportCols = [{ key: '__no', title: 'no.', width: '45px' }, ...cols.map((k) => ({ key: k, title: k }))];
+  const columns = cols.map((k) => ({ key: k, label: labelOf(titleOf(k), lang), nowrap: true, align: ['money', 'number', 'percent'].includes(kindOf(k)) ? 'right' : 'left', render: (r) => fmt(k, r[k]) }));
+  const exportCols = [{ key: '__no', title: 'no.', width: '45px' }, ...cols.map((k) => ({ key: k, title: titleOf(k) }))];
+  // Columns that get a total at the bottom (screen AND export). The total covers every row of the report, not just this page.
+  const foot = useMemo(() => (layout?.foot || []).filter((k) => cols.includes(k)), [layout, cols]);
+  const totals = useMemo(() => Object.fromEntries(foot.map((k) => [k, shown.reduce((sum, r) => sum + (Number(r[k]) || 0), 0)])), [foot, shown]);
   const exportRows = useMemo(() => shown.map((r, i) => ({ __no: `${i + 1}.`, ...Object.fromEntries(cols.map((k) => [k, fmt(k, r[k])])) })), [shown, cols, settings, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   const cards = state.summary ? Object.entries(state.summary).filter(([k, v]) => v !== null && typeof v !== 'object' && typeof v !== 'boolean' && !k.startsWith('has_')) : [];
-  const chartData = useMemo(() => (report?.chart ? [...state.data].sort((a, b) => String(a[report.chart.x]).localeCompare(String(b[report.chart.x]))).map((r) => ({ x: String(r[report.chart.x]).slice(0, 10), ...Object.fromEntries(report.chart.ys.map((y) => [y, Number(r[y]) || 0])) })) : []), [state.data, report]);
+  const isBar = report?.chart?.type === 'bar';
+  const chartData = useMemo(() => (isBar
+    ? [...state.data].sort((a, b) => (Number(b[report.chart.ys[0]]) || 0) - (Number(a[report.chart.ys[0]]) || 0)).slice(0, report.chart.top || state.data.length).map((r) => ({ x: String(t(String(r[report.chart.x]).toLowerCase(), lang) !== String(r[report.chart.x]).toLowerCase() ? t(String(r[report.chart.x]).toLowerCase(), lang) : r[report.chart.x]).slice(0, 18), ...Object.fromEntries(report.chart.ys.map((y) => [y, Number(r[y]) || 0])) }))
+    : report?.chart ? [...state.data].sort((a, b) => String(a[report.chart.x]).localeCompare(String(b[report.chart.x]))).map((r) => ({ x: String(r[report.chart.x]).slice(0, 10), ...Object.fromEntries(report.chart.ys.map((y) => [y, Number(r[y]) || 0])) })) : []), [state.data, report, isBar, lang]);
   const desc = report ? t(`${report.label}_description`, lang) : '';
+  // The "Total" row under the table (desktop). The label goes in the first column that is not itself totalled.
+  const labelCol = cols.find((k) => !foot.includes(k));
+  const totalsRow = (
+    <tr>
+      {cols.map((k) => (
+        <td key={k} className={`px-4 py-2 text-sm font-semibold text-gray-900 whitespace-nowrap ${['money', 'number', 'percent'].includes(kindOf(k)) ? 'text-right' : 'text-left'}`}>
+          {k === labelCol ? t('total', lang) : foot.includes(k) ? fmt(k, totals[k]) : ''}
+        </td>
+      ))}
+    </tr>
+  );
 
   if (!report) return <MainLayout><p className="text-sm text-gray-500">{t('no_permissions', lang)}</p></MainLayout>;
   return (
@@ -85,7 +107,7 @@ export default function ReportPage({ group }) {
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t(g.title, lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t(g.desc, lang)}</p></div>
           <div className="flex items-center gap-2">
             {['sales', 'profit', 'inventory'].includes(group) && can('ai_explain_reports') && <ExplainReportPanel reportType={group} reportKey={report.id} filters={{ ...(report.dates ? { startDate: filters.startDate, endDate: filters.endDate } : {}), ...Object.fromEntries(report.filters.filter((f) => filters[f]).map((f) => [FILTER_OPTIONS[f]?.param || f, filters[f]])) }} />}
-            <ExportMenu rows={exportRows} columns={exportCols} title={report.label} orientation={cols.length > 6 ? 'landscape' : 'portrait'} fromDate={report.dates ? filters.startDate : null} toDate={report.dates ? filters.endDate : null} disabled={state.loading || exportRows.length === 0} />
+            <ExportMenu rows={exportRows} columns={exportCols} withFooter={foot} title={report.label} orientation={cols.length > 6 ? 'landscape' : 'portrait'} fromDate={report.dates ? filters.startDate : null} toDate={report.dates ? filters.endDate : null} disabled={state.loading || exportRows.length === 0} />
           </div>
         </div>
 
@@ -112,11 +134,17 @@ export default function ReportPage({ group }) {
         {cards.length > 0 && <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{cards.slice(0, 12).map(([k, v]) => <div key={k} className="bg-white p-4 rounded shadow text-left"><p className="text-xs uppercase tracking-wide text-gray-400">{labelOf(k, lang)}</p><p className="text-lg font-bold text-gray-900 mt-1 break-words">{fmt(k, v)}</p></div>)}</div>}
 
         {report.chart && chartData.length > 0 && (
-          <div className="bg-white p-4 rounded shadow"><div className="h-64"><ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="#eee" /><XAxis dataKey="x" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} width={70} /><Tooltip formatter={(v) => fmt('total_amount', v)} /><Legend formatter={(v) => labelOf(v, lang)} />{report.chart.ys.map((y, i) => <Line key={y} type="monotone" dataKey={y} stroke={i ? '#16a34a' : 'var(--color-primary)'} strokeWidth={2} dot={chartData.length < 40} />)}</LineChart></ResponsiveContainer></div></div>
+          <div className="bg-white p-4 rounded shadow"><div className="h-64"><ResponsiveContainer width="100%" height="100%">
+            {isBar ? (
+              <BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="#eee" /><XAxis dataKey="x" tick={{ fontSize: 11 }} interval={0} angle={chartData.length > 6 ? -25 : 0} textAnchor={chartData.length > 6 ? 'end' : 'middle'} height={chartData.length > 6 ? 60 : 30} /><YAxis tick={{ fontSize: 11 }} width={70} /><Tooltip formatter={(v, name) => fmt(name, v)} />{report.chart.ys.length > 1 && <Legend formatter={(v) => labelOf(v, lang)} />}{report.chart.ys.map((y, i) => <Bar key={y} dataKey={y} fill={i ? '#16a34a' : 'var(--color-primary)'} radius={[3, 3, 0, 0]} />)}</BarChart>
+            ) : (
+              <LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="#eee" /><XAxis dataKey="x" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} width={70} /><Tooltip formatter={(v, name) => fmt(name, v)} /><Legend formatter={(v) => labelOf(v, lang)} />{report.chart.ys.map((y, i) => <Line key={y} type="monotone" dataKey={y} stroke={i ? '#16a34a' : 'var(--color-primary)'} strokeWidth={2} dot={chartData.length < 40} />)}</LineChart>
+            )}
+          </ResponsiveContainer></div></div>
         )}
 
         <div className="bg-white p-4 rounded shadow flex items-center justify-between gap-3 flex-wrap"><div className="min-w-[14rem] flex-1 max-w-sm"><Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={t('ui_search_placeholder', lang)} /></div><span className="text-sm text-gray-500">{t('ui_records_found', lang, { count: shown.length })}</span></div>
-        <DataTable columns={columns} data={pageRows} loading={state.loading} rowId="__i" emptyMessage={search ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={{ currentPage: Math.min(page, pages), totalPages: pages, totalItems: shown.length, limit: PAGE }} onPageChange={setPage} />
+        <DataTable columns={columns} data={pageRows} loading={state.loading} rowId="__i" emptyMessage={search ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} footer={foot.length > 0 && shown.length > 0 ? totalsRow : undefined} pagination={{ currentPage: Math.min(page, pages), totalPages: pages, totalItems: shown.length, limit: PAGE }} onPageChange={setPage} />
       </div>
     </MainLayout>
   );

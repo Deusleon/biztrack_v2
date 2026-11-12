@@ -8,7 +8,7 @@ import { useStore } from '../../contexts/StoreContext';
 import { useStoreSettings } from '../../hooks/useStoreSettings';
 import useDeveloperAccess from '../../hooks/useDeveloperAccess';
 import { settingsAdminService, priceCategoryService } from '../../services/api';
-import { clearPdfSettingsCache } from '../../utils/exportUtils';
+import { clearPdfSettingsCache } from '../../utils/pdfSettingsCache';
 import { Input, Select, Button } from '../../components/ui';
 import { t } from '../../utils/i18n';
 

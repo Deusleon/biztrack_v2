@@ -1,5 +1,5 @@
 // FILE PATH: frontend/src/hooks/useServerList.js
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { usePersistedState } from './usePersistedState';
 import { useStore } from '../contexts/StoreContext';
 import { useToast } from '../contexts/ToastContext';
@@ -26,7 +26,7 @@ export default function useServerList({ fetcher, initialFilters = { search: '' }
   const [searchText, setSearchText] = useState(filters.search || '');
   const seq = useRef(0);
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
+  useLayoutEffect(() => { fetcherRef.current = fetcher; });
 
   const reload = useCallback(async () => {
     if (!enabled) return;

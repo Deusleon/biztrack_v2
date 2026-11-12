@@ -5,7 +5,6 @@ import Icon from './ui/Icon';
 import { useToast } from '../contexts/ToastContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useStoreSettings } from '../hooks/useStoreSettings';
-import { exportToCSV, exportToXLSX, exportToPDF } from '../utils/exportUtils';
 import { t } from '../utils/i18n';
 
 const LABELS = { pdf: 'PDF', xlsx: 'Excel', csv: 'CSV', print: 'print', copy: 'copy' };
@@ -58,6 +57,8 @@ export default function ExportMenu({ rows, columns, title, formats = ['pdf', 'xl
       const data = loadRows ? await loadRows() : rows;
       if (!data || data.length === 0) { showError(t('no_data', lang)); return; }
       const fileName = `${t(title, lang) || 'export'}-${new Date().toISOString().slice(0, 10)}`;
+      // The PDF / Excel libraries are big: they are downloaded the first time someone exports, not when the app opens.
+      const { exportToCSV, exportToXLSX, exportToPDF } = ['csv', 'xlsx', 'pdf'].includes(type) ? await import('../utils/exportUtils') : {};
       let ok = true;
       if (type === 'csv') ok = exportToCSV(data, fileName, columns, t(title, lang), withFooter, fromDate, toDate);
       else if (type === 'xlsx') ok = exportToXLSX(data, fileName, columns, t(title, lang), withFooter, fromDate, toDate);

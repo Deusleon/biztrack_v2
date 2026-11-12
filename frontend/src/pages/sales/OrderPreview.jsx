@@ -10,6 +10,7 @@ import { salesService } from '../../services/api';
 import { Button, ConfirmModal, FormModal, NumberInput, Select, Textarea } from '../../components/ui';
 import { StatusBadge, dateOnly, readableNote, isSystemPayment, readableMethod } from './common';
 import { formatCurrency, removeNumberFormatting } from '../../utils/numberUtils';
+import { printReceiptViaQz } from '../../utils/qzReceipt';
 import { t } from '../../utils/i18n';
 
 export default function OrderPreview() {
@@ -17,7 +18,7 @@ export default function OrderPreview() {
   const [params] = useSearchParams();
   const code = state?.cartCode || params.get('code');
   const navigate = useNavigate();
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const { showSuccess, showError } = useToast();
   const { lang } = useLanguage();
   const { settings } = useStoreSettings();
@@ -109,7 +110,15 @@ export default function OrderPreview() {
       <ConfirmModal isOpen={!!confirm} variant={confirm === 'delete' ? 'danger' : 'warning'} title={t(confirm === 'sell' ? 'complete_sale' : confirm === 'cancel' ? 'cancel_order' : 'delete', lang)} confirmText={t('confirm', lang)} cancelText={t('ui_cancel', lang)}
         message={t(confirm === 'sell' ? 'confirm_complete_sale' : confirm === 'cancel' ? 'confirm_cancel_order' : 'confirm_delete_order', lang)} onClose={() => setConfirm(null)}
         onConfirm={() => {
-          if (confirm === 'sell') run('sell', () => salesService.sellOrder(code), 'sale_processed_successfully', (res) => { if (settings?.enableReceiptPrinting && res?.invoice_number) navigate('/sales/receipt', { state: { saleData: res } }); else navigate('/sales/pending'); });
+          if (confirm === 'sell') run('sell', () => salesService.sellOrder(code), 'sale_processed_successfully', async (res) => {
+            if (settings?.enableReceiptPrinting && res?.invoice_number) {
+              // Receipt preview switched off in Configuration → print straight to the printer (QZ Tray), as the Invoice screen does.
+              if (settings.receiptPreview === false) {
+                try { await printReceiptViaQz({ saleData: res, settings, cashierName: user?.name }); showSuccess('receipt_printed_successfully'); } catch (err) { showError(err.message || t('print_failed', lang)); }
+                navigate('/sales/pending');
+              } else navigate('/sales/receipt', { state: { saleData: res } });
+            } else navigate('/sales/pending');
+          });
           else if (confirm === 'cancel') run('cancel', () => salesService.cancelOrder(code), 'order_cancelled');
           else run('delete', () => salesService.deleteOrder(code), 'order_deleted', () => navigate('/sales/pending'));
         }} />

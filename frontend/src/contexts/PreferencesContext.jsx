@@ -73,7 +73,6 @@ export const PreferencesProvider = ({ children }) => {
       })
       .catch(() => { /* e.g. a locked store: keep what this browser has */ });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.id]);
 
   // Saves for the whole store. Shows the change at once, puts it back if the server refuses.

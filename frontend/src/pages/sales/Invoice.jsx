@@ -13,8 +13,7 @@ import { salesService, productService, customerService, priceCategoryService } f
 import { Input, NumberInput, Select, Textarea, Button, ConfirmModal, FormModal, DatePicker } from '../../components/ui';
 import { formatCurrency, formatNumberWithCommas, removeNumberFormatting } from '../../utils/numberUtils';
 import { getMoneyDecimals } from '../../utils/money';
-import { buildReceiptData } from '../../utils/receiptData';
-import { printReceiptDirect } from '../../utils/qzPrint';
+import { printReceiptViaQz } from '../../utils/qzReceipt';
 import { t } from '../../utils/i18n';
 
 const newCode = () => `S-ID-${Date.now()}`;
@@ -108,7 +107,7 @@ export default function Invoice() {
     customerId: customerId || '',
     notes: notes.trim(),
   });
-  const dirty = !!editCode && baseline.current != null && orderKey() !== baseline.current;
+  const dirty = !!editCode && baseline.current != null && orderKey() !== baseline.current; // eslint-disable-line react-hooks/refs -- baseline is a snapshot taken when the order loads; comparing it during render is the point
 
   // ── data ─────────────────────────────────────────────────────────────────────────────────────────
   useEffect(() => { categoryPicked.current = false; }, [currentStore?.id]);
@@ -230,10 +229,7 @@ export default function Invoice() {
   /** Sends the receipt to the printer through QZ Tray. No browser print window. */
   const printSilently = async (saleData) => {
     try {
-      await printReceiptDirect({
-        receiptData: buildReceiptData({ sale: saleData, settings, cashierName: user?.name }),
-        receiptSize: settings?.defaultReceiptSize || '80mm',
-      });
+      await printReceiptViaQz({ saleData, settings, cashierName: user?.name });
     } catch (err) { showError(err.message || t('print_failed', lang)); }
   };
 
@@ -411,6 +407,7 @@ export default function Invoice() {
                 {!editCode && settings?.creditSalesSupport && <Button className="flex-1 whitespace-normal text-center leading-tight" size="" mobileIcon={false} variant="secondary" loading={busy === 'credit'} disabled={!!busy || rows.length === 0 || fullyPaid} onClick={() => submit('credit')}>{t('credit_sale', lang)}</Button>}
                 {editCode
                   ? <>
+                    {/* eslint-disable-next-line react-hooks/refs -- `dirty` compares with the snapshot taken when the order loaded (see above) */}
                     <Button className="flex-1 whitespace-normal text-center leading-tight" size="" mobileIcon={false} loading={busy === 'save'} disabled={!!busy || !dirty} onClick={saveChanges}>{t('save_changes', lang)}</Button>
                     <Button className="flex-1 whitespace-normal text-center leading-tight" size="" mobileIcon={false} variant="danger" loading={busy === 'cancel'} disabled={!!busy} onClick={() => (hasPayments ? setCancelOpen(true) : setConfirmCancel(true))}>{t('cancel_order', lang)}</Button>
                   </>

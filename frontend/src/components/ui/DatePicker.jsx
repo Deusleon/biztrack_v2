@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTHS = [
@@ -135,10 +135,10 @@ export default function DatePicker({
       setViewYear(parsed.year);
       setViewMonth(parsed.month);
     }
-  }, [value]);
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps -- follow the value only; `parsed` is a new object on every render and would undo the month the person is browsing
 
-  const minParsed = parseDate(min);
-  const maxParsed = parseDate(max);
+  const minParsed = useMemo(() => parseDate(min), [min]);
+  const maxParsed = useMemo(() => parseDate(max), [max]);
 
   const isDayDisabled = useCallback(
     (y, m, d) => {
@@ -153,7 +153,7 @@ export default function DatePicker({
       }
       return false;
     },
-    [min, max]
+    [minParsed, maxParsed]
   );
 
   const selectDay = (day) => {

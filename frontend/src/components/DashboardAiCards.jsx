@@ -20,7 +20,7 @@ export default function DashboardAiCards() {
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [q, setQ] = useState('');
-  const load = useCallback(async (refresh) => { try { setLoading(true); setFailed(false); setData(await aiService.businessSummary(refresh)); } catch { setFailed(true); } finally { setLoading(false); } }, [currentStore?.id]);
+  const load = useCallback(async (refresh) => { try { setLoading(true); setFailed(false); setData(await aiService.businessSummary(refresh)); } catch { setFailed(true); } finally { setLoading(false); } }, [currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- a new `load` on every store switch is what re-runs the effect below
   useEffect(() => { if (can('ai_access')) load(false); }, [load, can]);
   if (!can('ai_access')) return null;
   const ask = (e) => { e.preventDefault(); if (!q.trim()) return; localStorage.setItem('biztrackAiPendingQuestion', q.trim()); navigate('/biztrack-ai'); };

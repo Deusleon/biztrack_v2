@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import MainLayout from '../components/MainLayout';
 import DashboardAiCards from '../components/DashboardAiCards';
+import DefaultDashboard from './DefaultDashboard';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { useToast } from '../contexts/ToastContext';
@@ -140,9 +141,12 @@ export default function Dashboard() {
           </>
         )}
 
+        {/* A role without the money figures lands on its own shortcuts page instead of an empty one. */}
+        {!canSeeStats && <DefaultDashboard />}
+
         <DashboardAiCards />
 
-        {quick.length > 0 && (
+        {canSeeStats && quick.length > 0 && (
           <div className="bg-white p-5 rounded shadow">
             <h2 className="text-sm font-semibold text-gray-700 text-left mb-3">{t('quick_actions', lang)}</h2>
             <div className="flex flex-wrap gap-2">
@@ -150,7 +154,6 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-        {!canSeeStats && quick.length === 0 && <p className="text-sm text-gray-500">{t('no_permissions', lang)}</p>}
       </div>
     </MainLayout>
   );

@@ -3267,5 +3267,22 @@
   "manual_permissions_title": "Permissions",
   "manual_permissions_body": "In this update each permissions section, such as BizTrack AI, keeps its left permissions on the left and its right permissions on the right. One light line separates the two sides for the full height of that section.",
   "manual_guide_title": "User guide",
-  "manual_guide_body": "In this update this page is called the User Guide. The notes below describe only the changes in the current update, and they are replaced whenever a new update is released."
+  "manual_guide_body": "In this update this page is called the User Guide. The notes below describe only the changes in the current update, and they are replaced whenever a new update is released.",
+  "ui_error_title": "Something went wrong",
+  "ui_error_body": "This page hit an unexpected problem. Anything already saved is safe. Try again, or reload the page.",
+  "ui_error_try_again": "Try again",
+  "ui_error_reload": "Reload",
+  "ui_error_update_title": "A new version is available",
+  "ui_error_update_body": "BizTrack was updated while this page was open. Reload to continue with the new version.",
+  "ui_print_qz": "Print with QZ Tray",
+  "manual_speed_title": "Faster opening",
+  "manual_speed_body": "BizTrack now opens with a lighter first download. The PDF and Excel tools load only the first time you export or print a document, so the first screen appears sooner on phones and slow connections.",
+  "manual_reports_title": "Reports: columns, totals and charts",
+  "manual_reports_body": "Every report shows its usual columns and a Total row, also in PDF, Excel, CSV and Print. Trend reports draw a line chart, and ranking reports (by product, cashier, customer, category, payment) draw a bar chart of the ten biggest rows. The Day Report ends with totals too.",
+  "manual_qz_title": "Print with QZ Tray everywhere",
+  "manual_qz_body": "Receipts can go straight to the printer from Invoice, Pending Orders (Sell) and Sales History when Receipt Preview is off in Settings → Configurations. The Receipt page has a new Print with QZ Tray button next to Print. QZ Tray must be running on that computer.",
+  "manual_limited_title": "Dashboard for limited roles",
+  "manual_limited_body": "If your role does not include the dashboard figures, the Dashboard now shows a short notice and a card for each page your permissions allow, instead of an empty page.",
+  "manual_safety_title": "Safer sign-in and error screen",
+  "manual_safety_body": "After 10 wrong password attempts for the same e-mail within 15 minutes, sign-in pauses and tells you how long to wait; correct sign-ins never count. If a page meets a problem you now see a card with Try again, Reload and Back to Dashboard instead of a blank screen."
 }

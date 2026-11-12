@@ -60,7 +60,7 @@ export default function Users() {
     { key: 'status', label: t('status', lang), render: (u) => <span className={`px-2 py-0.5 rounded text-xs font-medium ${u.status ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{t(u.status ? 'enabled' : 'disabled', lang)}</span> },
     { key: 'created_at', label: t('date', lang), render: (u) => dateOnly(u.created_at) },
   ];
-  const exportRows = useMemo(() => list.rows.map((u, i) => ({ index: `${i + 1}.`, name: u.name, email: u.email, role: u.storeInfo?.role_name || '', status: t(u.status ? 'enabled' : 'disabled', lang) })), [list.rows, lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  const exportRows = useMemo(() => list.rows.map((u, i) => ({ index: `${i + 1}.`, name: u.name, email: u.email, role: u.storeInfo?.role_name || '', status: t(u.status ? 'enabled' : 'disabled', lang) })), [list.rows, lang]);
 
   return (
     <MainLayout>

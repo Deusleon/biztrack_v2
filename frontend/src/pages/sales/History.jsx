@@ -14,7 +14,7 @@ import { DataTable, Button, RowActions, ACTION_ICONS } from '../../components/ui
 import FormModal from '../../components/ui/FormModal';
 import { FilterBar, StatusBadge, DetailGrid, toPaging, dateOnly } from './common';
 import { formatCurrency } from '../../utils/numberUtils';
-import { generateDeliveryNotePDF } from '../../utils/deliveryNotePdf';
+import { printReceiptViaQz } from '../../utils/qzReceipt';
 import { t } from '../../utils/i18n';
 
 const fetchSales = async ({ page, limit, search, saleType, startDate, endDate }) => {
@@ -23,7 +23,7 @@ const fetchSales = async ({ page, limit, search, saleType, startDate, endDate })
 };
 
 export default function History() {
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const { showError, showSuccess } = useToast();
   const { lang } = useLanguage();
   const { settings } = useStoreSettings();
@@ -37,11 +37,18 @@ export default function History() {
     try { const d = await salesService.saleDetails(s.invoice_number); if (then) then(d); else setDetail(d); }
     catch (err) { showError(err.message); }
   };
-  const receipt = (s) => open(s, (d) => navigate('/sales/receipt', { state: { saleData: { ...d, invoice_number: s.invoice_number, items: d.items, paymentInfo: d.payment, customerInfo: { name: s.customer_name, phone: s.customer_phone } } } }));
+  const receipt = (s) => open(s, async (d) => {
+    const saleData = { ...d, invoice_number: s.invoice_number, items: d.items, paymentInfo: d.payment, customerInfo: { name: s.customer_name, phone: s.customer_phone } };
+    // Receipt preview switched off in Configuration → reprint straight to the printer (QZ Tray), as the original did.
+    if (settings?.receiptPreview === false) {
+      try { await printReceiptViaQz({ saleData, settings, cashierName: user?.name }); showSuccess('receipt_printed_successfully'); } catch (err) { showError(err.message || t('print_failed', lang)); }
+    } else navigate('/sales/receipt', { state: { saleData } });
+  });
 
   // Delivery note (A4, no prices) — same document the original produced
-  const deliveryNote = (s) => open(s, (d) => {
+  const deliveryNote = (s) => open(s, async (d) => {
     try {
+      const { generateDeliveryNotePDF } = await import('../../utils/deliveryNotePdf');
       const st = settings || {};
       generateDeliveryNotePDF({
         businessInfo: { name: st.businessName || 'BizTrack', address: st.address || '', phone: st.phone || '', email: st.email || '', tin: st.tinNumber || '', logo: st.logo?.preview || '/icon-192.png' },

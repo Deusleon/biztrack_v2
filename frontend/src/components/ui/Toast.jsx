@@ -4,6 +4,13 @@ export default function Toast({ message, type = 'info', onClose, duration = 5000
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
 
+  const handleClose = () => {
+    setIsExiting(true);
+    setTimeout(() => {
+      onClose();
+    }, 500); // Increased delay to match the transition duration
+  };
+
   useEffect(() => {
     // Trigger enter animation
     setTimeout(() => setIsVisible(true), 10);
@@ -16,14 +23,8 @@ export default function Toast({ message, type = 'info', onClose, duration = 5000
 
       return () => clearTimeout(timer);
     }
-  }, [duration]);
+  }, [duration]); // eslint-disable-line react-hooks/exhaustive-deps -- the timer must start once per toast, not every time handleClose is recreated
 
-  const handleClose = () => {
-    setIsExiting(true);
-    setTimeout(() => {
-      onClose();
-    }, 500); // Increased delay to match the transition duration
-  };
 
   const typeStyles = {
     success: {

@@ -1,6 +1,6 @@
 // FILE PATH: frontend/src/App.jsx
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { StoreProvider } from './contexts/StoreContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
@@ -8,6 +8,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { StoreSettingsProvider } from './contexts/StoreSettingsContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { IdleLockProvider } from './contexts/IdleLockContext';
 import Login from './pages/auth/Login';
@@ -139,6 +140,12 @@ const EXTRA_ROUTES = ['/sales/pending/preview', '/sales/receipt', '/profile', '/
 
 const Loading = () => <div className="min-h-screen flex items-center justify-center bg-gray-100"><div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
 
+/** A crash inside one page shows a recoverable card for that page only; moving to another page (the path) clears it. */
+function RouteGuard({ children }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary level="route" resetKey={pathname}>{children}</ErrorBoundary>;
+}
+
 function App() {
   const paths = [...new Set([...NAV_SECTIONS.flatMap((s) => s.items.map((i) => i.to)), ...EXTRA_ROUTES])].filter((p) => p !== '/dashboard');
 
@@ -152,6 +159,7 @@ function App() {
               <PreferencesProvider>
               <NotificationProvider>
               <IdleLockProvider>
+                <RouteGuard>
                 <Suspense fallback={<Loading />}>
                 <Routes>
                   <Route path="/login" element={<Login />} />
@@ -172,6 +180,7 @@ function App() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 </Suspense>
+                </RouteGuard>
               </IdleLockProvider>
               </NotificationProvider>
               </PreferencesProvider>

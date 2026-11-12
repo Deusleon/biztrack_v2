@@ -60,7 +60,8 @@ export default function OrderForm() {
   const syncTimer = useRef(null);
   const setE = (patch) => setForm((f) => ({ ...f, ...patch }));
   const setItem = (key, patch) => setForm((f) => ({ ...f, items: f.items.map((i) => (i.key === key ? { ...i, ...patch } : i)) }));
-  const rows = form?.items || [];
+  const formItems = form?.items;
+  const rows = useMemo(() => formItems || [], [formItems]);
   const totals = useMemo(() => rows.reduce((a, i) => { const l = lineOf(i); return { net: a.net + l.net, tax: a.tax + l.tax, discount: a.discount + ((amount(i.quantity) * amount(i.unit_price) * amount(i.discount_percent)) / 100), total: a.total + l.total }; }, { net: 0, tax: 0, discount: 0, total: 0 }), [rows]);
   const payloadItems = (items) => items.filter((i) => i.product_id).map((i) => ({ product_id: i.product_id, quantity: amount(i.quantity), unit_price: amount(i.unit_price), discount_percent: amount(i.discount_percent), tax_rate: amount(i.tax_rate), notes: i.notes || '' }));
 

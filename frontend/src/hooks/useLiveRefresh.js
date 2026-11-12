@@ -1,5 +1,5 @@
 // FILE PATH: frontend/src/hooks/useLiveRefresh.js
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { getSocket } from '../lib/socket';
 
 /**
@@ -13,7 +13,7 @@ import { getSocket } from '../lib/socket';
  */
 export default function useLiveRefresh(events, reload, { delay = 400 } = {}) {
   const reloadRef = useRef(reload);
-  reloadRef.current = reload;
+  useLayoutEffect(() => { reloadRef.current = reload; });
   const key = Array.isArray(events) ? events.join('|') : String(events);
 
   useEffect(() => {

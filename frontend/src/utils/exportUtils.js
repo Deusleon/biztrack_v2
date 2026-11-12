@@ -7,10 +7,9 @@ import { formatNumberWithCommas } from "./numberUtils";
 import { formatDateLocalized } from "@/utils/formatDateLocalized";
 import { getStoreSettings } from "@/services/SettingsService";
 
-let cachedPdfSettings = null;
-let cachedPdfSettingsPromise = null;
-/** After the store's settings change, the next PDF must read the new ones (currency, decimals, business name…). */
-export const clearPdfSettingsCache = () => { cachedPdfSettings = null; cachedPdfSettingsPromise = null; };
+// The cache lives in its own tiny module so Configuration can clear it WITHOUT loading the PDF/Excel libraries.
+import { pdfSettingsCache as cache, clearPdfSettingsCache } from "./pdfSettingsCache";
+export { clearPdfSettingsCache };
 
 const hasReadyPdfSettings = (settings) =>
   !!settings &&
@@ -32,24 +31,24 @@ const normalizeStoreSettingsResponse = (response) => {
 };
 
 const loadPdfSettings = async () => {
-  if (cachedPdfSettings) return cachedPdfSettings;
+  if (cache.settings) return cache.settings;
 
-  if (!cachedPdfSettingsPromise) {
-    cachedPdfSettingsPromise = getStoreSettings()
+  if (!cache.promise) {
+    cache.promise = getStoreSettings()
       .then((response) => {
-        cachedPdfSettings = normalizeStoreSettingsResponse(response);
-        return cachedPdfSettings;
+        cache.settings = normalizeStoreSettingsResponse(response);
+        return cache.settings;
       })
       .catch((error) => {
         console.error("Failed to fetch settings for PDF export:", error);
         return {};
       })
       .finally(() => {
-        cachedPdfSettingsPromise = null;
+        cache.promise = null;
       });
   }
 
-  return cachedPdfSettingsPromise;
+  return cache.promise;
 };
 
 const resolvePdfSettings = async (settings) => {
@@ -143,11 +142,11 @@ const isNumericLike = (value) => {
 
 const parseNumericValue = (value) => {
   if (value === null || value === undefined || value === "") return NaN;
-  const cleaned =
-    typeof value === "string"
-      ? value.replace(/,/g, "").replace(/[^0-9.-]/g, "")
-      : value;
-  return parseFloat(cleaned);
+  if (typeof value !== "string") return parseFloat(value);
+  // Cells are already formatted for display ("TSh 1,200.50", "Sh. 1,200", "-350.00"): take the first number in the text so a
+  // currency symbol that contains a dot or a letter cannot change the total.
+  const match = value.match(/-?\d[\d,]*(?:\.\d+)?/);
+  return match ? parseFloat(match[0].replace(/,/g, "")) : NaN;
 };
 
 // withFooter can be `true` (legacy behavior) or an array of column keys.

@@ -44,7 +44,7 @@ export default function SwalaTopUpModal({ isOpen, onClose, onPaid }) {
     setQuote(null);
     load();
     return () => clearInterval(timer.current);
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const method = options?.payment_methods?.find((m) => m.code === form.payment_gateway);
   const needsPhone = method ? method.requires_phone !== false : true;

@@ -13,7 +13,6 @@ import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Textarea } f
 import FormModal from '../../components/ui/FormModal';
 import { PStatus, PFilters, useSuppliers, listFetcher, dateOnly, num, INITIAL, Dl } from './common';
 import { formatCurrency } from '../../utils/numberUtils';
-import { exportPurchaseOrderToPDF } from '../../utils/purchaseOrderPdf';
 import { t } from '../../utils/i18n';
 
 const STATUSES = ['draft', 'pending_approval', 'approved', 'partially_received', 'received', 'cancelled'];
@@ -35,7 +34,7 @@ export default function Orders() {
   const [busy, setBusy] = useState(false);
   const open = async (o) => { try { setDetail((await purchaseService.orders.get(o.id)).data); } catch (err) { showError(err.message); } };
   const run = async (fn, after) => { try { setBusy(true); const r = await fn(); showSuccess(r?.message); after?.(); list.reload(); } catch (err) { showError(err.message); } finally { setBusy(false); setConfirm(null); setReason(''); } };
-  const pdf = (o) => { try { exportPurchaseOrderToPDF({ ...o, supplier_phone: o.supplier_phone || suppliers.find((s) => s.id === o.supplier_id)?.phone, supplier_email: o.supplier_email || o.supplier_email }, settings); } catch (err) { console.error(err); showError(t('something_went_wrong', lang)); } };
+  const pdf = async (o) => { try { const { exportPurchaseOrderToPDF } = await import('../../utils/purchaseOrderPdf'); exportPurchaseOrderToPDF({ ...o, supplier_phone: o.supplier_phone || suppliers.find((s) => s.id === o.supplier_id)?.phone, supplier_email: o.supplier_email || o.supplier_email }, settings); } catch (err) { console.error(err); showError(t('something_went_wrong', lang)); } };
 
   const columns = [
     { key: 'po_number', label: t('po_number', lang), render: (o) => <span className="font-medium text-gray-900">#{o.po_number}</span> },

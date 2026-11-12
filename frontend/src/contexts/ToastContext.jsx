@@ -16,6 +16,10 @@ export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
   const nextId = useRef(0);
 
+  const removeToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, []);
+
   const addToast = useCallback((message, type = 'info', duration = 5000) => {
     const id = ++nextId.current; // a counter, not the clock: two toasts in the same millisecond must not share an id
     // The server sometimes answers with a message KEY ("customer_created"); t() turns it into words in the person's language,
@@ -27,11 +31,7 @@ export const ToastProvider = ({ children }) => {
         removeToast(id);
       }, duration);
     }
-  }, []);
-
-  const removeToast = useCallback((id) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  }, []);
+  }, [removeToast]);
 
   const showSuccess = useCallback((message, duration) => {
     addToast(message, 'success', duration);
