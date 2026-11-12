@@ -56,8 +56,8 @@ export default function Permissions() {
               <div key={sub}>
                 <div className="flex items-center justify-between mb-1.5"><h3 className="text-xs uppercase tracking-wide text-gray-400 text-left">{phrase(sub)}</h3>
                   {canEdit && <div className="flex gap-3 text-[11px]"><button type="button" className="text-primary hover:underline disabled:opacity-50" disabled={!!busy} onClick={() => bulk(module, sub, true)}>{t('allow_all', lang)}</button><button type="button" className="text-gray-500 hover:underline disabled:opacity-50" disabled={!!busy} onClick={() => bulk(module, sub, false)}>{t('deny_all', lang)}</button></div>}</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-gray-300">{[perms.slice(0, Math.ceil(perms.length / 2)), perms.slice(Math.ceil(perms.length / 2))].filter((col) => col.length).map((col, i) => (
-                  <ul key={i} className={i === 0 ? 'md:pr-10' : 'md:pl-10'}>{col.map((p) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 items-stretch">{[perms.slice(0, Math.ceil(perms.length / 2)), perms.slice(Math.ceil(perms.length / 2))].filter((col) => col.length).map((col, i) => (
+                  <ul key={i} className={`h-full ${i === 0 ? 'md:pr-10 md:border-r-2 md:border-solid md:border-gray-400' : 'md:pl-10'}`}>{col.map((p) => (
                   <li key={p.id}><label className={`flex items-center justify-between gap-3 py-1.5 text-sm ${canEdit ? 'cursor-pointer' : ''}`}><span className="text-gray-700 text-left">{t(p.name, lang)}</span>
                     <input type="checkbox" className="h-4 w-4 accent-[var(--color-primary)]" checked={!!p.is_allowed} disabled={!canEdit || busy === p.id} onChange={() => toggle(p)} aria-label={t(p.name, lang)} /></label></li>))}</ul>))}</div>
               </div>))}</div>

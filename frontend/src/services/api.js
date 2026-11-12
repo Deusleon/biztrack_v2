@@ -310,7 +310,7 @@ export const integrationService = {
   access: () => api.get('/integrations/access'),
   list: async () => (await api.get('/integrations')).integrations || [],
   save: (provider, config) => api.put(`/integrations/${provider}`, { config }),
-  verify: (provider, config) => api.post(`/integrations/${provider}/verify`, config ? { config } : {}),
+  verify: (provider, config, extra = {}) => api.post(`/integrations/${provider}/verify`, { ...(config ? { config } : {}), ...extra }),
 };
 
 // ─── messaging (SMS: contacts, groups, templates, sending, account) ─────────────────────────────────
@@ -346,6 +346,10 @@ export const messagingService = {
   zenoStatus: (orderId) => api.get('/messaging/topup/zenopay/status', { params: { orderId } }),
   senderIds: async () => (await api.get('/messaging/sender-ids')).senderIds || [],
   requestSenderId: ({ name, description, sampleMessage }) => api.post('/messaging/sender-ids', { name, description, sampleMessage }),
+  walletOptions: (countryUid) => api.get('/messaging/wallet/options', { params: countryUid ? { country_uid: countryUid } : {} }),
+  quoteWallet: ({ country_uid, units }) => api.post('/messaging/wallet/quote', { country_uid, units }),
+  walletTopUp: (body) => api.post('/messaging/wallet/topup', body),
+  walletTopUpStatus: (orderUid) => api.get(`/messaging/wallet/topup/${orderUid}`),
 };
 
 // ─── subscription (plans, payment, history) ─────────────────────────────────────────────────────────

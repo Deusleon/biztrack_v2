@@ -42,7 +42,12 @@ export default function SupportWidget({ isOpen, onClose }) {
         ) : (
           <ul className="space-y-3 max-h-96 overflow-auto">{mine.length === 0 && <li className="text-sm text-gray-400 text-center py-6">{t('ui_nothing_yet', lang)}</li>}{mine.map((x) => <li key={x.ticket_number} className="border border-gray-100 rounded p-3 space-y-2"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium text-gray-900">{x.subject}</span><span className="text-xs text-gray-500">{t(x.status, lang)}</span></div><p className="text-[11px] text-gray-400">{x.ticket_number} · {when(x.created_at)}</p>{(x.replies || []).map((r, i) => <p key={i} className="text-sm bg-primary-10 rounded p-2 whitespace-pre-wrap">{r.message}</p>)}</li>)}</ul>
         )}
-        {isAdmin && <button type="button" onClick={() => { onClose(); navigate('/support/admin'); }} className="w-full text-center text-sm font-medium text-primary bg-primary-10 rounded py-2 hover:bg-primary-20">{t('open_support_admin', lang)}</button>}
+        {isAdmin && (
+          <div className="rounded border border-primary/30 bg-primary-10 p-3 space-y-2">
+            <p className="text-sm text-gray-700">{t('support_desk_hint', lang)}</p>
+            <button type="button" onClick={() => { onClose(); navigate('/support/admin'); }} className="w-full text-center text-sm font-medium text-primary bg-white rounded py-2 hover:bg-primary-20">{t('open_support_admin', lang)}</button>
+          </div>
+        )}
       </div>
     </FormModal>
   );

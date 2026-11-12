@@ -1,5 +1,5 @@
 // FILE PATH: frontend/src/components/Sidebar.jsx
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -9,6 +9,7 @@ import { t } from '../utils/i18n';
 import { useLanguage } from '../contexts/LanguageContext';
 import BrandMark from './BrandMark';
 import useDeveloperAccess from '../hooks/useDeveloperAccess';
+import { supportService } from '../services/api';
 
 const NavIcon = ({ name }) => (
   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -23,6 +24,13 @@ const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed, onHelp }) =
   const { currentStore } = useStore();
   const { lang } = useLanguage();            // re-render the labels when the language changes
   const { isDeveloper } = useDeveloperAccess();
+  const [supportDesk, setSupportDesk] = useState(false);
+  useEffect(() => {
+    if (isDeveloper) { setSupportDesk(true); return undefined; }
+    let active = true;
+    supportService.adminAccess().then(() => { if (active) setSupportDesk(true); }).catch(() => { if (active) setSupportDesk(false); });
+    return () => { active = false; };
+  }, [isDeveloper, user?.id]);
   const navRef = useRef(null);
 
   // Phones: the drawer covers the page. Choosing a page (or landing on one) puts it away.
@@ -96,6 +104,12 @@ const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed, onHelp }) =
           </nav>
 
           <div className={`border-t border-primary-dark ${isCollapsed ? 'lg:px-2' : ''}`}>
+            {supportDesk && (
+              <Link to="/support/admin" title={t('support_desk', lang)} className={`w-full flex items-center py-3 text-sm font-medium text-white opacity-90 hover:bg-primary-dark hover:opacity-100 ${isCollapsed ? 'lg:justify-center lg:px-2 px-4' : 'px-7'}`}>
+                <span className={isCollapsed ? 'lg:mr-0 mr-3' : 'mr-3'}><NavIcon name="help" /></span>
+                <span className={isCollapsed ? 'lg:hidden' : ''}>{t('support_desk', lang)}</span>
+              </Link>
+            )}
             <button type="button" onClick={onHelp} title={t('help_and_support', lang)} className={`w-full flex items-center py-3 text-sm font-medium text-white opacity-90 hover:bg-primary-dark hover:opacity-100 ${isCollapsed ? 'lg:justify-center lg:px-2 px-4' : 'px-7'}`}>
               <span className={isCollapsed ? 'lg:mr-0 mr-3' : 'mr-3'}><NavIcon name="help" /></span>
               <span className={isCollapsed ? 'lg:hidden' : ''}>{t('help_and_support', lang)}</span>

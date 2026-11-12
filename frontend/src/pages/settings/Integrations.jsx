@@ -7,7 +7,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { backupService, integrationService } from '../../services/api';
-import { Button, Input } from '../../components/ui';
+import { Button, Input, Select } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { t } from '../../utils/i18n';
 
@@ -93,6 +93,95 @@ function GatewayCard({ meta, saved, canEdit, lang, onSaved }) {
   );
 }
 
+const EMPTY_EMAIL = { smtp_host: '', smtp_port: '587', smtp_secure: false, smtp_username: '', smtp_password: '', from_email: '', from_name: '', system_from_email: '', system_from_name: '', is_active: false };
+
+/** cPanel mailbox used for every email BizTrack sends. Test it before turning it on. */
+function EmailGatewayCard({ saved, canEdit, lang, onSaved }) {
+  const { showSuccess, showError } = useToast();
+  const [form, setForm] = useState(EMPTY_EMAIL);
+  const [busy, setBusy] = useState(null);
+  const [sendTo, setSendTo] = useState('');
+  const [sendAs, setSendAs] = useState('user');
+  const [result, setResult] = useState(null);
+  useEffect(() => {
+    const c = saved?.config || {};
+    setForm({
+      smtp_host: c.smtp_host || '',
+      smtp_port: c.smtp_port ? String(c.smtp_port) : '587',
+      smtp_secure: c.smtp_secure === true || c.smtp_secure === 'true',
+      smtp_username: c.smtp_username || '',
+      smtp_password: '',
+      from_email: c.from_email || '',
+      from_name: c.from_name || '',
+      system_from_email: c.system_from_email || '',
+      system_from_name: c.system_from_name || '',
+      is_active: !!saved?.is_active,
+    });
+  }, [saved]);
+  const set = (patch) => { setForm((f) => ({ ...f, ...patch })); setResult(null); };
+  const payload = { ...form, smtp_port: Number(form.smtp_port) || 587 };
+  const save = async () => {
+    if (!form.smtp_host.trim() || !(form.from_email.trim() || form.smtp_username.trim())) { showError(t('required_field', lang)); return; }
+    try { setBusy('save'); const r = await integrationService.save('cpanel_smtp', payload); showSuccess(r?.message || t('integration_saved', lang)); setForm((f) => ({ ...f, smtp_password: '' })); onSaved?.(); }
+    catch (err) { showError(err.message); } finally { setBusy(null); }
+  };
+  const run = async (extra) => {
+    const key = extra ? 'send' : 'test';
+    try {
+      setBusy(key); setResult(null);
+      const r = await integrationService.verify('cpanel_smtp', payload, extra || {});
+      setResult({ ok: true, message: r?.message || t('test_connection', lang) });
+    } catch (err) { setResult({ ok: false, message: err.message }); }
+    finally { setBusy(null); }
+  };
+  return (
+    <div className="bg-white rounded shadow p-5 text-left space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div><h2 className="text-sm font-semibold text-gray-800">{t('email_gateway', lang)}</h2><p className="text-xs text-gray-500 mt-0.5">{t('email_gateway_desc', lang)}</p></div>
+        <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${saved?.is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{t(saved?.is_active ? 'active' : saved ? 'inactive' : 'not_configured', lang)}</span>
+      </div>
+      <p className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 border border-gray-100 rounded p-3">{t('cpanel_email_guide', lang)}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Input className="sm:col-span-2" label={t('smtp_host', lang)} value={form.smtp_host} disabled={!canEdit} placeholder="mail.yourdomain.com" onChange={(e) => set({ smtp_host: e.target.value })} />
+        <Input label={t('smtp_port', lang)} inputMode="numeric" value={form.smtp_port} disabled={!canEdit} onChange={(e) => set({ smtp_port: e.target.value.replace(/\D/g, '').slice(0, 5) })} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label={t('smtp_username', lang)} value={form.smtp_username} disabled={!canEdit} placeholder="no-reply@yourdomain.com" autoComplete="off" onChange={(e) => set({ smtp_username: e.target.value })} />
+        <Input type="password" label={t('smtp_password', lang)} value={form.smtp_password} disabled={!canEdit} placeholder={saved?.config?.smtp_password ? '••••••••' : ''} autoComplete="new-password" onChange={(e) => set({ smtp_password: e.target.value })} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label={t('from_email', lang)} type="email" value={form.from_email} disabled={!canEdit} placeholder="no-reply@yourdomain.com" onChange={(e) => set({ from_email: e.target.value })} />
+        <Input label={t('from_name', lang)} value={form.from_name} disabled={!canEdit} placeholder="BizTrack" onChange={(e) => set({ from_name: e.target.value })} />
+      </div>
+      <p className="text-xs text-gray-500">{t('from_email_hint', lang)}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label={t('system_from_email', lang)} type="email" value={form.system_from_email} disabled={!canEdit} onChange={(e) => set({ system_from_email: e.target.value })} />
+        <Input label={t('system_from_name', lang)} value={form.system_from_name} disabled={!canEdit} onChange={(e) => set({ system_from_name: e.target.value })} />
+      </div>
+      <p className="text-xs text-gray-500">{t('system_from_hint', lang)}</p>
+      <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" className="h-4 w-4 accent-[var(--color-primary)]" checked={form.smtp_secure} disabled={!canEdit} onChange={(e) => set({ smtp_secure: e.target.checked })} />{t('smtp_secure', lang)}</label>
+      <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" className="h-4 w-4 accent-[var(--color-primary)]" checked={form.is_active} disabled={!canEdit} onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))} />{t('email_gateway_active', lang)}</label>
+      {canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <Button loading={busy === 'save'} onClick={save}>{t('save_email_settings', lang)}</Button>
+          <Button variant="secondary" loading={busy === 'test'} disabled={!form.smtp_host.trim()} onClick={() => run()}>{t('test_connection', lang)}</Button>
+        </div>
+      )}
+      {canEdit && (
+        <div className="border border-gray-200 rounded p-3 space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('send_test_email', lang)}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label={t('send_to', lang)} type="email" value={sendTo} onChange={(e) => setSendTo(e.target.value)} placeholder="you@yourdomain.com" />
+            <Select label={t('send_as', lang)} value={sendAs} onChange={(e) => setSendAs(e.target.value)} options={[{ value: 'user', label: t('messages_sender', lang) }, { value: 'system', label: t('system_sender', lang) }]} />
+          </div>
+          <Button variant="secondary" loading={busy === 'send'} disabled={!form.smtp_host.trim() || !sendTo.trim()} onClick={() => run({ send_to: sendTo.trim(), send_as: sendAs })}>{t('send_test_email', lang)}</Button>
+        </div>
+      )}
+      {result && <p className={`text-sm rounded border px-3 py-2 ${result.ok ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-700'}`}>{result.message}</p>}
+    </div>
+  );
+}
+
 /** Google Drive backup: status, history, run now; the developer account also sets the credentials and may restore. */
 export default function Integrations() {
   const { can } = useAuth();
@@ -102,6 +191,7 @@ export default function Integrations() {
   const [status, setStatus] = useState(null);
   const [history, setHistory] = useState([]);
   const [configs, setConfigs] = useState({});
+  const [emailRow, setEmailRow] = useState(null);
   const [dev, setDev] = useState(false);
   const [form, setForm] = useState({ client_id: '', client_secret: '', refresh_token: '', folder_id: '' });
   const [configured, setConfigured] = useState(false);
@@ -116,6 +206,7 @@ export default function Integrations() {
   const loadIntegrations = useCallback(() => integrationService.list().then((list) => {
     const map = {};
     (list || []).forEach((row) => { map[row.provider] = row.config || {}; });
+    setEmailRow((list || []).find((row) => row.provider === 'cpanel_smtp') || null);
     setConfigs(map);
     const c = (list || []).find((i) => i.provider === 'google_drive' || i.provider === 'cloud_backup');
     setConfigured(!!(c?.config?.client_id || c?.is_active));
@@ -148,11 +239,13 @@ export default function Integrations() {
             {GATEWAYS.map((meta) => <GatewayCard key={meta.provider} meta={meta} saved={configs[meta.provider]} canEdit={canManage} lang={lang} onSaved={loadIntegrations} />)}
           </div>
           <p className="text-xs text-gray-500 text-left">
-            {t('default_sms_gateway', lang)}: <Link to="/settings/configuration" className="text-primary hover:underline">{t('configuration', lang)}</Link>
+            {t('default_sms_gateway', lang)}: <Link to="/settings/configurations" className="text-primary hover:underline">{t('configuration', lang)}</Link>
             {' · '}
             {t('sender_ids', lang)}: <Link to="/messaging/account" className="text-primary hover:underline">{t('account_and_topup', lang)}</Link>
           </p>
         </div>
+
+        <EmailGatewayCard saved={emailRow} canEdit={canManage} lang={lang} onSaved={loadIntegrations} />
 
         <div className="bg-white rounded shadow p-5 text-left space-y-3">
           <div className="flex items-center justify-between gap-3 flex-wrap"><h2 className="text-sm font-semibold text-gray-800">{t('google_drive_backup', lang)}</h2><span className={`px-2 py-0.5 rounded text-xs font-medium ${status?.configured ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{t(status?.configured ? 'configured' : 'not_configured', lang)}</span></div>

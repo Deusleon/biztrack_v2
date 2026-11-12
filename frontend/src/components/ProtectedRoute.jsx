@@ -8,7 +8,7 @@ import PasswordExpired from '../pages/PasswordExpired';
 import NoAccess from '../pages/NoAccess';
 import SubscriptionLocked from '../pages/SubscriptionLocked';
 
-const LOCKED_OK = ['/subscription', '/profile', '/user-manual'];
+const LOCKED_OK = ['/subscription', '/profile', '/user-manual', '/support/admin'];
 
 /**
  * Wraps every signed-in route. Sends the person to /login the moment they are not signed in, and decides —

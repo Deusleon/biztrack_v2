@@ -8,6 +8,7 @@ import { useStore } from '../../contexts/StoreContext';
 import { messagingService } from '../../services/api';
 import { Button, Input, Textarea } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
+import SwalaTopUpModal from './SwalaTopUpModal';
 import { formatNumberWithCommas } from '../../utils/numberUtils';
 import { normalizePhone } from './common';
 import { t } from '../../utils/i18n';
@@ -28,6 +29,7 @@ export default function Account() {
   const [zeno, setZeno] = useState({ amount: '', buyerName: '', buyerPhone: '', orderId: '' });
   const [sender, setSender] = useState(null);
   const [request, setRequest] = useState({ amount: '', note: '' });
+  const [buyCredits, setBuyCredits] = useState(false);
   const manage = can('manage_messaging_account');
 
   const load = useCallback(async () => {
@@ -61,6 +63,7 @@ export default function Account() {
 
         {manage && info?.configured && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {cap.topupSwala && <div className="bg-white rounded shadow p-5 space-y-3 text-left md:col-span-2"><h2 className="text-sm font-semibold text-gray-800">{t('buy_sms_credits', lang)}</h2><p className="text-xs text-gray-500">{t('buy_sms_credits_desc', lang)}</p><Button onClick={() => setBuyCredits(true)}>{t('buy_sms_credits', lang)}</Button></div>}
             {cap.topupUssd && <div className="bg-white rounded shadow p-5 space-y-3 text-left"><h2 className="text-sm font-semibold text-gray-800">{t('topup_via_ussd', lang)}</h2><Input label={t('amount_tzs', lang)} inputMode="numeric" value={ussd.amountTzs} onChange={(e) => setUssd((u) => ({ ...u, amountTzs: e.target.value.replace(/\D/g, '') }))} /><Input label={t('phone_number', lang)} value={ussd.phone} onChange={(e) => setUssd((u) => ({ ...u, phone: e.target.value }))} placeholder="255712345678" /><Button loading={busy === 'ussd'} onClick={payUssd}>{t('send_payment_request', lang)}</Button></div>}
             {cap.topupZenoPay && <div className="bg-white rounded shadow p-5 space-y-3 text-left"><h2 className="text-sm font-semibold text-gray-800">{t('topup_via_zenopay', lang)}</h2><Input label={t('amount_tzs', lang)} inputMode="numeric" value={zeno.amount} onChange={(e) => setZeno((z) => ({ ...z, amount: e.target.value.replace(/\D/g, '') }))} /><Input label={t('full_name', lang)} value={zeno.buyerName} onChange={(e) => setZeno((z) => ({ ...z, buyerName: e.target.value }))} /><Input label={t('phone_number', lang)} value={zeno.buyerPhone} onChange={(e) => setZeno((z) => ({ ...z, buyerPhone: e.target.value }))} placeholder="255712345678" /><div className="flex gap-2"><Button loading={busy === 'zeno'} onClick={payZeno}>{t('send_payment_request', lang)}</Button>{zeno.orderId && <Button variant="secondary" loading={busy === 'zenostatus'} onClick={checkZeno}>{t('check_status', lang)}</Button>}</div></div>}
             {cap.topupRequest && <div className="bg-white rounded shadow p-5 space-y-3 text-left"><h2 className="text-sm font-semibold text-gray-800">{t('request_topup', lang)}</h2><p className="text-xs text-gray-500">{t('request_topup_desc', lang)}</p><Input label={t('amount_tzs', lang)} inputMode="numeric" value={request.amount} onChange={(e) => setRequest((r) => ({ ...r, amount: e.target.value.replace(/\D/g, '') }))} /><Textarea rows={2} label={t('note', lang)} value={request.note} onChange={(e) => setRequest((r) => ({ ...r, note: e.target.value }))} /><Button loading={busy === 'request'} onClick={() => act('request', () => messagingService.topupRequest({ amount: request.amount ? Number(request.amount) : undefined, note: request.note }), 'request_sent')}>{t('request_topup', lang)}</Button></div>}
@@ -72,6 +75,7 @@ export default function Account() {
             {senders.length === 0 ? <p className="text-sm text-gray-400">{t('ui_nothing_yet', lang)}</p> : <ul className="divide-y divide-gray-100 text-sm">{senders.map((s, i) => <li key={s.id || s.name || i} className="py-1.5 flex justify-between"><span>{s.name || s.sender_name || s}</span><span className="text-gray-500">{s.status || ''}</span></li>)}</ul>}</div>
         )}
       </div>
+      <SwalaTopUpModal isOpen={buyCredits} onClose={() => setBuyCredits(false)} onPaid={load} />
       <FormModal isOpen={!!sender} onClose={() => busy !== 'sender' && setSender(null)} size="sm" title={t('request_sender_id', lang)}>
         {sender && <form onSubmit={(e) => { e.preventDefault(); requestSender(); }} className="space-y-4 text-left" noValidate><Input label={t('sender_id_name', lang)} required autoFocus maxLength={11} value={sender.name} onChange={(e) => setSender((s) => ({ ...s, name: e.target.value }))} helperText={t('sender_id_hint', lang)} /><Textarea rows={2} label={t('description', lang)} value={sender.description} onChange={(e) => setSender((s) => ({ ...s, description: e.target.value }))} /><Textarea rows={2} label={t('sample_message', lang)} value={sender.sampleMessage} onChange={(e) => setSender((s) => ({ ...s, sampleMessage: e.target.value }))} /><div className="flex justify-end gap-3"><Button type="submit" loading={busy === 'sender'}>{t('request_sender_id', lang)}</Button><Button type="button" variant="secondary" onClick={() => setSender(null)}>{t('cancel', lang)}</Button></div></form>}
       </FormModal>
