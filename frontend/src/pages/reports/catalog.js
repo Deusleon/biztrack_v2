@@ -46,7 +46,7 @@ export const REPORT_GROUPS = {
   inventory: {
     title: 'inventory_reports', desc: 'inventory_reports_description',
     reports: [
-      R('current', 'current_stock', '/inventory', 'view_current_stock', { dates: false, filters: ['stockState'] }),
+      R('current', 'current_stock', '/inventory', 'view_current_stock', { dates: false, filters: ['stockState'], chart: { type: 'bar', x: 'product_name', ys: ['stock_value'], top: 10 } }),
       R('stock-summary', 'inventory_stock_summary_report', '/inventory/stock-summary', 'view_stock_summary_reports', { filters: ['categoryId'], chart: { type: 'bar', x: 'product_name', ys: ['stock_value'], top: 10 } }),
       R('current-summary', 'current_stock_summary_report', '/inventory/current-summary', 'view_current_stock_summary_report', { dates: false, filters: ['stockState', 'categoryId'] }),
       R('current-detailed', 'current_stock_detailed_report', '/inventory/current-detailed', 'view_current_stock_detailed_report', { dates: false }),
@@ -76,7 +76,7 @@ export const REPORT_GROUPS = {
   },
   expenses: {
     title: 'expenses_reports', desc: 'expenses_reports_description',
-    reports: [R('payments', 'expenses_reports', '/expenses', 'view_supplier_payments', { filters: ['paymentMethod'] })],
+    reports: [R('payments', 'expenses_reports', '/expenses', 'view_supplier_payments', { filters: ['paymentMethod'], chart: { x: 'payment_date', ys: ['amount'] } })],
   },
 };
 

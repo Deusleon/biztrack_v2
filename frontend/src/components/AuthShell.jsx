@@ -9,7 +9,7 @@ export default function AuthShell({ title, subtitle, children, footer }) {
     <div className="min-h-screen flex items-center justify-center gradient-primary-dark p-4 safe-top">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center text-white mb-5">
-          <BrandMark className="w-16 h-auto shadow-lg" />
+          <BrandMark className="w-16 h-auto" />
           <h1 className="mt-3 text-2xl font-bold tracking-tight">BizTrack</h1>
         </div>
         <div className="bg-white rounded shadow-xl p-6 sm:p-8">

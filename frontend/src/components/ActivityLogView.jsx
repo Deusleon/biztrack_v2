@@ -100,7 +100,7 @@ function ChangeSection({ change, lang }) {
             ? <p className="text-sm text-gray-400">{t('no_field_changed', lang)}</p>
             : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="table-cards w-full text-sm">
                   <thead>
                     <tr className="text-xs text-gray-500 text-left">
                       <th className="py-1.5 pr-4 font-medium w-1/4">{t('field', lang)}</th>

@@ -108,7 +108,7 @@ export default function Debits() {
             ]} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="overflow-x-auto border border-gray-200 rounded-md">
-                <table className="w-full text-sm">
+                <table className="table-cards w-full text-sm">
                   <thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('quantity', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('total', lang)}</th></tr></thead>
                   <tbody>{(detail.items || []).map((i) => <tr key={i.id} className="border-t border-gray-100"><td className="px-3 py-2.5">{i.name}</td><td className="px-3 py-2.5 text-right">{Number(i.quantity)}</td><td className="px-3 py-2.5 text-right font-medium">{money(Number(i.price) * Number(i.quantity))}</td></tr>)}</tbody>
                 </table>

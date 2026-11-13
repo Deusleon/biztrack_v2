@@ -10,7 +10,7 @@ import { t } from '../utils/i18n';
 const UPDATES = ['speed', 'reports', 'qz', 'limited', 'safety'];
 
 const MANUALS = {
-  en: { titleKey: 'manual_title_en', languageKey: 'manual_english', pdf: '/manuals/BizTrack_User_Manual.pdf' },
+  en: { titleKey: 'manual_title_en', languageKey: 'manual_english', pdf: '/manuals/BizTrack_User_Guide.pdf' },
   sw: { titleKey: 'manual_title_sw', languageKey: 'manual_swahili', pdf: '/manuals/BizTrack_Muongozo_wa_Mtumiaji.pdf' },
 };
 

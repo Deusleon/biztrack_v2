@@ -53,4 +53,6 @@ export const REPORT_LAYOUTS = {
   'profit.by-customer': { cols: ["customer_name", "customer_phone", "invoice_count", "total_revenue", "total_cost", "total_profit", "profit_margin_percentage"], titles: {"customer_name": "customer", "customer_phone": "phone"}, foot: ["total_revenue", "total_cost", "total_profit"] },
   'profit.margins': { cols: ["product_name", "category_name", "avg_cost_price", "avg_selling_price", "total_revenue", "total_profit", "profit_margin_percentage"], titles: {"product_name": "item", "category_name": "category"}, foot: ["total_revenue", "total_profit"] },
   'profit.trends': { cols: ["period", "invoice_count", "total_revenue", "total_cost", "net_profit", "profit_margin_percentage"], foot: ["total_revenue", "total_cost", "net_profit"] },
+  'inventory.current': { cols: ["product_name", "category_name", "unit", "minimum_stock", "current_stock", "cost_price", "stock_value"], foot: ["current_stock", "stock_value"] },
+  'expenses.payments': { cols: ["payment_number", "supplier_name", "payment_date", "payment_method", "reference_number", "amount"], foot: ["amount"] },
 };

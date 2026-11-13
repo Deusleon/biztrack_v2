@@ -120,7 +120,7 @@ export default function History() {
               [t('amount_due', lang), <span className={Number(pay.amount_due) > 0 ? 'text-red-600' : 'text-green-700'}>{money(pay.amount_due)}</span>],
             ]} />
             <div className="overflow-x-auto border border-gray-200 rounded-md">
-              <table className="w-full text-sm">
+              <table className="table-cards w-full text-sm">
                 <thead className="bg-gray-50 text-gray-500"><tr>
                   <th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th>
                   <th className="px-3 py-2.5 text-right font-medium">{t('quantity', lang)}</th>

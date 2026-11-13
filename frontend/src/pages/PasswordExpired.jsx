@@ -44,7 +44,7 @@ export default function PasswordExpired() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <form onSubmit={submit} className="max-w-md w-full bg-white rounded shadow p-8 space-y-4">
         <div className="text-center">
-          <BrandMark className="w-14 h-auto mx-auto mb-3" />
+          <BrandMark variant="color" className="w-14 h-auto mx-auto mb-3" />
           <h1 className="text-lg font-semibold text-gray-900">{t('ui_password_expired_title', lang)}</h1>
           <p className="text-sm text-gray-500 mt-1">{t('ui_password_expired_text', lang)}</p>
         </div>

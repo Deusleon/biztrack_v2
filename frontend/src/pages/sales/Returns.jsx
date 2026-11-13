@@ -96,7 +96,7 @@ export default function Returns() {
       <FormModal isOpen={!!create} onClose={() => !busy && setCreate(null)} size="xl" title={`${t('new_return', lang)} · #${create?.invoice || ''}`}>
         {create && (
           <div className="space-y-4 text-left">
-            <div className="overflow-x-auto border border-gray-100 rounded"><table className="w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-2 py-2 text-right">{t('sold', lang)}</th><th className="px-2 py-2 w-24 text-right">{t('return_quantity', lang)}</th><th className="px-2 py-2 w-32">{t('condition', lang)}</th><th className="px-2 py-2 text-center">{t('restock', lang)}</th><th className="px-3 py-2 text-right">{t('refund_amount', lang)}</th></tr></thead>
+            <div className="overflow-x-auto border border-gray-100 rounded"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-2 py-2 text-right">{t('sold', lang)}</th><th className="px-2 py-2 w-24 text-right">{t('return_quantity', lang)}</th><th className="px-2 py-2 w-32">{t('condition', lang)}</th><th className="px-2 py-2 text-center">{t('restock', lang)}</th><th className="px-3 py-2 text-right">{t('refund_amount', lang)}</th></tr></thead>
               <tbody>{create.lines.map((l, i) => (
                 <tr key={`${l.product_id}-${i}`} className="border-t border-gray-100">
                   <td className="px-3 py-2">{l.name}</td><td className="px-2 py-2 text-right">{l.sold}</td>
@@ -129,7 +129,7 @@ export default function Returns() {
               [t('refund_amount', lang), money(d.total_refund ?? d.refund_amount ?? d.total_amount)],
             ]} />
             <div className="overflow-x-auto border border-gray-200 rounded-md">
-              <table className="w-full text-sm">
+              <table className="table-cards w-full text-sm">
                 <thead className="bg-gray-50 text-gray-500"><tr>
                   <th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th>
                   <th className="px-3 py-2.5 text-right font-medium">{t('quantity', lang)}</th>

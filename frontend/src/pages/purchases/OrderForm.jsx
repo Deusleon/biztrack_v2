@@ -123,6 +123,9 @@ export default function OrderForm() {
   };
 
   const removeLine = (key) => setE({ items: rows.filter((i) => i.key !== key) });
+  const [picked, setPicked] = useState([]);   // phone cards: ticked items
+  const pickedKeys = picked.filter((k) => rows.some((i) => i.key === k));
+  const removePicked = () => { setE({ items: rows.filter((i) => !pickedKeys.includes(i.key)) }); setPicked([]); };
 
   const save = async () => {
     const items = payloadItems(rows);
@@ -147,15 +150,16 @@ export default function OrderForm() {
 
   const productLabel = (p) => `${p.name} · ${t('price', lang)}: ${money(p.cost_price)} · ${t('qty', lang)}: ${formatNumberWithCommas(p.current_stock)}`;
 
-  const fields = (i) => (
+  // Phone cards: the same fields with the small upper-case labels of the original BizTrack.
+  const fieldsMobile = (i) => (
     <>
-      <label className="block text-left"><span className="block text-xs text-gray-500 mb-1">{t('quantity', lang)}</span>
+      <label className="block text-left"><span className="item-label">{t('quantity', lang)}</span>
         <input className={cell} inputMode="decimal" value={i.quantity} onChange={(e) => setItem(i.key, { quantity: shapeNumber(e.target.value, QTY_DECIMALS) })} onBlur={() => { if (!i.quantity) setItem(i.key, { quantity: '1' }); }} /></label>
-      <label className="block text-left"><span className="block text-xs text-gray-500 mb-1">{t('unit_price', lang)}</span>
+      <label className="block text-left"><span className="item-label">{t('unit_price', lang)}</span>
         <input className={cell} inputMode="decimal" value={i.unit_price} onChange={(e) => setItem(i.key, { unit_price: shapeNumber(e.target.value, moneyDecimals) })} onBlur={() => setItem(i.key, { unit_price: formatNumberWithCommas(amount(i.unit_price), moneyDecimals) })} /></label>
-      <label className="block text-left"><span className="block text-xs text-gray-500 mb-1">{t('discount', lang)} %</span>
+      <label className="block text-left"><span className="item-label">{t('discount', lang)} %</span>
         <input className={cell} inputMode="decimal" value={i.discount_percent} onChange={(e) => setItem(i.key, { discount_percent: shapeNumber(e.target.value, 2) })} /></label>
-      <label className="block text-left"><span className="block text-xs text-gray-500 mb-1">{t('tax', lang)} %</span>
+      <label className="block text-left"><span className="item-label">{t('tax', lang)} %</span>
         <input className={cell} inputMode="decimal" value={i.tax_rate} onChange={(e) => setItem(i.key, { tax_rate: shapeNumber(e.target.value, 2) })} /></label>
     </>
   );
@@ -192,21 +196,29 @@ export default function OrderForm() {
                   <Select searchable value="" placeholder={t('select_product', lang)} options={products.map((p) => ({ value: String(p.id), label: productLabel(p) }))} onChange={(e) => addProduct(products.find((x) => String(x.id) === String(e.target.value)))} />
                 </div>
 
-                <div className="md:hidden space-y-3">
-                  {rows.length === 0 && <div className="bg-white rounded shadow px-3 py-10 text-center text-sm text-gray-400">{t('add_at_least_one_item', lang)}</div>}
+                <div className="md:hidden bg-white rounded shadow p-3 space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <label className="flex items-center gap-2 text-xs font-semibold">
+                      <input type="checkbox" style={{ accentColor: 'var(--color-primary)' }} checked={rows.length > 0 && pickedKeys.length === rows.length} onChange={(e) => setPicked(e.target.checked ? rows.map((i) => i.key) : [])} />
+                      {t('select_all', lang)}
+                    </label>
+                    <span className="text-xs">{rows.length} {t('items', lang)}</span>
+                  </div>
+                  {rows.length === 0 && <div className="py-8 text-center text-sm text-gray-400">{t('add_at_least_one_item', lang)}</div>}
                   {rows.map((i) => (
-                    <div key={i.key} className="bg-white rounded shadow p-3 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="text-left min-w-0">
-                          <div className="font-medium text-gray-900 truncate">{i.product_name}</div>
-                          <div className="text-xs text-gray-400">{[i.unit && t(i.unit, lang), i.stock != null && `${t('available', lang)}: ${formatNumberWithCommas(i.stock)}`].filter(Boolean).join(' · ')}</div>
-                        </div>
-                        <button type="button" className="p-1 text-gray-400 hover:text-red-600" onClick={() => removeLine(i.key)} aria-label={t('delete', lang)}>✕</button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">{fields(i)}</div>
-                      <div className="flex justify-between text-sm font-semibold border-t border-gray-100 pt-2"><span>{t('total', lang)}</span><span>{money(lineOf(i).total)}</span></div>
+                    <div key={i.key} data-item-card className={`item-card space-y-3 ${pickedKeys.includes(i.key) ? 'is-selected' : ''}`}>
+                      <label className="flex items-center gap-2 min-w-0">
+                        <input type="checkbox" style={{ accentColor: 'var(--color-primary)' }} checked={pickedKeys.includes(i.key)} onChange={() => setPicked((p) => (p.includes(i.key) ? p.filter((x) => x !== i.key) : [...p, i.key]))} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold truncate">{i.product_name}</span>
+                          <span className="block text-xs opacity-60">{[i.unit && t(i.unit, lang), i.stock != null && `${t('available', lang)}: ${formatNumberWithCommas(i.stock)}`].filter(Boolean).join(' · ')}</span>
+                        </span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">{fieldsMobile(i)}</div>
+                      <div className="item-total"><span className="item-label" style={{ marginBottom: 0 }}>{t('total', lang)}</span><span className="text-sm font-semibold">{money(lineOf(i).total)}</span></div>
                     </div>
                   ))}
+                  {rows.length > 0 && <Button variant="danger" className="w-full justify-center" mobileIcon={false} disabled={pickedKeys.length === 0} onClick={removePicked}>{t('delete', lang)}</Button>}
                 </div>
 
                 <div className="hidden md:block bg-white rounded shadow overflow-x-auto">

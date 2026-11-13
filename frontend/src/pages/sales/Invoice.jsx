@@ -86,6 +86,8 @@ export default function Invoice() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [editReady, setEditReady] = useState(false);
+  const [picked, setPicked] = useState([]);   // phone cards: ticked items
+  const [editId, setEditId] = useState(null);  // phone cards: item open in the edit window
   const restored = useRef(false);
   const baseline = useRef(null);
   const syncTimer = useRef(null);
@@ -280,6 +282,11 @@ export default function Invoice() {
   const clearAll = () => { reset(); salesService.syncActiveCart({ cart_code: cartCode, items: [] }).catch(() => {}); setConfirmClear(false); };
 
   const cell = 'w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-20 text-right';
+  // Phone cards (as in the original BizTrack): + / − changes the quantity by one, never below 1.
+  const stepQty = (r, d) => sale.updateItem(r.id, 'quantity', shapeNumber(String(Math.max(1, (parseFloat(String(r.quantity).replace(/,/g, '')) || 0) + d)), QTY_DECIMALS));
+  const pickedIds = picked.filter((id) => rows.some((r) => r.id === id));
+  const editRow = rows.find((r) => r.id === editId) || null;
+  const deletePicked = () => { pickedIds.forEach((id) => sale.clearProductFromRow(id)); setPicked([]); };
 
   return (
     <MainLayout>
@@ -334,27 +341,54 @@ export default function Invoice() {
               </div>
             </div>
 
-            <div className="md:hidden space-y-3">
-              {rows.length === 0 && <div className="bg-white rounded shadow px-3 py-10 text-center text-sm text-gray-400">{t('add_at_least_one_item', lang)}</div>}
+            <div className="md:hidden bg-white rounded shadow p-3 space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <label className="flex items-center gap-2 text-xs font-semibold">
+                  <input type="checkbox" style={{ accentColor: 'var(--color-primary)' }} checked={rows.length > 0 && pickedIds.length === rows.length} onChange={(e) => setPicked(e.target.checked ? rows.map((r) => r.id) : [])} />
+                  {t('select_all', lang)}
+                </label>
+                <span className="text-xs">{rows.length} {t('items', lang)}</span>
+              </div>
+              {rows.length === 0 && <div className="py-8 text-center text-sm text-gray-400">{t('add_at_least_one_item', lang)}</div>}
               {rows.map((r) => (
-                <div key={r.id} className="bg-white rounded shadow p-3 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="text-left min-w-0">
-                      <div className="font-medium text-gray-900 truncate">{r.productName}</div>
-                      <div className="text-xs text-gray-400">{t(r.unit, lang)} · {t('available', lang)}: {formatNumberWithCommas(r.quantityLeft)}</div>
+                <div key={r.id} data-item-card className={`item-card ${pickedIds.includes(r.id) ? 'is-selected' : ''} ${Number(r.quantityLeft) <= 0 ? 'is-empty' : ''}`}>
+                  <label className="flex items-center gap-2 min-w-0">
+                    <input type="checkbox" style={{ accentColor: 'var(--color-primary)' }} checked={pickedIds.includes(r.id)} onChange={() => setPicked((p) => (p.includes(r.id) ? p.filter((x) => x !== r.id) : [...p, r.id]))} />
+                    <span className="flex-1 min-w-0 text-sm font-semibold truncate">{r.productName}</span>
+                  </label>
+                  <div className="text-sm ms-6 opacity-70">{formatNumberWithCommas(r.quantity || 0)} × {formatNumberWithCommas(r.rawPrice || 0, moneyDecimals)} = <span className="opacity-100">{r.total}</span></div>
+                  <div className="flex items-center justify-between gap-2 mt-2 ps-6">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button type="button" className="item-btn" onClick={() => stepQty(r, -1)} aria-label={t('quantity', lang)}>−</button>
+                      <input className="item-qty" inputMode="decimal" value={r.quantity} onChange={(e) => sale.updateItem(r.id, 'quantity', shapeNumber(e.target.value, QTY_DECIMALS))} onBlur={() => { if (!r.quantity) sale.updateItem(r.id, 'quantity', '1'); }} aria-label={t('quantity', lang)} />
+                      <button type="button" className="item-btn" onClick={() => stepQty(r, 1)} aria-label={t('quantity', lang)}>+</button>
                     </div>
-                    <button type="button" className="p-1 text-gray-400 hover:text-red-600" onClick={() => sale.clearProductFromRow(r.id)} aria-label={t('delete', lang)}>✕</button>
+                    <button type="button" className="item-btn" onClick={() => setEditId(r.id)} aria-label={t('edit', lang)}>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.768-6.768a2 2 0 112.828 2.828L11.828 15.83a4 4 0 01-1.414.94L6 18l1.23-4.414A4 4 0 019 13z" /></svg>
+                    </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="block text-left"><span className="block text-xs text-gray-500 mb-1">{t('quantity', lang)}</span><input className={cell} inputMode="decimal" value={r.quantity} onChange={(e) => sale.updateItem(r.id, 'quantity', shapeNumber(e.target.value, QTY_DECIMALS))} onBlur={() => { if (!r.quantity) sale.updateItem(r.id, 'quantity', '1'); }} /></label>
-                    <label className="block text-left"><span className="block text-xs text-gray-500 mb-1">{t('price', lang)}</span><input className={cell} inputMode="decimal" value={r.price} onChange={(e) => sale.updateItem(r.id, 'price', shapeNumber(e.target.value, moneyDecimals))} onBlur={() => sale.updateItem(r.id, 'price', formatNumberWithCommas(r.rawPrice || 0, moneyDecimals))} /></label>
-                    {discountEnabled && <label className="block text-left"><span className="block text-xs text-gray-500 mb-1">{t('discount', lang)}</span><input className={cell} inputMode="decimal" value={r.discount} onChange={(e) => sale.updateItem(r.id, 'discount', shapeNumber(e.target.value, sale.discountType === 'percentage' ? 2 : moneyDecimals))} onBlur={() => { if (sale.discountType !== 'percentage') sale.updateItem(r.id, 'discount', formatNumberWithCommas(r.rawDiscount || 0, moneyDecimals)); }} /></label>}
-                    {vatEnabled && <div className="text-left"><span className="block text-xs text-gray-500 mb-1">{t('tax', lang)}</span><div className="py-1.5 text-sm text-right text-gray-600">{r.vat}</div></div>}
-                  </div>
-                  <div className="flex justify-between text-sm font-semibold border-t border-gray-100 pt-2"><span>{t('total', lang)}</span><span>{r.total}</span></div>
                 </div>
               ))}
+              {rows.length > 0 && <Button variant="danger" className="w-full justify-center" mobileIcon={false} disabled={pickedIds.length === 0} onClick={deletePicked}>{t('delete', lang)}</Button>}
             </div>
+
+            <FormModal isOpen={!!editRow} onClose={() => setEditId(null)} title={editRow?.productName || t('edit', lang)} size="sm">
+              {editRow && (
+                <div className="space-y-3 text-left">
+                  <div className="text-xs opacity-70">{t('available', lang)}: {formatNumberWithCommas(editRow.quantityLeft)}</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block"><span className="item-label">{t('quantity', lang)}</span><input className={cell} inputMode="decimal" value={editRow.quantity} onChange={(e) => sale.updateItem(editRow.id, 'quantity', shapeNumber(e.target.value, QTY_DECIMALS))} onBlur={() => { if (!editRow.quantity) sale.updateItem(editRow.id, 'quantity', '1'); }} /></label>
+                    <label className="block"><span className="item-label">{t('price', lang)}</span><input className={cell} inputMode="decimal" value={editRow.price} onChange={(e) => sale.updateItem(editRow.id, 'price', shapeNumber(e.target.value, moneyDecimals))} onBlur={() => sale.updateItem(editRow.id, 'price', formatNumberWithCommas(editRow.rawPrice || 0, moneyDecimals))} /></label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 items-end">
+                    {discountEnabled && <label className="block"><span className="item-label">{t('discount', lang)}{sale.discountType === 'percentage' ? ' (%)' : ''}</span><input className={cell} inputMode="decimal" value={editRow.discount} onChange={(e) => sale.updateItem(editRow.id, 'discount', shapeNumber(e.target.value, sale.discountType === 'percentage' ? 2 : moneyDecimals))} onBlur={() => { if (sale.discountType !== 'percentage') sale.updateItem(editRow.id, 'discount', formatNumberWithCommas(editRow.rawDiscount || 0, moneyDecimals)); }} /></label>}
+                    <div className={discountEnabled ? 'text-right' : 'col-span-2 text-right'}><div className="item-label text-right">{t('total', lang)}</div><div className="text-sm font-semibold">{editRow.total}</div></div>
+                  </div>
+                  {vatEnabled && <div className="flex items-center justify-between text-xs opacity-70"><span>{t('tax', lang)}</span><span>{editRow.vat}</span></div>}
+                  <Button className="w-full justify-center" mobileIcon={false} onClick={() => setEditId(null)}>{t('save', lang)}</Button>
+                </div>
+              )}
+            </FormModal>
 
             <div className="hidden md:block bg-white rounded shadow overflow-x-auto">
               <table className="w-full text-sm">

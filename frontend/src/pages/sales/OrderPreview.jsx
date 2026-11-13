@@ -80,7 +80,7 @@ export default function OrderPreview() {
         {order && (
           <>
             <div className="bg-white rounded shadow overflow-x-auto">
-              <table className="w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-3 py-2 text-right">{t('quantity', lang)}</th><th className="px-3 py-2 text-right">{t('price', lang)}</th><th className="px-3 py-2 text-right">{t('discount', lang)}</th><th className="px-3 py-2 text-right">{t('total', lang)}</th></tr></thead>
+              <table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-3 py-2 text-right">{t('quantity', lang)}</th><th className="px-3 py-2 text-right">{t('price', lang)}</th><th className="px-3 py-2 text-right">{t('discount', lang)}</th><th className="px-3 py-2 text-right">{t('total', lang)}</th></tr></thead>
                 <tbody>{lines.map((l) => <tr key={l.id} className="border-t border-gray-100"><td className="px-3 py-2 text-left">{l.name}</td><td className="px-3 py-2 text-right">{Number(l.quantity)}</td><td className="px-3 py-2 text-right">{money(l.price)}</td><td className="px-3 py-2 text-right">{money(l.discount)}</td><td className="px-3 py-2 text-right font-medium">{money(Number(l.price) * Number(l.quantity) - Number(l.discount || 0) * Number(l.quantity))}</td></tr>)}</tbody></table>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

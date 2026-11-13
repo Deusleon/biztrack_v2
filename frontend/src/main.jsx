@@ -8,8 +8,10 @@ import { LanguageProvider } from './contexts/LanguageContext'
 import PwaStatus from './components/PwaStatus'
 import { registerPwa } from './utils/pwa'
 import { fillScreenOnLaunch } from './utils/desktopWindow'
+import { startCardTables } from './utils/cardTables'
 
 registerPwa()
+startCardTables()
 fillScreenOnLaunch()
 
 createRoot(document.getElementById('root')).render(
