@@ -7,7 +7,7 @@ import { getIO } from '../utils/socket.js';
 // Add user to store with a role
 export const addUserToStore = async (req, res) => {
     const { store_id, user_id, role_id } = req.body;
-    const lang = req.user.preferred_language || req.headers['x-language'] || 'en';
+    const lang = req.headers['x-language'] || req.user.preferred_language || 'en';
 
     try {
         // Check if store exists
@@ -69,7 +69,7 @@ export const addUserToStore = async (req, res) => {
 
 export const createUserForStore = async (req, res) => {
   const { full_name, email, password, role, status } = req.body;
-  const lang = req.user.preferred_language || req.headers['x-language'] || 'en';
+  const lang = req.headers['x-language'] || req.user.preferred_language || 'en';
   const storeId = req.user.current_store_role.store_id;
  
   if (!full_name || !email || !password || !role) {
@@ -270,7 +270,7 @@ export const getStoreUsers = async (req, res) => {
 export const updateStoreUserRole = async (req, res) => {
     const { id } = req.params; // store_user id
     const { role, status } = req.body;
-    const lang = req.user.preferred_language || req.headers['x-language'] || 'en';
+    const lang = req.headers['x-language'] || req.user.preferred_language || 'en';
 
     const currentStoreId = req.user.current_store_role.store_id;
     try {
@@ -390,7 +390,7 @@ export const updateStoreUserRole = async (req, res) => {
 // Remove a user from a store
 export const removeUserFromStore = async (req, res) => {
     const { id } = req.params; // the person's USER id
-    const lang = req.user.preferred_language || req.headers['x-language'] || 'en';
+    const lang = req.headers['x-language'] || req.user.preferred_language || 'en';
 
     try {
         const storeId = req.user.current_store_role.store_id;

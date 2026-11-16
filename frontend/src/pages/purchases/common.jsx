@@ -30,9 +30,14 @@ export const useSuppliers = () => {
   useEffect(() => { if (currentStore?.id) loadAll((page) => supplierService.getAll({ page, limit: 100 })).then(setRows).catch(() => setRows([])); }, [currentStore?.id]);
   return rows;
 };
-export const useAllProducts = () => {
+export const useAllProducts = (enabled = true, reloadToken = 0) => {
   const { currentStore } = useStore(); const [rows, setRows] = useState([]);
-  useEffect(() => { if (currentStore?.id) loadAll((page) => productService.getAll({ page, limit: 100 })).then(setRows).catch(() => setRows([])); }, [currentStore?.id]);
+  useEffect(() => {
+    if (!enabled || !currentStore?.id) { setRows([]); return undefined; }
+    let live = true;
+    loadAll((page) => productService.getAll({ page, limit: 100 })).then((list) => { if (live) setRows(list); }).catch(() => { if (live) setRows([]); });
+    return () => { live = false; };
+  }, [currentStore?.id, enabled, reloadToken]);
   return rows;
 };
 

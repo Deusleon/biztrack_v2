@@ -3,6 +3,15 @@ import sw from "../lang/sw.json";
 
 const translations = { en, sw };
 
+// A toast often arrives as a finished English sentence from the server. Map that sentence
+// back to its key so it can be shown in the language the person is actually using.
+const sentenceToKey = new Map();
+for (const dict of [en, sw]) {
+  for (const [key, value] of Object.entries(dict)) {
+    if (typeof value === "string" && value && !sentenceToKey.has(value)) sentenceToKey.set(value, key);
+  }
+}
+
 export function t(key, langOrReplacements, maybeReplacements) {
   let lang = "en";
   let replacements = {};
@@ -22,8 +31,10 @@ export function t(key, langOrReplacements, maybeReplacements) {
     lang = detectLanguage();
   }
 
-  const readable = String(key || "").replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  let text = translations[lang]?.[key] || translations.en?.[key] || readable;
+  const raw = String(key || "");
+  const readable = raw.includes(" ") ? raw : raw.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const mapped = sentenceToKey.get(String(key || ""));
+  let text = translations[lang]?.[key] || translations.en?.[key] || (mapped ? translations[lang]?.[mapped] || translations.en?.[mapped] : "") || readable;
 
   for (const [placeholder, value] of Object.entries(replacements)) {
     text = text.replace(`{${placeholder}}`, value);
@@ -34,19 +45,15 @@ export function t(key, langOrReplacements, maybeReplacements) {
 
 // Utility to detect language in priority order
 function detectLanguage() {
-  // 1. user.preferred_language from AuthContext (if available in globalThis)
-  if (typeof window !== "undefined" && window.__auth_user?.preferred_language) {
-    return window.__auth_user.preferred_language;
+  // The language on screen (the SW / EN switch, saved as soon as it changes) comes first.
+  // The account's preferred language is the fallback when the screen has not chosen one yet.
+  if (typeof window !== "undefined") {
+    const chosen = localStorage.getItem("lang");
+    if (chosen === "en" || chosen === "sw") return chosen;
+    const preferred = window.__auth_user?.preferred_language;
+    if (preferred === "en" || preferred === "sw") return preferred;
   }
-
-  // 2. Local storage
-  const localLang = localStorage.getItem("lang");
-  if (localLang) return localLang;
-
-  // 3. Header fallback (not accessible in frontend context, but placeholder)
-  const headerLang = navigator.language?.split("-")[0];
-  if (["en", "sw"].includes(headerLang)) return headerLang;
-
-  // 4. Default fallback
+  const headerLang = typeof navigator !== "undefined" ? navigator.language?.split("-")[0] : "";
+  if (headerLang === "en" || headerLang === "sw") return headerLang;
   return "en";
 }

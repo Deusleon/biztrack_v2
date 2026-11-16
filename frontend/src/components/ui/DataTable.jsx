@@ -1,4 +1,6 @@
 
+import Loader from './Loader';
+
 /**
  * DataTable — reusable table component.
  *
@@ -94,14 +96,7 @@ export default function DataTable({
 
   // ── render ────────────────────────────────────────────────────────────────
 
-  if (loading) {
-    return (
-      <div className="bg-white p-8 rounded shadow text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <p className="text-sm text-gray-500 mt-2">Loading…</p>
-      </div>
-    );
-  }
+  if (loading) return <Loader />;
 
   if (data.length === 0) {
     return (

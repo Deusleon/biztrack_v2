@@ -6,7 +6,7 @@ import { respondWithError } from '../utils/response.js';
 export const getCurrentUserPermissions = async (req, res) => {
   const userId = req.user.id;
   const storeId = req.user.current_store_id;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
 
   if (!storeId) {
     return respondWithError(req, res, 400, 'store_id_required');
@@ -30,7 +30,7 @@ export const checkUserPermission = async (req, res) => {
   const userId = req.user.id;
   const storeId = req.user.current_store_id;
   const { permission } = req.query;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
 
   if (!storeId) {
     return respondWithError(req, res, 400, 'store_id_required');

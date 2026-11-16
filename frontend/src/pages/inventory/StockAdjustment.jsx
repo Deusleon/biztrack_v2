@@ -29,7 +29,8 @@ export default function StockAdjustment() {
   const { lang } = useLanguage();
   const { settings } = useStoreSettings();
   const { state } = useLocation();
-  const products = useAllProducts();
+  const [stockRev, setStockRev] = useState(0);
+  const products = useAllProducts(true, stockRev);
   const list = useServerList({ fetcher: fetchAdj, initialFilters: { product_id: '', adjustment_type: '', reason: '', startDate: '', endDate: '' } });
   useLiveRefresh(['stockAdjusted', 'stockUpdated'], list.reload);
   const [tab, setTab] = useState('history');     // history | by-product
@@ -56,7 +57,9 @@ export default function StockAdjustment() {
       setSaving(true);
       const body = { product_id: form.product_id, adjustment_type: form.adjustment_type, quantity: num(form.quantity), reason: form.reason, notes: form.notes };
       const r = form.batch_id ? await inventoryService.batchwiseAdjustment({ ...body, batch_id: form.batch_id }) : await inventoryService.createAdjustment(body);
-      showSuccess(r.message || 'stock_adjusted'); setForm(null); list.reload();
+      const now = r.adjustment?.new_stock;
+      showSuccess(now == null ? (r.message || t('stock_adjusted', lang)) : `${r.message || t('stock_adjusted', lang)} · ${t('current_stock', lang)}: ${formatNumberWithCommas(now)}`);
+      setForm(null); setStockRev((n) => n + 1); list.reload();
     } catch (err) { showError(err.message); } finally { setSaving(false); }
   };
   useEffect(() => {

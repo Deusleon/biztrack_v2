@@ -5,7 +5,7 @@ import { getIO } from '../utils/socket.js';
 // Add a new role
 export const addRole = async (req, res) => {
   const { name, description } = req.body;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
   const storeId = req.user.current_store_id;
   const userId = req.user.id;
 
@@ -47,7 +47,7 @@ export const addRole = async (req, res) => {
 
 // Get all roles
 export const getRoles = async (req, res) => {
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
   const storeId = req.user.current_store_id;
 
   try {
@@ -91,7 +91,7 @@ export const updateRole = async (req, res) => {
   const { name, description } = req.body;
   const storeId = req.user.current_store_id;
   const userId = req.user.id;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
 
   try {
     const role = await pool.query(
@@ -162,7 +162,7 @@ export const deleteRole = async (req, res) => {
   const { id } = req.params;
   const storeId = req.user.current_store_id;
   const userId = req.user.id;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
 
   try {
     const role = await pool.query(

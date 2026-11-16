@@ -7,7 +7,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { subscriptionService } from '../../services/api';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { Button, Input } from '../../components/ui';
+import { Button, Input, Loader } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { formatNumberWithCommas } from '../../utils/numberUtils';
 import { normalizePhone } from '../messaging/common';
@@ -89,7 +89,7 @@ export default function Subscription() {
     <MainLayout>
       <div className="space-y-4">
         <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('subscription', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{currentStore?.name}</p></div>
-        {loading && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}
+        {loading && <Loader />}
         {!loading && (
           <div className="bg-white rounded shadow p-5 text-left space-y-3">
             <div className="flex items-center justify-between gap-3 flex-wrap"><h2 className="text-sm font-semibold text-gray-800">{t('current_plan', lang)}</h2>{state && <span className={`px-2 py-0.5 rounded text-xs font-medium ${TONE[state]}`}>{t(`subscription_${state}`, lang)}</span>}</div>

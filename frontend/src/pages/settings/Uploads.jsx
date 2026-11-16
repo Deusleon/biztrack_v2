@@ -6,7 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { settingsAdminService } from '../../services/api';
-import { Button, ConfirmModal } from '../../components/ui';
+import { Button, ConfirmModal, Loader } from '../../components/ui';
 import { t } from '../../utils/i18n';
 
 const ASSETS = [{ key: 'logo', label: 'company_logo', desc: 'company_logo_desc' }, { key: 'receipt_header', label: 'receipt_header', desc: 'receipt_header_desc' }, { key: 'favicon', label: 'favicon', desc: 'favicon_desc' }];
@@ -40,7 +40,7 @@ export default function Uploads() {
       <div className="space-y-4">
         <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('uploads', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('uploads_desc', lang)}</p></div>
         {!canManage && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 text-left">{t('view_only_mode', lang)}</p>}
-        {loading && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}
+        {loading && <Loader />}
         {!loading && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{ASSETS.map((a) => { const url = urlOf(branding[a.key]); return (
           <div key={a.key} className="bg-white rounded shadow p-4 text-left space-y-3"><div><h2 className="text-sm font-semibold text-gray-800">{t(a.label, lang)}</h2><p className="text-xs text-gray-500">{t(a.desc, lang)}</p></div>
             <div className="h-28 rounded border border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden">{url ? <img src={url} alt={t(a.label, lang)} className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-gray-400">{t('no_image', lang)}</span>}</div>

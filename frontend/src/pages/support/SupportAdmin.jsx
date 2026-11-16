@@ -5,7 +5,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { supportService } from '../../services/api';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { Button, Input, Select, Textarea } from '../../components/ui';
+import { Button, Input, Loader, Select, Textarea } from '../../components/ui';
 import { t } from '../../utils/i18n';
 
 const STATUSES = ['open', 'in_progress', 'resolved', 'closed'];
@@ -48,7 +48,7 @@ export default function SupportAdmin() {
           <div className="lg:col-span-2 space-y-3">
             <div className="bg-white p-3 rounded shadow space-y-2"><Input value={filters.search} onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value, page: 1 }))} placeholder={t('search_tickets_placeholder', lang)} /><div className="flex gap-2"><Select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value, page: 1 }))} options={[{ value: '', label: t('all', lang) }, ...STATUSES.map((s) => ({ value: s, label: `${t(s, lang)} (${list.counts?.[s] ?? 0})` }))]} /></div></div>
             <ul className="bg-white rounded shadow divide-y divide-gray-100 max-h-[60vh] overflow-auto">
-              {loading && <li className="p-6 text-center text-sm text-gray-400">{t('loading_data', lang)}</li>}
+              {loading && <li className="list-none"><Loader /></li>}
               {!loading && list.tickets.length === 0 && <li className="p-6 text-center text-sm text-gray-400">{t('no_data', lang)}</li>}
               {list.tickets.map((x) => <li key={x.id}><button type="button" onClick={() => open(x.id)} className={`w-full text-left px-3 py-2.5 hover:bg-gray-50 ${ticket?.id === x.id ? 'bg-primary-10' : ''}`}><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium text-gray-900 truncate">{x.subject}</span><span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${TONE[x.status]}`}>{t(x.status, lang)}</span></div><p className="text-xs text-gray-500 truncate">{x.ticket_number} · {x.name || t('guest', lang)} · {x.store_name || x.account_name || '—'}</p><p className="text-[11px] text-gray-400">{when(x.created_at)} · {x.reply_count} {t('replies', lang)}</p></button></li>)}
             </ul>

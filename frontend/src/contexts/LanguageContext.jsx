@@ -3,16 +3,23 @@ import { createContext, useContext, useState, useEffect } from "react";
 const LanguageContext = createContext();
 
 export const LanguageProvider = ({ children }) => {
-  const [lang, setLang] = useState(() => {
-    // Check user preferred first, then localStorage
-    if (typeof window !== "undefined" && window.__auth_user?.preferred_language) {
-      return window.__auth_user.preferred_language;
-    }
-    return localStorage.getItem("lang") || "en";
+  const [lang, setLangState] = useState(() => {
+    // The last language they chose on screen, then the language saved on their account.
+    if (typeof window === "undefined") return "en";
+    const chosen = localStorage.getItem("lang");
+    if (chosen === "en" || chosen === "sw") return chosen;
+    const preferred = window.__auth_user?.preferred_language;
+    return preferred === "sw" || preferred === "en" ? preferred : "en";
   });
 
+  const setLang = (next) => {
+    const code = next === "sw" ? "sw" : "en";
+    try { localStorage.setItem("lang", code); } catch { /* private mode */ }
+    setLangState(code);
+  };
+
   useEffect(() => {
-    localStorage.setItem("lang", lang);
+    try { localStorage.setItem("lang", lang); } catch { /* private mode */ }
   }, [lang]);
 
   return (

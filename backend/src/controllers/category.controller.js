@@ -8,7 +8,7 @@ export const addCategory = async (req, res) => {
   const { name, description } = req.body;
   const storeId = req.user?.current_store_id || req.headers["x-store-id"];
   const userId = req.user?.id;
-  const lang = req.user?.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user?.preferred_language || "en";
 
   const nameText = name.trim();
   const descriptionText = description?.trim() || null;

@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { Input, Button } from '../../components/ui';
+import { Input, Button, Loader } from '../../components/ui';
 import AuthShell from '../../components/AuthShell';
 import { t } from '../../utils/i18n';
 
@@ -37,7 +37,7 @@ export default function VerifyEmail() {
 
   return (
     <AuthShell title={t('verify_email', lang)} footer={<Link to="/login" className="text-primary font-medium hover:underline">{t('login', lang)}</Link>}>
-      {state === 'verifying' && <p className="text-center text-sm text-gray-500">{t('loading_data', lang)}</p>}
+      {state === 'verifying' && <Loader />}
       {state === 'ok' && <p className="text-center text-sm text-green-600">{t('email_verified_successfully', lang)}</p>}
       {(state === 'idle' || state === 'failed') && (
         <form onSubmit={resend} className="space-y-4" noValidate>

@@ -224,7 +224,7 @@ export const updateStoreSettings = async (req, res) => {
 // ─── GET /api/settings/notifications ─────────────────────────────────────────
 export const getNotificationSettings = async (req, res) => {
   const storeId = req.user.current_store_id;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
 
   try {
     const result = await pool.query(
@@ -248,7 +248,7 @@ export const getNotificationSettings = async (req, res) => {
 export const updateNotificationSettings = async (req, res) => {
   const storeId = req.user.current_store_id;
   const userId = req.user.id;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
   const { notifications } = req.body;
 
   if (!notifications || typeof notifications !== "object") {
@@ -322,7 +322,7 @@ export const uploadBrandingAsset = async (req, res) => {
   const storeId = req.user.current_store_id;
   const userId = req.user.id;
   const { asset_type } = req.body; // "logo" | "receipt_header" | "favicon"
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
 
   const validTypes = ["logo", "receipt_header", "favicon"];
   if (!validTypes.includes(asset_type)) {
@@ -396,7 +396,7 @@ export const removeBrandingAsset = async (req, res) => {
   const storeId = req.user.current_store_id;
   const userId = req.user.id;
   const { asset_type } = req.params;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
 
   const validTypes = ["logo", "receipt_header", "favicon"];
   if (!validTypes.includes(asset_type)) {

@@ -7,6 +7,7 @@ import useDeveloperAccess from '../hooks/useDeveloperAccess';
 import PasswordExpired from '../pages/PasswordExpired';
 import NoAccess from '../pages/NoAccess';
 import SubscriptionLocked from '../pages/SubscriptionLocked';
+import Loader from './ui/Loader';
 
 const LOCKED_OK = ['/subscription', '/profile', '/user-manual', '/support/admin'];
 
@@ -24,7 +25,7 @@ export default function ProtectedRoute() {
   const { isDeveloper, loading: developerLoading } = useDeveloperAccess();
   const { pathname } = useLocation();
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-100"><div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+  if (loading) return <Loader full />;
   if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: { pathname } }} />;
 
   if (user?.password_change_required) return <PasswordExpired />;
@@ -34,7 +35,7 @@ export default function ProtectedRoute() {
   }
 
   const item = itemForPath(pathname);
-  if (item?.developerOnly && developerLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-100"><div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+  if (item?.developerOnly && developerLoading) return <Loader full />;
   // Wait until the server has said what this person may do (cached from last time or just fetched).
   if (item && permissions.length > 0 && !canOpen(item, can, { developer: isDeveloper })) return <NoAccess />;
   return <Outlet />;

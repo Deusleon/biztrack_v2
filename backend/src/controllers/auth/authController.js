@@ -495,7 +495,7 @@ export const login = async (req, res) => {
         }
 
         res.status(200).json({
-            message: t('login_success', user.preferred_language || lang),
+            message: t('login_success', lang),
             token: accessToken,
             password_change_required: passwordChangeRequired,
             user: {
@@ -620,7 +620,7 @@ export const verifyPassword = async (req, res) => {
             return res.status(400).json({ message: t('invalid_password', lang) });
         }
 
-        return res.status(200).json({ message: t('session_restored', user.preferred_language || lang) });
+        return res.status(200).json({ message: t('session_restored', lang) });
     } catch (err) {
         console.error('Verify password error:', err.message);
         return res

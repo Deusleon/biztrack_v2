@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import FormModal from '../../components/ui/FormModal';
-import { Button, NumberInput, PhoneInput, Select } from '../../components/ui';
+import { Button, Loader, NumberInput, PhoneInput, Select } from '../../components/ui';
 import { messagingService } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -106,7 +106,7 @@ export default function SwalaTopUpModal({ isOpen, onClose, onPaid }) {
     <FormModal isOpen={isOpen} onClose={onClose} size="md" title={t('buy_sms_credits', lang)}>
       <div className="space-y-4 text-left">
         {loadError && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">{loadError}</p>}
-        {!options && !loadError && <p className="text-sm text-gray-500 py-6 text-center">{t('loading_data', lang)}</p>}
+        {!options && !loadError && <Loader />}
         {options && !order && (
           <>
             {countries.length > 1 && (

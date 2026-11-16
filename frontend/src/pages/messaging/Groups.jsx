@@ -7,7 +7,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { messagingService } from '../../services/api';
-import { ConfirmModal, Button, Input, Select } from '../../components/ui';
+import { ConfirmModal, Button, Input, Loader, Select } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { normalizePhone } from './common';
 import { t } from '../../utils/i18n';
@@ -63,7 +63,7 @@ export default function Groups() {
     <MainLayout>
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3"><div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('groups', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('groups_description', lang)}</p></div>{manage && <Button onClick={() => setEdit({ name: '' })} mobileLabel={t('new_group', lang)}>{t('new_group', lang)}</Button>}</div>
-        {loading && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}
+        {loading && <Loader />}
         {!loading && tree.length === 0 && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('no_groups_yet', lang)}</div>}
         {tree.length > 0 && <ul className="bg-white rounded shadow px-5 divide-y divide-gray-100">{tree.flatMap((g) => [row(g, false), ...g.subs.map((s) => row(s, true))])}</ul>}
       </div>

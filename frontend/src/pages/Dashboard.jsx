@@ -12,7 +12,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import useLiveRefresh from '../hooks/useLiveRefresh';
 import { dashboardService } from '../services/api';
-import { Button } from '../components/ui';
+import { Button, Loader } from '../components/ui';
 import { t } from '../utils/i18n';
 
 const num = (v) => Number(v) || 0;
@@ -82,7 +82,8 @@ export default function Dashboard() {
           {canSeeStats && <Button variant="secondary" mobileLabel={t('ui_refresh', lang)} onClick={load} loading={loading}>{t('ui_refresh', lang)}</Button>}
         </div>
 
-        {canSeeStats && (
+        {canSeeStats && loading && !stats && <Loader />}
+        {canSeeStats && (!loading || stats) && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Kpi title={t('todays_sales', lang)} value={formatMoney(num(today.revenue))} sub={`${num(today.sales_count)} ${t('sales', lang)}`} change={pct(today.revenue, yesterday.revenue)} to="/sales/history" />

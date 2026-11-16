@@ -8,6 +8,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { StoreSettingsProvider } from './contexts/StoreSettingsContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import Loader from './components/ui/Loader';
 import ErrorBoundary from './components/ErrorBoundary';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { IdleLockProvider } from './contexts/IdleLockContext';
@@ -138,7 +139,7 @@ const READY = {
 
 const EXTRA_ROUTES = ['/sales/pending/preview', '/sales/receipt', '/profile', '/biztrack-ai', '/support/admin'];
 
-const Loading = () => <div className="min-h-screen flex items-center justify-center bg-gray-100"><div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+const Loading = () => <Loader full />;
 
 /** A crash inside one page shows a recoverable card for that page only; moving to another page (the path) clears it. */
 function RouteGuard({ children }) {

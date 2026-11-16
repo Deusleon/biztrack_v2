@@ -78,7 +78,10 @@ export const presetThemes = {
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('biztrack-theme');
-    return saved ? JSON.parse(saved) : presetThemes.navy;
+    if (!saved) return presetThemes.navy;
+    const parsed = JSON.parse(saved);
+    // Green and orange were applied by mistake to the whole app. Put those browsers back on navy; a colour the person chose stays.
+    return parsed.primary === '#0B6B43' || parsed.primary === '#C2410C' ? presetThemes.navy : parsed;
   });
   const [scheme, setScheme] = useState(storedScheme);
 

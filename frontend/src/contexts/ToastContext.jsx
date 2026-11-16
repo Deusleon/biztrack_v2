@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import Toast from '../components/ui/Toast';
 import { t } from '../utils/i18n';
+import { useLanguage } from './LanguageContext';
 
 const ToastContext = createContext();
 
@@ -13,6 +14,7 @@ export const useToast = () => {
 };
 
 export const ToastProvider = ({ children }) => {
+  const { lang } = useLanguage();
   const [toasts, setToasts] = useState([]);
   const nextId = useRef(0);
 
@@ -24,14 +26,14 @@ export const ToastProvider = ({ children }) => {
     const id = ++nextId.current; // a counter, not the clock: two toasts in the same millisecond must not share an id
     // The server sometimes answers with a message KEY ("customer_created"); t() turns it into words in the person's language,
     // and leaves a ready-made sentence alone.
-    setToasts((prev) => [...prev, { id, message: typeof message === 'string' ? t(message) : message, type, duration }]);
+    setToasts((prev) => [...prev, { id, message: typeof message === 'string' ? t(message, lang) : message, type, duration }]);
     
     if (duration > 0) {
       setTimeout(() => {
         removeToast(id);
       }, duration);
     }
-  }, [removeToast]);
+  }, [removeToast, lang]);
 
   const showSuccess = useCallback((message, duration) => {
     addToast(message, 'success', duration);

@@ -7,7 +7,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { salesService } from '../../services/api';
-import { Button, ConfirmModal, FormModal, NumberInput, Select, Textarea } from '../../components/ui';
+import { Button, ConfirmModal, FormModal, Loader, NumberInput, Select, Textarea } from '../../components/ui';
 import { StatusBadge, dateOnly, readableNote, isSystemPayment, readableMethod } from './common';
 import { formatCurrency, removeNumberFormatting } from '../../utils/numberUtils';
 import { printReceiptViaQz } from '../../utils/qzReceipt';
@@ -75,7 +75,7 @@ export default function OrderPreview() {
           </div>
         </div>
 
-        {loading && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}
+        {loading && <Loader />}
         {!loading && !order && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('order_not_found', lang)}</div>}
         {order && (
           <>

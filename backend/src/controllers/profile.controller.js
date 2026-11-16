@@ -14,7 +14,7 @@ import { notifyStore } from '../services/notification.service.js';
 // ─── GET /api/profile ─────────────────────────────────────────────────────────
 export const getProfile = async (req, res) => {
   const userId = req.user.id;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
 
   try {
     const result = await pool.query(
@@ -37,7 +37,7 @@ export const getProfile = async (req, res) => {
 // ─── PUT /api/profile ─────────────────────────────────────────────────────────
 export const updateProfile = async (req, res) => {
   const userId = req.user.id;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
   const { name, email, phone, preferred_language } = req.body;
 
   if (!name || !email) {
@@ -90,7 +90,7 @@ export const updateProfile = async (req, res) => {
 // ─── PUT /api/profile/password ────────────────────────────────────────────────
 export const changePassword = async (req, res) => {
   const userId = req.user.id;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
   const { current_password, new_password } = req.body;
 
   if (!current_password || !new_password) {
@@ -179,7 +179,7 @@ export const changePassword = async (req, res) => {
 // then sends us the resulting URL and public_id for storage and future cleanup.
 export const uploadAvatar = async (req, res) => {
   const userId = req.user.id;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
   const { avatar_url, public_id } = req.body;
 
   if (!avatar_url || typeof avatar_url !== "string") {
@@ -229,7 +229,7 @@ export const uploadAvatar = async (req, res) => {
 // ─── DELETE /api/profile/avatar ───────────────────────────────────────────────
 export const removeAvatar = async (req, res) => {
   const userId = req.user.id;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
 
   try {
     const existing = await pool.query(

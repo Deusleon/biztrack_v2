@@ -5,7 +5,7 @@ import { respondWithError } from '../utils/response.js';
 import { getIO } from '../utils/socket.js';
 // Get all permissions
 export const getPermissions = async (req, res) => {
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
   const storeId = req.user.current_store_id;
   const roleId = req.query.roleId;
 
@@ -121,7 +121,7 @@ export const updatePermission = async (req, res) => {
 export const updateBulkPermission = async (req, res) => {
   const { roleId, module, submodule, isAllowed } = req.body;
   const storeId = req.user.current_store_id;
-  const lang = req.user.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user.preferred_language || "en";
 
   try {
     let permissionsRes;

@@ -8,7 +8,7 @@ export const addSupplier = async (req, res) => {
   const { name, contact_person, email, phone, address, city, country, tin_number, vat_number, payment_terms, notes } = req.body;
   const storeId = req.user?.current_store_id || req.headers["x-store-id"];
   const userId = req.user?.id;
-  const lang = req.user?.preferred_language || req.headers["x-language"] || "en";
+  const lang = req.headers["x-language"] || req.user?.preferred_language || "en";
 
   const nameText = name.trim();
   const contactPersonText = contact_person?.trim() || null;

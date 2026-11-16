@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import Loader from '../../components/ui/Loader';
 import { t } from '../../utils/i18n';
 
 /** Tick saved contacts instead of typing their numbers. Selection is by id, so a search does not clear it. */
@@ -56,7 +57,7 @@ export default function ContactPicker({ contacts = [], selectedIds = [], onChang
         </div>
       </div>
       <div className="border border-gray-200 rounded max-h-64 overflow-y-auto divide-y divide-gray-100">
-        {loading && <p className="p-4 text-sm text-gray-400 text-center">{t('loading_data', lang)}</p>}
+        {loading && <Loader />}
         {!loading && visible.length === 0 && <p className="p-4 text-sm text-gray-400 text-center">{contacts.length === 0 ? t('no_contacts_yet', lang) : t('ui_nothing_matches', lang)}</p>}
         {visible.map((c) => (
           <label key={c.id} className={`flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${selected.has(c.id) ? 'bg-primary-5' : ''}`}>

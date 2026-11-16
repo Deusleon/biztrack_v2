@@ -9,7 +9,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import useDeveloperAccess from '../../hooks/useDeveloperAccess';
 import { settingsAdminService, priceCategoryService } from '../../services/api';
 import { clearPdfSettingsCache } from '../../utils/pdfSettingsCache';
-import { Input, Select, Button } from '../../components/ui';
+import { Input, Select, Button, Loader } from '../../components/ui';
 import { t } from '../../utils/i18n';
 
 /**
@@ -95,7 +95,7 @@ export default function Configuration() {
           {canEdit && <Button onClick={save} loading={saving} disabled={!data}>{t('save_changes', lang)}</Button>}
         </div>
         {!canEdit && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 text-left">{t('view_only_mode', lang)}</p>}
-        {!data && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}
+        {!data && <Loader />}
         {sections.map((sec) => {
           const isBiz = sec.group === 'business'; const disabled = !canEdit || (isBiz && !primary);
           const visible = sec.fields.filter((f) => f.type !== 'image' && f.key !== 'logo' && f.key !== 'businessLogo');

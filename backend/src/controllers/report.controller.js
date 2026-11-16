@@ -215,18 +215,20 @@ export const getInventoryReport = async (req, res) => {
           p.minimum_stock,
           p.unit,
           c.name AS category_name,
-          COALESCE(SUM(
-            CASE
-              WHEN im.type = 'IN' THEN im.quantity
-              WHEN im.type = 'OUT' THEN -im.quantity
-              ELSE 0
-            END
+          COALESCE((
+            SELECT SUM(CASE WHEN im.type = 'IN' THEN im.quantity ELSE -im.quantity END)
+            FROM inventory_movements im
+            WHERE im.product_id = p.id AND im.store_id = p.store_id
           ), 0) AS current_stock,
-          MAX(ib.cost_price) FILTER (WHERE ib.cost_price IS NOT NULL) AS latest_cost_price
+          (
+            SELECT ib.cost_price
+            FROM inventory_batches ib
+            WHERE ib.product_id = p.id AND ib.store_id = p.store_id AND ib.cost_price IS NOT NULL
+            ORDER BY ib.created_at DESC
+            LIMIT 1
+          ) AS latest_cost_price
         FROM products p
         LEFT JOIN product_categories c ON p.category_id = c.id
-        LEFT JOIN inventory_batches ib ON ib.product_id = p.id AND ib.store_id = p.store_id
-        LEFT JOIN inventory_movements im ON im.batch_id = ib.id
         WHERE p.store_id = $1
         GROUP BY p.id, p.name, p.minimum_stock, p.unit, c.name
       )
@@ -2281,16 +2283,20 @@ export const getStockReplenishmentReport = async (req, res) => {
           p.minimum_stock,
           p.unit,
           cat.name AS category_name,
-          COALESCE(SUM(
-            CASE WHEN im.type = 'IN'  THEN im.quantity
-                 WHEN im.type = 'OUT' THEN -im.quantity
-                 ELSE 0 END
+          COALESCE((
+            SELECT SUM(CASE WHEN im.type = 'IN' THEN im.quantity ELSE -im.quantity END)
+            FROM inventory_movements im
+            WHERE im.product_id = p.id AND im.store_id = p.store_id
           ), 0) AS current_stock,
-          MAX(ib.cost_price) FILTER (WHERE ib.cost_price IS NOT NULL) AS last_cost_price
+          (
+            SELECT ib.cost_price
+            FROM inventory_batches ib
+            WHERE ib.product_id = p.id AND ib.store_id = p.store_id AND ib.cost_price IS NOT NULL
+            ORDER BY ib.created_at DESC
+            LIMIT 1
+          ) AS last_cost_price
         FROM products p
         LEFT JOIN product_categories cat ON p.category_id = cat.id
-        LEFT JOIN inventory_batches ib   ON ib.product_id = p.id AND ib.store_id = p.store_id
-        LEFT JOIN inventory_movements im ON im.batch_id = ib.id
         WHERE p.store_id = $1
         GROUP BY p.id, p.name, p.minimum_stock, p.unit, cat.name
       )
@@ -2534,16 +2540,27 @@ const inventoryStockCTE = (storeId) => `
       p.unit,
       p.minimum_stock,
       c.name              AS category_name,
-      COALESCE(SUM(CASE WHEN im.type = 'IN' THEN im.quantity ELSE 0 END), 0)  AS total_in,
-      COALESCE(SUM(CASE WHEN im.type = 'OUT' THEN im.quantity ELSE 0 END), 0) AS total_out,
-      COALESCE(SUM(CASE WHEN im.type = 'IN' THEN im.quantity WHEN im.type = 'OUT' THEN -im.quantity ELSE 0 END), 0) AS current_stock,
-      MAX(ib.cost_price) FILTER (WHERE ib.cost_price IS NOT NULL) AS cost_price
+      COALESCE(mv.total_in, 0)       AS total_in,
+      COALESCE(mv.total_out, 0)      AS total_out,
+      COALESCE(mv.current_stock, 0)  AS current_stock,
+      (
+        SELECT ib.cost_price
+        FROM inventory_batches ib
+        WHERE ib.product_id = p.id AND ib.store_id = p.store_id AND ib.cost_price IS NOT NULL
+        ORDER BY ib.created_at DESC
+        LIMIT 1
+      ) AS cost_price
     FROM products p
     LEFT JOIN product_categories c ON p.category_id = c.id
-    LEFT JOIN inventory_batches ib ON ib.product_id = p.id AND ib.store_id = $1
-    LEFT JOIN inventory_movements im ON im.batch_id = ib.id
+    LEFT JOIN LATERAL (
+      SELECT
+        COALESCE(SUM(CASE WHEN im.type = 'IN' THEN im.quantity ELSE 0 END), 0) AS total_in,
+        COALESCE(SUM(CASE WHEN im.type = 'OUT' THEN im.quantity ELSE 0 END), 0) AS total_out,
+        COALESCE(SUM(CASE WHEN im.type = 'IN' THEN im.quantity ELSE -im.quantity END), 0) AS current_stock
+      FROM inventory_movements im
+      WHERE im.product_id = p.id AND im.store_id = p.store_id
+    ) mv ON true
     WHERE p.store_id = $1
-    GROUP BY p.id, p.name, p.unit, p.minimum_stock, c.name
   )
 `;
 

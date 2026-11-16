@@ -22,7 +22,12 @@ const PUBLIC_ENDPOINTS = [
 const isPublic = (url = '') => PUBLIC_ENDPOINTS.some((e) => url.includes(e));
 
 const currentLang = () => {
-  try { return window.__auth_user?.preferred_language || localStorage.getItem('lang') || 'en'; } catch { return 'en'; }
+  try {
+    const chosen = localStorage.getItem('lang');
+    if (chosen === 'en' || chosen === 'sw') return chosen;
+    const preferred = window.__auth_user?.preferred_language;
+    return preferred === 'en' || preferred === 'sw' ? preferred : 'en';
+  } catch { return 'en'; }
 };
 
 // Request: token, current store (every store-scoped route reads X-Store-ID) and language.

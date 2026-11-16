@@ -7,7 +7,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { purchaseService } from '../../services/api';
-import { Button, DatePicker, Input, Select, Textarea } from '../../components/ui';
+import { Button, DatePicker, Input, Loader, Select, Textarea } from '../../components/ui';
 import { useSuppliers, useAllProducts, dateOnly, num } from './common';
 import { formatCurrency, formatNumberWithCommas, removeNumberFormatting } from '../../utils/numberUtils';
 import { getMoneyDecimals } from '../../utils/money';
@@ -178,7 +178,7 @@ export default function OrderForm() {
           </div>
         </div>
 
-        {!form && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}
+        {!form && <Loader />}
         {form && (
           <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>
             <div className="bg-white p-4 rounded shadow text-left">

@@ -12,7 +12,7 @@
  */
 import api from '../utils/api';
 
-const lang = () => { try { return window.__auth_user?.preferred_language || localStorage.getItem('lang') || 'en'; } catch { return 'en'; } };
+const lang = () => { try { const chosen = localStorage.getItem('lang'); if (chosen === 'en' || chosen === 'sw') return chosen; const preferred = window.__auth_user?.preferred_language; return preferred === 'en' || preferred === 'sw' ? preferred : 'en'; } catch { return 'en'; } };
 
 /** Store the person is working in (set by StoreContext). Most BizTrack routes carry it in the URL. */
 export const currentStoreId = () => localStorage.getItem('currentStoreId');

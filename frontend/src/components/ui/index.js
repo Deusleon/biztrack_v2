@@ -8,6 +8,7 @@ export { default as Toast } from './Toast';
 export { default as DataTable } from './DataTable';
 export { default as DatePicker } from './DatePicker';
 export { default as Button } from './Button';
+export { default as Loader } from './Loader';
 export { default as RowActions, ACTION_ICONS } from './RowActions';
 export { default as ActionLink } from './ActionLink';
 export { default as FormModal } from './FormModal';

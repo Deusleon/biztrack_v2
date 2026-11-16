@@ -4,7 +4,7 @@ import { logActivity } from '../utils/activityLog.js';
 import { t } from '../utils/translate.js';
 import { getLang } from '../utils/getLang.js';
 import { respondWithError } from '../utils/response.js';
-import { getIO } from '../utils/socket.js';
+import { getIO, emitToStore } from '../utils/socket.js';
 import { notifyStore } from '../services/notification.service.js';
 // Get Stock by product in a store
 export const getStock = async (req, res) => {
@@ -61,21 +61,14 @@ export const getStoreWideStock = async (req, res) => {
   } else if (stockFilter === 'low-stock') {
     stockFilterExpr = `ps.current_stock > 0 AND ps.current_stock <= COALESCE(p.minimum_stock, 0)`;
   } else if (stockFilter === 'out-of-stock') {
-    stockFilterExpr = `ps.current_stock = 0`;
+    stockFilterExpr = `ps.current_stock <= 0`;
   }
 
+  // Every product in the store, including one that has never had a batch.
+  // The quantity is every movement for that product, the same sum the product list uses,
+  // so an adjustment of a product that was on zero still shows up here.
   const baseCTE = `
-    WITH products_with_stock AS (
-        SELECT DISTINCT p.id AS product_id
-        FROM products p
-        WHERE p.store_id = $1
-        ${searchFilter}
-        AND (
-            EXISTS (SELECT 1 FROM inventory_batches ib WHERE ib.product_id = p.id AND ib.store_id = p.store_id)
-            OR EXISTS (SELECT 1 FROM inventory_movements im WHERE im.product_id = p.id AND im.store_id = p.store_id)
-        )
-    ),
-    latest_batches AS (
+    WITH latest_batches AS (
         SELECT DISTINCT ON (p.id)
             p.id AS product_id,
             ib.id AS batch_id,
@@ -84,23 +77,20 @@ export const getStoreWideStock = async (req, res) => {
             ib.created_at AS batch_created_at
         FROM products p
         LEFT JOIN inventory_batches ib ON p.id = ib.product_id AND ib.store_id = p.store_id
-        WHERE p.id IN (SELECT product_id FROM products_with_stock)
-        ORDER BY p.id, ib.created_at DESC
+        WHERE p.store_id = $1
+        ${searchFilter}
+        ORDER BY p.id, ib.created_at DESC NULLS LAST
     ),
     product_stock AS (
         SELECT
             p.id AS product_id,
             COALESCE(SUM(
-                CASE
-                    WHEN im.type = 'IN'  THEN im.quantity
-                    WHEN im.type = 'OUT' THEN -im.quantity
-                    ELSE 0
-                END
+                CASE WHEN im.type = 'IN' THEN im.quantity ELSE -im.quantity END
             ), 0) AS current_stock
         FROM products p
-        LEFT JOIN inventory_batches ib ON p.id = ib.product_id AND ib.store_id = p.store_id
-        LEFT JOIN inventory_movements im ON ib.id = im.batch_id
-        WHERE p.id IN (SELECT product_id FROM products_with_stock)
+        LEFT JOIN inventory_movements im ON im.product_id = p.id AND im.store_id = p.store_id
+        WHERE p.store_id = $1
+        ${searchFilter}
         GROUP BY p.id
     )
   `;
@@ -113,7 +103,7 @@ export const getStoreWideStock = async (req, res) => {
            COUNT(*)                                                                                  AS all_total,
            COUNT(*) FILTER (WHERE ps.current_stock > COALESCE(p.minimum_stock, 0))                 AS in_stock_count,
            COUNT(*) FILTER (WHERE ps.current_stock > 0 AND ps.current_stock <= COALESCE(p.minimum_stock, 0)) AS low_stock_count,
-           COUNT(*) FILTER (WHERE ps.current_stock = 0)                                            AS out_of_stock_count,
+           COUNT(*) FILTER (WHERE ps.current_stock <= 0)                                           AS out_of_stock_count,
            COUNT(*) FILTER (WHERE ${stockFilterExpr})                                              AS filtered_total
        FROM product_stock ps
        JOIN products p ON ps.product_id = p.id`,
@@ -589,14 +579,13 @@ export const getStockValue = async (req, res) => {
                       LIMIT 1
                   ), 0
               ) AS selling_price
-          FROM products p
-          LEFT JOIN product_categories c  ON p.category_id = c.id
-          LEFT JOIN inventory_batches ib  ON ib.product_id = p.id AND ib.store_id = p.store_id
-          LEFT JOIN inventory_movements im ON im.batch_id = ib.id
-          WHERE p.store_id = $1
-          ${searchFilter}
-          GROUP BY p.id, p.name, p.unit, p.category_id, c.name
-          HAVING SUM(
+                FROM products p
+                LEFT JOIN product_categories c  ON p.category_id = c.id
+                LEFT JOIN inventory_movements im ON im.product_id = p.id AND im.store_id = p.store_id
+                WHERE p.store_id = $1
+                ${searchFilter}
+                GROUP BY p.id, p.name, p.unit, p.category_id, c.name
+                HAVING SUM(
               CASE
                   WHEN im.type = 'IN'  THEN im.quantity
                   WHEN im.type = 'OUT' THEN -im.quantity
@@ -1220,11 +1209,49 @@ export const updateBatch = async (req, res) => {
 
 // ==================== STOCK ADJUSTMENT ====================
 
+const STOCK_SUM = `COALESCE(SUM(CASE WHEN type = 'IN' THEN quantity ELSE -quantity END), 0)`;
+
+/** Current quantity of one product in one store, from every movement, with or without a batch. */
+async function productStock(client, storeId, productId) {
+  const result = await client.query(
+    `SELECT ${STOCK_SUM} AS current_stock FROM inventory_movements WHERE store_id = $1 AND product_id = $2`,
+    [storeId, productId],
+  );
+  return Number(result.rows[0]?.current_stock || 0);
+}
+
+/**
+ * An added quantity only shows up on Current stock, and can only be sold, when the movement
+ * belongs to a batch. Use the newest batch, or open one when the product has never had one.
+ */
+async function latestOrNewBatch(client, storeId, productId, userId) {
+  const latest = await client.query(
+    `SELECT id FROM inventory_batches WHERE product_id = $1 AND store_id = $2 ORDER BY created_at DESC LIMIT 1`,
+    [productId, storeId],
+  );
+  if (latest.rows[0]?.id) return latest.rows[0].id;
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const created = await client.query(
+    `INSERT INTO inventory_batches (store_id, product_id, batch_number, status, created_by)
+     VALUES ($1, $2, $3, 'active', $4) RETURNING id`,
+    [storeId, productId, `ADJ-${stamp}`, userId],
+  );
+  return created.rows[0].id;
+}
+
+function announceAdjustment(storeId, payload) {
+  try {
+    emitToStore(storeId, 'stockAdjusted', payload);
+    emitToStore(storeId, 'stockUpdated', payload);
+  } catch { /* the saved movement is what changes the quantity; a missed live ping does not undo it */ }
+}
+
 // Create Stock Adjustment (Add or Remove stock)
 export const createStockAdjustment = async (req, res) => {
   const storeId = req.user?.current_store_id;
   const userId = req.user.id;
-  const { product_id, adjustment_type, quantity, reason, notes } = req.body;
+  const { product_id, adjustment_type, reason, notes } = req.body;
+  const quantity = Number(req.body.quantity);
   const lang = getLang(req);
 
   const client = await pool.connect();
@@ -1244,28 +1271,12 @@ export const createStockAdjustment = async (req, res) => {
 
     const product = productResult.rows[0];
 
-    // 2. Find the latest batch for this product
-    const latestBatchResult = await client.query(
-      `SELECT id FROM inventory_batches 
-             WHERE product_id = $1 AND store_id = $2 
-             ORDER BY created_at DESC LIMIT 1`,
-      [product_id, storeId],
-    );
-
-    const targetBatchId = latestBatchResult.rows[0]?.id || null;
+    // 2. A movement with no batch is invisible on Current stock and cannot be sold.
+    const targetBatchId = await latestOrNewBatch(client, storeId, product_id, userId);
 
     // 3. Get current stock for validation (if reducing)
     if (adjustment_type === "subtract") {
-      const stockResult = await client.query(
-        `SELECT COALESCE(SUM(
-                    CASE WHEN type = 'IN' THEN quantity ELSE -quantity END
-                ), 0) AS current_stock
-                FROM inventory_movements
-                WHERE store_id = $1 AND product_id = $2`,
-        [storeId, product_id],
-      );
-
-      const currentStock = Number(stockResult.rows[0]?.current_stock || 0);
+      const currentStock = await productStock(client, storeId, product_id);
 
       if (quantity > currentStock) {
         await client.query("ROLLBACK");
@@ -1340,17 +1351,11 @@ export const createStockAdjustment = async (req, res) => {
       ],
     );
 
+    const newStock = await productStock(client, storeId, product_id);
     await client.query("COMMIT");
 
-    // Emit realtime event
-    const io = getIO();
-    io.to(storeId).emit("inventory:adjusted", {
-      message: t("stock_adjusted", lang),
-      adjustment: {
-        ...adjustment,
-        product_name: product.name,
-      },
-    });
+    const saved = { ...adjustment, product_name: product.name, product_unit: product.unit, new_stock: newStock };
+    announceAdjustment(storeId, { message: t("stock_adjusted", lang), adjustment: saved });
 
     notifyStore({
       storeId,
@@ -1363,11 +1368,7 @@ export const createStockAdjustment = async (req, res) => {
     res.status(201).json({
       success: true,
       message: t("stock_adjusted", lang),
-      adjustment: {
-        ...adjustment,
-        product_name: product.name,
-        product_unit: product.unit,
-      },
+      adjustment: saved,
     });
   } catch (err) {
     await client.query("ROLLBACK");
@@ -1614,8 +1615,8 @@ export const getBatchwiseStock = async (req, res) => {
 export const createBatchwiseStockAdjustment = async (req, res) => {
   const storeId = req.user?.current_store_id;
   const userId = req.user.id;
-  const { product_id, batch_id, adjustment_type, quantity, reason, notes } =
-    req.body;
+  const { product_id, batch_id, adjustment_type, reason, notes } = req.body;
+  const quantity = Number(req.body.quantity);
   const lang = getLang(req);
 
   const client = await pool.connect();
@@ -1639,22 +1640,7 @@ export const createBatchwiseStockAdjustment = async (req, res) => {
     let targetBatchId = batch_id;
 
     if (!targetBatchId) {
-      // Find the latest batch for this product
-      const latestBatchResult = await client.query(
-        `SELECT id FROM inventory_batches 
-                 WHERE product_id = $1 AND store_id = $2 
-                 ORDER BY created_at DESC LIMIT 1`,
-        [product_id, storeId],
-      );
-
-      if (latestBatchResult.rows.length === 0) {
-        await client.query("ROLLBACK");
-        return res.status(400).json({
-          success: false,
-          message: t("no_batch_found", lang),
-        });
-      }
-      targetBatchId = latestBatchResult.rows[0].id;
+      targetBatchId = await latestOrNewBatch(client, storeId, product_id, userId);
     } else {
       // Verify the batch exists and belongs to this product/store
       const batchCheck = await client.query(
@@ -1756,17 +1742,11 @@ export const createBatchwiseStockAdjustment = async (req, res) => {
       ],
     );
 
+    const newStock = await productStock(client, storeId, product_id);
     await client.query("COMMIT");
 
-    // Emit realtime event
-    const io = getIO();
-    io.to(storeId).emit("inventory:adjusted", {
-      message: t("stock_adjusted", lang),
-      adjustment: {
-        ...adjustment,
-        product_name: product.name,
-      },
-    });
+    const saved = { ...adjustment, product_name: product.name, product_unit: product.unit, new_stock: newStock };
+    announceAdjustment(storeId, { message: t("stock_adjusted", lang), adjustment: saved });
 
     notifyStore({
       storeId,
@@ -1779,11 +1759,7 @@ export const createBatchwiseStockAdjustment = async (req, res) => {
     res.status(201).json({
       success: true,
       message: t("stock_adjusted", lang),
-      adjustment: {
-        ...adjustment,
-        product_name: product.name,
-        product_unit: product.unit,
-      },
+      adjustment: saved,
     });
   } catch (err) {
     await client.query("ROLLBACK");

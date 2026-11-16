@@ -6,7 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { roleService, permissionService } from '../../services/api';
-import { Input, Select } from '../../components/ui';
+import { Input, Loader, Select } from '../../components/ui';
 import { t } from '../../utils/i18n';
 
 /** Pick a role, then switch each permission (or a whole module / group) on or off. Every switch is saved at once. */
@@ -46,7 +46,7 @@ export default function Permissions() {
         <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('permissions_management', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_user_roles_and_permissions', lang)}</p></div>
         <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 gap-3"><Select label={t('select_role', lang)} value={roleId} onChange={(e) => setRoleId(e.target.value)} options={roles.map((r) => ({ value: r.id, label: r.name }))} /><Input label={t('search', lang)} value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('search_here', lang)} /></div>
         {!canEdit && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 text-left">{t('permissions_read_only', lang)}</p>}
-        {loading && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('loading_data', lang)}</div>}
+        {loading && <Loader />}
         {!loading && view.length === 0 && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('no_data', lang)}</div>}
         {!loading && view.map(([module, subs]) => (
           <div key={module} className="bg-white rounded shadow">

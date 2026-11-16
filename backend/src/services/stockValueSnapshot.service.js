@@ -84,8 +84,7 @@ async function createStockValueSnapshot({
                     
                 FROM products p
                 LEFT JOIN product_categories c ON p.category_id = c.id
-                LEFT JOIN inventory_batches ib ON ib.product_id = p.id AND ib.store_id = p.store_id
-                LEFT JOIN inventory_movements im ON im.batch_id = ib.id
+                LEFT JOIN inventory_movements im ON im.product_id = p.id AND im.store_id = p.store_id
                 WHERE p.store_id = $1
                 GROUP BY p.id, p.name, p.unit, p.category_id, c.name
                 HAVING SUM(
