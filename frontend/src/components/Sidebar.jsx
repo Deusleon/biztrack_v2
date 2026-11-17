@@ -56,7 +56,7 @@ const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed, onHelp }) =
 
   // A store with a lapsed subscription sees the Subscription page (and the manual), nothing else.
   const visible = NAV_SECTIONS
-    .map((s) => ({ ...s, items: s.items.filter((i) => (locked ? ['/subscription', '/user-manual'].includes(i.to) : canOpen(i, can, { developer: isDeveloper }))) }))
+    .map((s) => ({ ...s, items: s.items.filter((i) => (locked ? ['/subscription', '/user-manual'].includes(i.to) || (i.to === '/subscription/manual' && isDeveloper) : canOpen(i, can, { developer: isDeveloper }))) }))
     .filter((s) => s.items.length > 0);
 
   const initials = (user?.name || '?').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();

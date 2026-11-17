@@ -66,6 +66,7 @@ const MsgGroups = lazy(() => import('./pages/messaging/Groups'));
 const MsgTemplates = lazy(() => import('./pages/messaging/Templates'));
 const MsgAccount = lazy(() => import('./pages/messaging/Account'));
 const SubscriptionPage = lazy(() => import('./pages/subscription/Subscription'));
+const ManualSubscription = lazy(() => import('./pages/subscription/ManualSubscription'));
 const SupportAdmin = lazy(() => import('./pages/support/SupportAdmin'));
 const UserManual = lazy(() => import('./pages/UserManual'));
 const BizTrackAI = lazy(() => import('./pages/ai/BizTrackAI'));
@@ -125,6 +126,7 @@ const READY = {
   '/settings/notifications': <Notifications />,
   '/settings/tools': <Tools />,
   '/subscription': <SubscriptionPage />,
+  '/subscription/manual': <ManualSubscription />,
   '/support/admin': <SupportAdmin />,
   '/user-manual': <UserManual />,
   '/biztrack-ai': <BizTrackAI />,

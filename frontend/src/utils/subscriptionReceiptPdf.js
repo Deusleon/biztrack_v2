@@ -50,21 +50,22 @@ function friendlyPaymentMethod(transaction) {
  * subscription itself is extended: one cycle length from the payment
  * date, based on billing_cycle.
  */
+function paidMonths(transaction) {
+  let raw = transaction.raw_request;
+  if (typeof raw === "string") { try { raw = JSON.parse(raw); } catch { raw = null; } }
+  const n = Math.round(Number(raw?.months));
+  if (transaction.billing_cycle === "annual") return 12;
+  if (transaction.billing_cycle === "quarterly") return 3;
+  if (n >= 1 && n <= 24) return n;
+  return 1;
+}
+
 function getBillingPeriod(transaction) {
   const start = new Date(transaction.paid_at || transaction.created_at);
   if (isNaN(start.getTime())) return null;
 
   const end = new Date(start);
-  switch (transaction.billing_cycle) {
-    case "annual":
-      end.setFullYear(end.getFullYear() + 1);
-      break;
-    case "quarterly":
-      end.setMonth(end.getMonth() + 3);
-      break;
-    default:
-      end.setMonth(end.getMonth() + 1);
-  }
+  end.setMonth(end.getMonth() + paidMonths(transaction));
 
   return { start, end };
 }

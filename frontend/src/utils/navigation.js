@@ -79,6 +79,7 @@ export const NAV_SECTIONS = [
   ] },
   { key: 'account', title: 'account', items: [
     { label: 'subscription', to: '/subscription', icon: 'card', permission: 'view_subscription' },
+    { label: 'extend_subscription', to: '/subscription/manual', icon: 'card', developerOnly: true },
     { label: 'biztrack_ai', to: '/biztrack-ai', icon: 'sparkle', permission: 'ai_access' },
     { label: 'user_manual', to: '/user-manual', icon: 'book' },
   ] },

@@ -362,6 +362,10 @@ export const subscriptionService = {
   checkout: async (data) => (await api.post('/subscriptions/checkout', data)).checkout,
   /** asks ClickPesa for the real status of the payment and applies it → { status, … } */
   verify: async (transactionId) => (await api.post(`/subscriptions/verify/${transactionId}`, {})).result,
+  /** developer only — every store and its current subscription */
+  manualStores: async () => (await api.get('/subscriptions/manual/stores')).stores || [],
+  /** developer only — record an outside payment and extend that store */
+  recordManual: (data) => api.post('/subscriptions/manual', data),
 };
 
 // ─── support tickets ────────────────────────────────────────────────────────────────────────────────
