@@ -12,7 +12,7 @@ import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { PStatus, PFilters, useSuppliers, listFetcher, dateOnly, num, INITIAL, Dl } from './common';
-import { formatCurrency } from '../../utils/numberUtils';
+import { formatCurrency, formatNumberWithCommas } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
 const STATUSES = ['pending_inspection', 'approved', 'rejected', 'cancelled'];
@@ -112,8 +112,10 @@ export default function GoodsReceived() {
       <FormModal isOpen={!!create} onClose={() => !busy && setCreate(null)} size="xl" title={t('new_grn', lang)}>
         {create && (
           <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>
+            <p className="text-sm text-gray-500 text-left">{t('receive_goods_help', lang)}</p>
             <Select label={t('purchase_order', lang)} required searchable value={create.po?.id || ''} onChange={(e) => pickOrder(e.target.value)} placeholder={t('select_purchase_order', lang)} options={orders.map((o) => ({ value: o.id, label: `#${o.po_number} · ${o.supplier_name} · ${money(o.total_amount)}` }))} />
             {create.po && <>
+              <Dl items={[[t('supplier', lang), create.po.supplier_name], [t('expected_delivery', lang), dateOnly(create.po.expected_delivery_date)], [t('items', lang), String(create.lines.length)], [t('pending', lang), formatNumberWithCommas(create.lines.reduce((s, l) => s + num(l.item.pending_quantity), 0))], [t('this_receipt', lang), money(create.lines.reduce((s, l) => s + num(l.qty) * num(l.unit_cost), 0))]]} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><Input label={t('supplier_delivery_note', lang)} value={create.supplier_delivery_note} onChange={(e) => setCreate((c) => ({ ...c, supplier_delivery_note: e.target.value }))} /><Input label={t('supplier_invoice_number', lang)} value={create.supplier_invoice_number} onChange={(e) => setCreate((c) => ({ ...c, supplier_invoice_number: e.target.value }))} /></div>
               <div className="overflow-x-auto border border-gray-100 rounded"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-2 py-2 text-left">{t('product_name', lang)}</th><th className="px-2 py-2 text-right">{t('pending', lang)}</th><th className="px-2 py-2 w-24 text-right">{t('received', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('unit_cost', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('selling_price', lang)}{settings?.useBatchWisePrice ? ' *' : ''}</th><th className="px-2 py-2 w-32">{t('batch_number', lang)}</th><th className="px-2 py-2 w-36">{t('mfg_date', lang)}</th>{showExpiry && <th className="px-2 py-2 w-36">{t('exp_date', lang)}</th>}</tr></thead>
                 <tbody>{create.lines.map((l, i) => (

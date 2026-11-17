@@ -1,4 +1,30 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+
+// The longest the option list is allowed to grow. Shorter when the screen has less room,
+// so the menu stays inside the window instead of being cut off by a modal.
+const LIST_CAP = 240;
+
+function placeMenu(trigger, searchable) {
+  const rect = trigger.getBoundingClientRect();
+  const gap = 4;
+  const margin = 8;
+  const searchBlock = searchable ? 53 : 0;
+  const spaceBelow = window.innerHeight - rect.bottom - gap - margin;
+  const spaceAbove = rect.top - gap - margin;
+  const openUp = spaceBelow < Math.min(160, searchBlock + 96) && spaceAbove > spaceBelow;
+  const room = Math.max(0, openUp ? spaceAbove : spaceBelow);
+  const listMax = Math.max(96, Math.min(LIST_CAP, room - searchBlock));
+  const height = searchBlock + listMax;
+  let top = openUp ? rect.top - gap - height : rect.bottom + gap;
+  if (top < margin) top = margin;
+  if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - margin - height);
+  let left = rect.left;
+  const width = Math.max(rect.width, 160);
+  if (left + width > window.innerWidth - margin) left = Math.max(margin, window.innerWidth - width - margin);
+  if (left < margin) left = margin;
+  return { top, left, width, listMax };
+}
 
 const Select = ({
   options = [],
@@ -21,14 +47,19 @@ const Select = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef(null);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
   const searchInputRef = useRef(null);
+  const [menuBox, setMenuBox] = useState(null);
 
   const selectedValue = value || (multiple ? [] : '');
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      const inTrigger = dropdownRef.current && dropdownRef.current.contains(event.target);
+      const inMenu = menuRef.current && menuRef.current.contains(event.target);
+      if (!inTrigger && !inMenu) {
         setIsOpen(false);
         setSearchTerm('');
       }
@@ -40,17 +71,31 @@ const Select = ({
     };
   }, []);
 
+  // Drawn on the page itself, not inside the modal, so the modal's own scroll cannot cut the list off.
+  // It follows the field when the modal scrolls, and opens upward when there is more room above.
+  useLayoutEffect(() => {
+    if (!isOpen) { setMenuBox(null); return undefined; }
+    const update = () => { if (triggerRef.current) setMenuBox(placeMenu(triggerRef.current, searchable)); };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [isOpen, searchable]);
+
   // Focus search input when dropdown opens
   useEffect(() => {
     if (isOpen && searchable && searchInputRef.current) {
       searchInputRef.current.focus();
     }
-  }, [isOpen, searchable]);
+  }, [isOpen, searchable, menuBox]);
 
   // Filter options based on search term
   const filteredOptions = searchable
     ? options.filter((option) =>
-        option.label.toLowerCase().includes(searchTerm.toLowerCase())
+        String(option.label ?? '').toLowerCase().includes(searchTerm.toLowerCase())
       )
     : options;
 
@@ -117,6 +162,7 @@ const Select = ({
 
       {/* Select trigger */}
       <div
+        ref={triggerRef}
         className={`
           w-full text-left ${size === 'sm' ? 'px-2.5 py-1' : 'px-4 py-2.5'}
           bg-white border rounded
@@ -201,10 +247,13 @@ const Select = ({
         </div>
       </div>
 
-      {/* Dropdown menu */}
-      {isOpen && !disabled && (
-        <div className={`absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded shadow-lg overflow-hidden ${dropdownClassName}`}>
-          {/* Search input */}
+      {/* Dropdown menu. Portaled so a modal or table that scrolls cannot clip it. */}
+      {isOpen && !disabled && menuBox && createPortal(
+        <div
+          ref={menuRef}
+          className={`bg-white border border-gray-300 rounded shadow-lg overflow-hidden ${dropdownClassName}`}
+          style={{ position: 'fixed', top: menuBox.top, left: menuBox.left, width: menuBox.width, zIndex: 80 }}
+        >
           {searchable && (
             <div className="p-2 border-b border-gray-200">
               <div className="relative">
@@ -228,8 +277,7 @@ const Select = ({
             </div>
           )}
 
-          {/* Options list */}
-          <div className="max-h-60 overflow-y-auto">
+          <div className="overflow-y-auto" style={{ maxHeight: menuBox.listMax }}>
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option) => (
                 <div
@@ -247,7 +295,7 @@ const Select = ({
                     {option.label}
                   </span>
                   {isSelected(option.value) && (
-                    <svg className="w-5 h-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-5 h-5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   )}
@@ -259,7 +307,8 @@ const Select = ({
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Helper text or error */}
