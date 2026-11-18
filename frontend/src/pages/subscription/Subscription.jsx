@@ -1,11 +1,13 @@
 // FILE PATH: frontend/src/pages/subscription/Subscription.jsx
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import MainLayout from '../../components/MainLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStore } from '../../contexts/StoreContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { subscriptionService } from '../../services/api';
+import useDeveloperAccess from '../../hooks/useDeveloperAccess';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { Button, Input, Loader } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
@@ -39,6 +41,8 @@ const TONE = { active: 'bg-green-50 text-green-700', grace: 'bg-amber-50 text-am
 
 export default function Subscription() {
   const { can, user } = useAuth();
+  const navigate = useNavigate();
+  const { isDeveloper } = useDeveloperAccess();
   const { currentStore } = useStore();
   const { showSuccess, showError, showWarning } = useToast();
   const { lang } = useLanguage();
@@ -88,7 +92,10 @@ export default function Subscription() {
   return (
     <MainLayout>
       <div className="space-y-4">
-        <div className="page-header text-left"><h1 className="text-xl font-bold text-gray-900">{t('subscription', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{currentStore?.name}</p></div>
+        <div className="page-header flex items-center justify-between flex-wrap gap-3">
+          <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('subscription', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{currentStore?.name}</p></div>
+          {isDeveloper && <Button variant="secondary" onClick={() => navigate('/subscription/manual')}>{t('extend_subscription', lang)}</Button>}
+        </div>
         {loading && <Loader />}
         {!loading && (
           <div className="bg-white rounded shadow p-5 text-left space-y-3">

@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import MainLayout from '../../components/MainLayout';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useStore } from '../../contexts/StoreContext';
+import { useSubscription } from '../../contexts/SubscriptionContext';
 import { subscriptionService } from '../../services/api';
 import useDeveloperAccess from '../../hooks/useDeveloperAccess';
 import { Button, Input, Loader, Select, Textarea, ConfirmModal } from '../../components/ui';
@@ -44,6 +46,8 @@ const METHODS = ['cash', 'bank_transfer', 'mobile_money', 'other'];
 export default function ManualSubscription() {
   const { showSuccess, showError } = useToast();
   const { lang } = useLanguage();
+  const { currentStore } = useStore();
+  const { unlock } = useSubscription();
   const { isDeveloper, loading: accessLoading } = useDeveloperAccess();
   const [stores, setStores] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -106,6 +110,7 @@ export default function ManualSubscription() {
         note: note.trim() || undefined,
       });
       showSuccess(r.message || t('record_manual_subscription', lang));
+      if (currentStore?.id === storeId) unlock();
       setReference('');
       setNote('');
       setConfirm(false);

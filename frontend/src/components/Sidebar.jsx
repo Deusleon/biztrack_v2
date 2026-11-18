@@ -54,7 +54,7 @@ const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed, onHelp }) =
     return () => el.removeEventListener('scroll', onScroll);
   }, []);
 
-  // A store with a lapsed subscription sees the Subscription page (and the manual), nothing else.
+  // A lapsed store keeps Subscription, the user guide, and — for the developer — Extend subscription.
   const visible = NAV_SECTIONS
     .map((s) => ({ ...s, items: s.items.filter((i) => (locked ? ['/subscription', '/user-manual'].includes(i.to) || (i.to === '/subscription/manual' && isDeveloper) : canOpen(i, can, { developer: isDeveloper }))) }))
     .filter((s) => s.items.length > 0);

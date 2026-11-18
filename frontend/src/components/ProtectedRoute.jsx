@@ -31,7 +31,10 @@ export default function ProtectedRoute() {
   if (user?.password_change_required) return <PasswordExpired />;
 
   if (locked && !LOCKED_OK.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
-    return can('view_subscription') ? <Navigate to="/subscription" replace /> : <SubscriptionLocked />;
+    if (developerLoading) return <Loader full />;
+    // The developer still reaches the subscription page, so they can extend a lapsed store.
+    if (can('view_subscription') || isDeveloper) return <Navigate to="/subscription" replace />;
+    return <SubscriptionLocked />;
   }
 
   const item = itemForPath(pathname);

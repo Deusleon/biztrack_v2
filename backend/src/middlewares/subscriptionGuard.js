@@ -17,7 +17,13 @@ const EXEMPT_PREFIXES = [
 // Reading the list of MY stores must work even when the current store's subscription has lapsed — otherwise a
 // person who belongs to several stores is locked out with no way to move to one that is paid up. Only GET, and
 // only these exact paths: creating, editing or deleting a store still needs an active subscription.
-const EXEMPT_GET_PATHS = ['/api/stores', '/api/stores/default'];
+const EXEMPT_GET_PATHS = [
+  '/api/stores',
+  '/api/stores/default',
+  // The sidebar uses this to recognise the developer. It must answer even when the
+  // current store is locked, or the developer cannot open Extend subscription.
+  '/api/integrations/access',
+];
 
 function isExemptPath(pathname = '', method = 'GET') {
   if (EXEMPT_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return true;
