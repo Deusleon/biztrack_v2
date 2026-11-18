@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import { t } from "@/utils/i18n";
 import { formatDateLocalized } from "@/utils/formatDateLocalized";
 import { formatCurrency } from "@/utils/numberUtils";
+import { buildReceiptVerifyUrl, generateReceiptQrDataUrl } from "./receiptVerify";
 
 /**
  * Paper size configurations (all in mm).
@@ -450,6 +451,24 @@ function renderDocumentReceipt(data, receiptSize) {
 
   y += 5;
 
+  if (data.qrDataUrl) {
+    const qrS = Math.min(p.qrSize, 28);
+    const qrX = M + (CW - qrS) / 2;
+    try {
+      doc.addImage(data.qrDataUrl, "PNG", qrX, y, qrS, qrS);
+      y += qrS + 2;
+      doc.setFontSize(p.poweredSize);
+      doc.setTextColor(90, 90, 90);
+      const scanLabel = t("scan_to_verify_receipt") || "Scan to verify receipt";
+      const scanTW = doc.getTextWidth(scanLabel);
+      doc.text(scanLabel, M + (CW - scanTW) / 2, y);
+      doc.setTextColor(0, 0, 0);
+      y += 4;
+    } catch (err) {
+      console.warn("Receipt QR embed failed:", err);
+    }
+  }
+
   // ── FOOTER ──────────────────────────────────────────────
   // Border-top
   doc.setDrawColor(200, 200, 200);
@@ -778,25 +797,26 @@ function renderReceipt(pageHeight, data, receiptSize) {
   // border-b of the totals section
   y += 0.3;
 
-  // ── QR CODE ─────────────────────────────────────────────
+  // ── QR CODE (receipt verification) ──────────────────────
   y += p.sectionGap;
-
-  // Generate QR code as a simple data matrix using jsPDF's built-in capabilities
-  // Since jsPDF doesn't have a built-in QR generator, we draw a placeholder box
-  // with the invoice text centered. For real QR, the logo/QR could be loaded async.
-  //   const qrS = p.qrSize;
-  //   const qrX = M + (CW - qrS) / 2;
-  //   doc.setDrawColor(180, 180, 180);
-  //   doc.setLineWidth(0.2);
-  //   doc.rect(qrX, y, qrS, qrS);
-  //   doc.setFontSize(p.poweredSize);
-  //   doc.setFont("helvetica", "normal");
-  //   doc.setTextColor(120, 120, 120);
-  //   const qrLabel = `Invoice: ${orderInfo.invoice_number || ""}`;
-  //   const qrTW = doc.getTextWidth(qrLabel);
-  //   doc.text(qrLabel, M + (CW - qrTW) / 2, y + qrS / 2 + 1);
-  //   doc.setTextColor(0, 0, 0);
-  //   y += qrS + 1;
+  if (data.qrDataUrl) {
+    const qrS = p.qrSize;
+    const qrX = M + (CW - qrS) / 2;
+    try {
+      doc.addImage(data.qrDataUrl, "PNG", qrX, y, qrS, qrS);
+      y += qrS + 1.2;
+      doc.setFontSize(p.poweredSize);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(90, 90, 90);
+      const scanLabel = t("scan_to_verify_receipt") || "Scan to verify receipt";
+      const scanTW = doc.getTextWidth(scanLabel);
+      doc.text(scanLabel, M + (CW - scanTW) / 2, y);
+      doc.setTextColor(0, 0, 0);
+      y += p.lineGap + 0.5;
+    } catch (err) {
+      console.warn("Receipt QR embed failed:", err);
+    }
+  }
 
   // ── FOOTER ──────────────────────────────────────────────
   y += 2;
@@ -816,11 +836,31 @@ function renderReceipt(pageHeight, data, receiptSize) {
   return doc;
 }
 
-// Generate the receipt PDF and return as a base64 string (for QZ Tray printing).
+/** Attach a verification QR (if invoice + store are known) then build the PDF. */
+export async function prepareReceiptPdfData(data = {}) {
+  if (data.qrDataUrl) return data;
+  const invoiceNumber = data.orderInfo?.invoice_number || data.invoice_number;
+  const storeId = data.storeId || data.settings?.storeId;
+  const verifyUrl = data.verifyUrl || buildReceiptVerifyUrl({ invoiceNumber, storeId });
+  if (!verifyUrl) return data;
+  try {
+    const qrDataUrl = await generateReceiptQrDataUrl(verifyUrl);
+    return { ...data, verifyUrl, qrDataUrl };
+  } catch (err) {
+    console.warn("Receipt QR generation failed:", err);
+    return data;
+  }
+}
 
+// Generate the receipt PDF and return as a base64 string (for QZ Tray printing).
 export function generateReceiptPDFBase64(data, receiptSize = "80mm") {
   const doc = generateReceiptPDF(data, receiptSize);
   return doc.output("datauristring").split(",")[1];
+}
+
+export async function generateReceiptPDFBase64Async(data, receiptSize = "80mm") {
+  const ready = await prepareReceiptPdfData(data);
+  return generateReceiptPDFBase64(ready, receiptSize);
 }
 
 // Generate the receipt PDF and return as a Blob URL for preview.
@@ -828,4 +868,9 @@ export function generateReceiptPDFUrl(data, receiptSize = "80mm") {
   const doc = generateReceiptPDF(data, receiptSize);
   const blob = doc.output("blob");
   return URL.createObjectURL(blob);
+}
+
+export async function generateReceiptPDFUrlAsync(data, receiptSize = "80mm") {
+  const ready = await prepareReceiptPdfData(data);
+  return generateReceiptPDFUrl(ready, receiptSize);
 }

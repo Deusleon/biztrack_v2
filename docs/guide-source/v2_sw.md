@@ -44,11 +44,11 @@ Kila mtumiaji ana akaunti yake yenye barua pepe na nenosiri.
 Ukishaingia unafika kwenye Dashibodi, yenye salamu na jina la duka unalofanyia kazi. Tumia [[Refresh]] kupakia takwimu upya. Inaonyesha:
 
 - [[Today's Sales]] — mapato na idadi ya mauzo ya leo, pamoja na mabadiliko ukilinganisha na jana.
-- [[This Month]] — mapato na idadi ya mauzo ya mwezi huu hadi sasa.
+- [[Today's Profit]] — faida ya leo (mauzo ukitoa gharama ya bidhaa na matumizi), pamoja na mabadiliko ukilinganisha na jana.
 - [[Amount Due]] — pesa zinazodaiwa kwenye mauzo ya leo. Bofya kufungua Madeni.
 - [[Expenses]] — ulichotumia mwezi huu.
-- [[Revenue Trend]] — mchoro wa mapato ya siku za karibuni.
-- [[Payment Method Breakdown]] — wateja walivyolipa.
+- [[Revenue Trend]] — mchoro wa mapato ya siku za karibuni, wenye tarehe kwenye mhimili wa X na kiasi kulingana na mipangilio ya sarafu na desimali.
+- [[Monthly Statistics]] — muhtasari wa mapato, idadi ya mauzo, matumizi na faida ya mwezi huu.
 - [[Recent sales]] na [[Top Products]], pamoja na [[View all]] kufungua orodha kamili.
 - [[Quick Actions]] — njia za mkato kwenda kurasa unazotumia zaidi, kama Ankara, Ripoti ya Siku, Bidhaa, Wateja, Oda za Ununuzi, Matumizi na Ripoti za Mauzo. Zinaonekana zile tu ambazo jukumu lako linaruhusiwa.
 
@@ -293,14 +293,14 @@ Tumia [[Clear]] kuondoa kila kitu kwenye mauzo na kuanza upya.
 
 PATH: [[Sales]] › [[Pending Orders]]
 
-Hapa unaona oda zote zilizohifadhiwa lakini hazijakamilika.
+Hapa unaona oda zilizohifadhiwa lakini hazijakamilika, pamoja na oda zilizouzwa zilizotoka kwenye pending na kuwekwa kwa kumbukumbu.
 
 1. Nenda [[Sales]] → [[Pending Orders]].
-2. Tafuta oda kwa namba au mteja.
-3. Tumia vitendo vya safu: [[View]] inafungua maelezo ya oda; [[Edit]] inaifungua tena kwenye ukurasa wa Ankara; [[Cancel order]] inaighairi; [[Delete]] inaifuta.
-4. Kwenye maelezo ya oda unaweza [[Record Payment]] (tazama orodha ya [[Payments]]), [[Edit]] oda, au kubofya [[Complete Sale]] kuikamilisha kama mauzo.
+2. Tafuta oda kwa namba au mteja. Chuja kwa pending, sold au cancelled.
+3. Tumia vitendo vya safu: [[View]] inafungua maelezo ya oda; [[Edit]] inaifungua tena kwenye ukurasa wa Ankara; [[Cancel order]] inaighairi; [[Delete]] inaifuta. Oda zilizouzwa zinabaki kwenye orodha kwa kumbukumbu na haziwezi kuhaririwa, kughairiwa wala kufutwa.
+4. Kwenye maelezo ya oda unaweza [[Record Payment]] (tazama orodha ya [[Payments]]), [[Edit]] oda, au kubofya [[Complete Sale]] kuikamilisha kama mauzo. Ikiwa oda haijalipwa kikamilifu, BizTrack inaonya kuwa itauzwa kama mkopo kabla ya kuthibitisha.
 
-> NOTE: Kughairi oda yenye malipo kunaomba maelezo — [[Reason for cancelling]]. Oda yenye malipo haiwezi kufutwa, inaweza kughairiwa tu. Baada ya oda iliyoghairiwa unaweza kutumia [[Reopen]] ikihitaji kufanyiwa kazi tena.
+> NOTE: Kughairi oda yenye malipo kunaomba maelezo — [[Reason for cancelling]]. Oda yenye malipo haiwezi kufutwa, inaweza kughairiwa tu. Baada ya oda iliyoghairiwa unaweza kutumia [[Reopen]] ikihitaji kufanyiwa kazi tena. Oda iliyouzwa inabaki kama rekodi iliyofungwa inayohusiana na ankara yake.
 
 ## 4.4  Historia ya Mauzo
 
@@ -311,8 +311,9 @@ Orodha ya kila mauzo, ikiwa na kutafuta kwa namba ya ankara au mteja na vichujio
 1. Nenda [[Sales]] → [[Sales History]].
 2. Bofya [[View]] kuona maelezo ya ankara.
 3. Bofya [[Receipt]] kuchapa risiti upya, [[Delivery Note]] kupakua hati ya kupeleka bidhaa kama PDF, au [[Sales Return]] kurudisha bidhaa za mauzo haya.
+4. Ikiwa jukumu lako lina [[Edit sales date]] (`edit_sales_date`), tumia [[Edit sales date]] kurekebisha mauzo yaliyorekodiwa kwa tarehe isiyo sahihi (mfano mauzo ya nyuma). Tarehe mpya inasasisha kila mahali mauzo hayo yanaonekana — historia, ripoti, harakati za hisa na rekodi za mikopo.
 
-> NOTE: Uchapishaji wa risiti una njia mbili, zinazowekwa kwenye Mipangilio → Usanidi. Ukiwa na [[Receipt Preview]] imewashwa, ukurasa wa risiti unafunguka kwanza na unachapisha kutoka hapo. Ukiwa na Receipt Preview imezimwa (na [[Enable Receipt Printing]] imewashwa), risiti inatumwa moja kwa moja kwenye printa kupitia QZ Tray. QZ Tray lazima iwe imesakinishwa na inafanya kazi kwenye kompyuta iliyounganishwa na printa. Kwenye ukurasa wa risiti, kitufe cha [[Print with QZ Tray]] pia kinatuma risiti moja kwa moja kwenye printa, na [[Print]] inafungua dirisha la kuchapisha la kivinjari.
+> NOTE: Uchapishaji wa risiti una njia mbili, zinazowekwa kwenye Mipangilio → Usanidi. Ukiwa na [[Receipt Preview]] imewashwa, ukurasa wa risiti unafunguka kwanza na unachapisha kutoka hapo kwa [[Print]] (QZ Tray). Ukiwa na Receipt Preview imezimwa (na [[Enable Receipt Printing]] imewashwa), risiti inatumwa moja kwa moja kwenye printa kupitia QZ Tray. QZ Tray lazima iwe imesakinishwa na inafanya kazi kwenye kompyuta iliyounganishwa na printa. Kila risiti iliyochapishwa ina msimbo wa QR; ukiuchanganua unafungua ukurasa wa umma wa kuthibitisha ankara hiyo.
 
 ## 4.5  Marejesho ya Mauzo
 

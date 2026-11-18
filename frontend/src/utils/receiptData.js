@@ -6,11 +6,12 @@ import { t } from './i18n';
  * `sale` can be either the reply of "sell" ({ invoice_number, items, customerInfo, paymentInfo, … }) or a row loaded from
  * sales history ({ payment, items }); `settings` is the store's settings (business name, currency, VAT, discount…).
  */
-export const buildReceiptData = ({ sale = {}, settings = {}, cashierName }) => {
+export const buildReceiptData = ({ sale = {}, settings = {}, cashierName, storeId }) => {
   const pay = sale.paymentInfo || sale.payment || {};
   const cust = sale.customerInfo || { name: pay.customer_name, phone: pay.customer_phone };
   const rawItems = sale.items || [];
   const items = rawItems.map((i) => ({ id: i.product_id || i.id, name: i.name || i.product_name, quantity: i.quantity, price: i.price, discount: i.discount }));
+  const resolvedStoreId = storeId || settings.storeId || localStorage.getItem('currentStoreId') || '';
   return {
     businessInfo: {
       name: settings.businessName || 'BizTrack',
@@ -28,7 +29,8 @@ export const buildReceiptData = ({ sale = {}, settings = {}, cashierName }) => {
       dueDate: pay.due_date,
     },
     items,
-    settings: { ...settings },
+    storeId: resolvedStoreId,
+    settings: { ...settings, storeId: resolvedStoreId },
   };
 };
 

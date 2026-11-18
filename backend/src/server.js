@@ -82,6 +82,7 @@ import inventoryRoutes from './routes/inventory.routes.js';
 import stockCountRoutes from './routes/stockCount.routes.js';
 import stockTransferRoutes from './routes/stockTransfer.routes.js';
 import salesRoutes from './routes/sales.routes.js';
+import publicReceiptRoutes from './routes/publicReceipt.routes.js';
 import customerRoutes from './routes/customer.routes.js';
 import supplierRoutes from './routes/supplier.routes.js';
 import imageRoutes from './routes/images.routes.js';
@@ -155,6 +156,8 @@ app.use('/api/stock-count', stockCountRoutes);
 app.use('/api/stock-transfer', stockTransferRoutes);
 // Sales routes
 app.use('/api/sales', salesRoutes);
+// Public receipt verification (QR scan — no login)
+app.use('/api/public/receipts', publicReceiptRoutes);
 // Customer routes
 app.use('/api/customers', customerRoutes);
 // Supplier routes

@@ -13,7 +13,7 @@ import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, DatePicker, Input, NumberInput, Select, Textarea } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { dateOnly, DetailGrid } from '../sales/common';
-import { formatCurrency, removeNumberFormatting } from '../../utils/numberUtils';
+import { formatCurrency, removeNumberFormatting, getMoneyInputProps} from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
 const METHODS = ['cash', 'mobile_money', 'bank_transfer', 'cheque'];
@@ -40,6 +40,7 @@ export default function Expenses() {
   const [view, setView] = useState(null);
   const [newCat, setNewCat] = useState(false);
   const money = (v) => formatCurrency(Number(v) || 0, settings);
+  const moneyInput = getMoneyInputProps(settings);
   const canCreate = can('create_expenses'); const canUpdate = can('update_expenses'); const canDelete = can('delete_expenses');
   const loadCats = () => expenseService.categories().then((r) => setCats(r.data.map((c) => (typeof c === 'string' ? c : c.name || c.category)))).catch(() => setCats([]));
   useEffect(() => { loadCats(); }, [currentStore?.id]);
@@ -62,7 +63,7 @@ export default function Expenses() {
   const remove = async () => { try { await expenseService.remove(confirm.id); showSuccess(t('expense_deleted', lang)); list.reload(); } catch (err) { showError(err.message); } setConfirm(null); };
 
   const columns = [
-    { key: 'expense_date', label: t('date', lang), render: (e) => dateOnly(e.expense_date) },
+    { key: 'expense_date', label: t('date', lang), render: (e) => dateOnly(e.expense_date, settings) },
     { key: 'category', label: t('category', lang), render: (e) => <span className="font-medium text-gray-900">{e.category}</span> },
     { key: 'description', label: t('description', lang), render: (e) => e.description || '—' },
     { key: 'payment_method', label: t('payment_method', lang), render: (e) => t(e.payment_method, lang) },
@@ -71,7 +72,7 @@ export default function Expenses() {
     { key: 'recorded_by', label: t('recorded_by', lang), render: (e) => e.recorded_by || '—' },
   ];
   const exportCols = [{ key: 'index', title: 'no.', width: '45px' }, { key: 'expense_date', title: 'date' }, { key: 'category', title: 'category' }, { key: 'description', title: 'description' }, { key: 'payment_method', title: 'payment_method' }, { key: 'amount', title: 'amount' }];
-  const toRows = (rows, off = 0) => rows.map((e, i) => ({ index: `${off + i + 1}.`, expense_date: dateOnly(e.expense_date), category: e.category, description: e.description || '', payment_method: t(e.payment_method, lang), amount: money(e.amount) }));
+  const toRows = (rows, off = 0) => rows.map((e, i) => ({ index: `${off + i + 1}.`, expense_date: dateOnly(e.expense_date, settings), category: e.category, description: e.description || '', payment_method: t(e.payment_method, lang), amount: money(e.amount) }));
   const exportRows = useMemo(() => toRows(list.rows, (list.pagination.currentPage - 1) * list.pagination.limit), [list.rows, settings, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   const loadAll = async () => { const all = []; let p = 1; let pages = 1; do { const r = await fetchExpenses({ ...list.filters, page: p, limit: 100 }); all.push(...r.data); pages = r.pagination.totalPages; p += 1; } while (p <= pages && p <= 200); return toRows(all); };
   return (
@@ -97,7 +98,7 @@ export default function Expenses() {
       <FormModal isOpen={!!view} onClose={() => setView(null)} size="xl" title={view?.category || t('expenses', lang)}>
         {view && (
           <div className="space-y-5 text-left">
-            <DetailGrid items={[[t('category', lang), view.category], [t('amount', lang), money(view.amount)], [t('date', lang), dateOnly(view.expense_date)], [t('payment_method', lang), t(view.payment_method, lang)], [t('reference_number', lang), view.reference_number], [t('recorded_by', lang), view.recorded_by]]} />
+            <DetailGrid items={[[t('category', lang), view.category], [t('amount', lang), money(view.amount)], [t('date', lang), dateOnly(view.expense_date, settings)], [t('payment_method', lang), t(view.payment_method, lang)], [t('reference_number', lang), view.reference_number], [t('recorded_by', lang), view.recorded_by]]} />
             <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-600"><p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{t('description', lang)}</p>{view.description || '—'}</div>
             <div className="flex justify-end gap-2">
               {canUpdate && <Button variant="secondary" onClick={() => { const row = view; setView(null); openEdit(row); }}>{t('edit', lang)}</Button>}
@@ -111,7 +112,7 @@ export default function Expenses() {
           <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>
             <Select label={t('category', lang)} required searchable value={newCat ? '__new__' : form.category} placeholder={t('select_category', lang)} onChange={(e) => { if (e.target.value === '__new__') { setNewCat(true); setForm((f) => ({ ...f, category: '' })); } else { setNewCat(false); setForm((f) => ({ ...f, category: e.target.value })); } }} options={[...[...new Set([...cats, ...(newCat ? [] : [form.category])].filter(Boolean))].map((c) => ({ value: c, label: c })), { value: '__new__', label: t('new_expense_category', lang) }]} />
             {newCat && <Input label={t('new_expense_category', lang)} required autoFocus value={form.category} onChange={set('category')} placeholder={t('category', lang)} />}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><NumberInput label={t('amount', lang)} required decimals={settings?.defaultDecimalPlaces ?? 0} value={form.amount} onChange={set('amount')} /><DatePicker label={t('date', lang)} value={form.expense_date} onChange={set('expense_date')} /></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><NumberInput label={t('amount', lang)} required value={form.amount} onChange={set('amount')} {...moneyInput} /><DatePicker label={t('date', lang)} value={form.expense_date} onChange={set('expense_date')} /></div>
             <div className="grid grid-cols-2 gap-3"><Select label={t('payment_method', lang)} value={form.payment_method} onChange={set('payment_method')} options={METHODS.map((m) => ({ value: m, label: t(m, lang) }))} /><Input label={t('reference_number', lang)} value={form.reference_number} onChange={set('reference_number')} /></div>
             <Textarea rows={2} label={t('description', lang)} value={form.description} onChange={set('description')} />
             <div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{modal.mode === 'edit' ? t('ui_update', lang) : t('save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setModal(null)}>{t('ui_cancel', lang)}</Button></div>

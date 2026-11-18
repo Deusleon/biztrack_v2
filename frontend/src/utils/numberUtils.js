@@ -12,8 +12,31 @@ const MAX_DECIMALS = 0;      // Maximum decimal places (default)
  * @param {number} maxDecimals - Override decimal places (optional)
  * @returns {string} - Formatted string with or without currency
  */
+export const resolveMoneyDecimals = (settings = {}, maxDecimals = null) => {
+    if (maxDecimals !== null && maxDecimals !== undefined && maxDecimals !== "") {
+        const n = Number(maxDecimals);
+        return Number.isFinite(n) ? n : MAX_DECIMALS;
+    }
+    const fromSettings = Number(settings?.defaultDecimalPlaces);
+    return Number.isFinite(fromSettings) ? fromSettings : MAX_DECIMALS;
+};
+
+/** Placeholder for money inputs — e.g. "0" or "0.00" with commas from settings. */
+export const getMoneyInputPlaceholder = (settings = {}, maxDecimals = null) =>
+    formatNumberWithCommas(0, resolveMoneyDecimals(settings, maxDecimals));
+
+/** Props to pass to NumberInput for money fields so every screen formats the same way. */
+export const getMoneyInputProps = (settings = {}, maxDecimals = null) => {
+    const decimals = resolveMoneyDecimals(settings, maxDecimals);
+    return {
+        decimals,
+        allowDecimals: decimals > 0,
+        placeholder: getMoneyInputPlaceholder(settings, decimals),
+    };
+};
+
 export const formatCurrency = (value, settings = {}, maxDecimals = null) => {
-    const decimals = maxDecimals !== null ? maxDecimals : (settings?.defaultDecimalPlaces || MAX_DECIMALS);
+    const decimals = resolveMoneyDecimals(settings, maxDecimals);
     const formattedNumber = formatNumberWithCommas(value, decimals, true);
     
     if (!formattedNumber) return "";
@@ -23,15 +46,14 @@ export const formatCurrency = (value, settings = {}, maxDecimals = null) => {
         return formattedNumber;
     }
     
-    const currency = settings.defaultCurrency;
+    const currency = settings.defaultCurrency || "";
     const position = settings.defaultCurrencyPosition || "before";
     
     // Position currency based on setting
     if (position === "after") {
-        return `${formattedNumber} ${currency}`;
-    } else {
-        return `${currency} ${formattedNumber}`;
+        return currency ? `${formattedNumber} ${currency}` : formattedNumber;
     }
+    return currency ? `${currency} ${formattedNumber}` : formattedNumber;
 };
 
 // Format number with commas and enforce digit limits

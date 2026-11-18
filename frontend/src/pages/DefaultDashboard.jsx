@@ -7,7 +7,9 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useStoreSettings } from '../hooks/useStoreSettings';
 import { ICON_PATHS } from '../utils/navigation';
+import { formatDateOnly } from '../utils/formatDateLocalized';
 import { t } from '../utils/i18n';
 
 // label = translation key · icon = a key of ICON_PATHS · permission = the one the menu entry needs
@@ -29,8 +31,9 @@ const Svg = ({ d, className = 'w-5 h-5' }) => (
 export default function DefaultDashboard() {
   const { can } = useAuth();
   const { lang } = useLanguage();
+  const { settings } = useStoreSettings();
   const actions = ACTIONS.filter((a) => can(a.permission));
-  const dateLabel = new Date().toLocaleDateString(lang === 'sw' ? 'sw-TZ' : undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const dateLabel = formatDateOnly(new Date(), settings);
 
   return (
     <div className="space-y-4">

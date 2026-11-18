@@ -39,8 +39,8 @@ export default function Orders() {
   const columns = [
     { key: 'po_number', label: t('po_number', lang), render: (o) => <span className="font-medium text-gray-900">#{o.po_number}</span> },
     { key: 'supplier_name', label: t('supplier', lang) },
-    { key: 'order_date', label: t('date', lang), render: (o) => dateOnly(o.order_date) },
-    { key: 'expected_delivery_date', label: t('expected_delivery', lang), render: (o) => dateOnly(o.expected_delivery_date) || '—' },
+    { key: 'order_date', label: t('date', lang), render: (o) => dateOnly(o.order_date, settings) },
+    { key: 'expected_delivery_date', label: t('expected_delivery', lang), render: (o) => dateOnly(o.expected_delivery_date, settings) || '—' },
     { key: 'items_count', label: t('items', lang), align: 'right' },
     { key: 'total_amount', label: t('total', lang), align: 'right', render: (o) => money(o.total_amount) },
     { key: 'status', label: t('status', lang), render: (o) => <PStatus value={o.status} /> },
@@ -68,7 +68,7 @@ export default function Orders() {
       <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="xl" title={`${t('purchase_order', lang)} #${d?.po_number || ''}`}>
         {d && (
           <div className="space-y-4">
-            <Dl items={[[t('supplier', lang), d.supplier_name], [t('date', lang), dateOnly(d.order_date)], [t('expected_delivery', lang), dateOnly(d.expected_delivery_date)], [t('status', lang), <PStatus key="s" value={d.status} />], [t('payment_terms', lang), d.payment_terms], [t('delivery_address', lang), d.delivery_address], [t('created_by', lang), d.created_by_name], [t('approved_by', lang), d.approved_by_name]]} />
+            <Dl items={[[t('supplier', lang), d.supplier_name], [t('date', lang), dateOnly(d.order_date, settings)], [t('expected_delivery', lang), dateOnly(d.expected_delivery_date, settings)], [t('status', lang), <PStatus key="s" value={d.status} />], [t('payment_terms', lang), d.payment_terms], [t('delivery_address', lang), d.delivery_address], [t('created_by', lang), d.created_by_name], [t('approved_by', lang), d.approved_by_name]]} />
             <div className="overflow-x-auto border border-gray-200 rounded-md"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('quantity', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('received', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('pending', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('unit_price', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('total', lang)}</th></tr></thead>
               <tbody>{(d.items || []).map((i) => <tr key={i.id} className="border-t border-gray-100"><td className="px-3 py-2.5 text-left">{i.product_name}</td><td className="px-3 py-2.5 text-right">{num(i.quantity)}</td><td className="px-3 py-2.5 text-right">{num(i.received_quantity)}</td><td className="px-3 py-2.5 text-right">{num(i.pending_quantity)}</td><td className="px-3 py-2.5 text-right">{money(i.unit_price)}</td><td className="px-3 py-2.5 text-right font-medium">{money(i.line_total)}</td></tr>)}</tbody></table></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">

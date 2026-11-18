@@ -71,7 +71,7 @@ export default function StockAdjustment() {
   const open = async (a) => { try { setDetail((await inventoryService.adjustmentDetail(a.id)).adjustment); } catch (err) { showError(err.message); } };
 
   const columns = [
-    { key: 'created_at', label: t('date', lang), render: (a) => dateOnly(a.created_at) },
+    { key: 'created_at', label: t('date', lang), render: (a) => dateOnly(a.created_at, settings) },
     { key: 'product_name', label: t('product_name', lang), render: (a) => <span className="font-medium text-gray-900">{a.product_name}</span> },
     { key: 'adjustment_type', label: t('type', lang), render: (a) => <span className={`px-2 py-0.5 rounded text-xs font-medium ${a.adjustment_type === 'add' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{t(a.adjustment_type === 'add' ? 'stock_add' : 'stock_subtract', lang)}</span> },
     { key: 'quantity', label: t('quantity', lang), align: 'right', render: (a) => `${a.adjustment_type === 'add' ? '+' : '−'}${formatNumberWithCommas(a.quantity)} ${t(a.unit || a.product_unit, lang)}` },
@@ -95,7 +95,7 @@ export default function StockAdjustment() {
             { key: 'adjustment_count', label: t('adjustments', lang), align: 'right' },
             { key: 'total_added', label: t('stock_add', lang), align: 'right', render: (p) => <span className="text-green-700">+{formatNumberWithCommas(p.total_added)}</span> },
             { key: 'total_subtracted', label: t('stock_subtract', lang), align: 'right', render: (p) => <span className="text-red-600">−{formatNumberWithCommas(p.total_subtracted)}</span> },
-            { key: 'last_adjustment', label: t('last_adjustment', lang), render: (p) => dateOnly(p.last_adjustment) || '—' },
+            { key: 'last_adjustment', label: t('last_adjustment', lang), render: (p) => dateOnly(p.last_adjustment, settings) || '—' },
           ]} data={byProduct.rows} loading={byProduct.loading} rowId="product_id" emptyMessage={t('ui_nothing_yet', lang)} renderActions={(p) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => openProduct(p) }]} />} />
         )}
         {tab === 'history' && (<>
@@ -112,7 +112,7 @@ export default function StockAdjustment() {
       </div>
       <FormModal isOpen={!!prodHist} onClose={() => setProdHist(null)} size="xl" title={`${t('adjustment_history', lang)} · ${prodHist?.product?.name || ''}`}>
         {prodHist && <div className="space-y-4 text-left"><div className="overflow-x-auto border border-gray-200 rounded-md"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('date', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('type', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('quantity', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('reason', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('created_by', lang)}</th></tr></thead>
-          <tbody>{prodHist.rows.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">{t('ui_nothing_yet', lang)}</td></tr>}{prodHist.rows.map((a) => <tr key={a.id} className="border-t border-gray-100"><td className="px-3 py-2.5">{dateOnly(a.created_at)}</td><td className="px-3 py-2.5">{t(a.adjustment_type === 'add' ? 'stock_add' : 'stock_subtract', lang)}</td><td className="px-3 py-2.5 text-right">{formatNumberWithCommas(a.quantity)}</td><td className="px-3 py-2.5">{t(a.reason, lang)}</td><td className="px-3 py-2.5">{a.created_by_name || '—'}</td></tr>)}</tbody></table></div><div className="flex justify-end"><Button variant="secondary" onClick={() => setProdHist(null)}>{t('close', lang)}</Button></div></div>}
+          <tbody>{prodHist.rows.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">{t('ui_nothing_yet', lang)}</td></tr>}{prodHist.rows.map((a) => <tr key={a.id} className="border-t border-gray-100"><td className="px-3 py-2.5">{dateOnly(a.created_at, settings)}</td><td className="px-3 py-2.5">{t(a.adjustment_type === 'add' ? 'stock_add' : 'stock_subtract', lang)}</td><td className="px-3 py-2.5 text-right">{formatNumberWithCommas(a.quantity)}</td><td className="px-3 py-2.5">{t(a.reason, lang)}</td><td className="px-3 py-2.5">{a.created_by_name || '—'}</td></tr>)}</tbody></table></div><div className="flex justify-end"><Button variant="secondary" onClick={() => setProdHist(null)}>{t('close', lang)}</Button></div></div>}
       </FormModal>
 
       <FormModal isOpen={!!form} onClose={() => !saving && setForm(null)} size="lg" title={t('new_adjustment', lang)}>
@@ -133,7 +133,7 @@ export default function StockAdjustment() {
       </FormModal>
       <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="xl" title={t('stock_adjustment', lang)}>
         {d && <div className="space-y-5 text-left">
-          <DetailGrid items={[[t('product_name', lang), d.product_name], [t('type', lang), t(d.adjustment_type === 'add' ? 'stock_add' : 'stock_subtract', lang)], [t('quantity', lang), `${formatNumberWithCommas(d.quantity)} ${t(d.product_unit, lang)}`], [t('reason', lang), t(d.reason, lang)], [t('created_by', lang), d.created_by_name], [t('date', lang), dateOnly(d.created_at)]]} />
+          <DetailGrid items={[[t('product_name', lang), d.product_name], [t('type', lang), t(d.adjustment_type === 'add' ? 'stock_add' : 'stock_subtract', lang)], [t('quantity', lang), `${formatNumberWithCommas(d.quantity)} ${t(d.product_unit, lang)}`], [t('reason', lang), t(d.reason, lang)], [t('created_by', lang), d.created_by_name], [t('date', lang), dateOnly(d.created_at, settings)]]} />
           <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-600"><p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{t('notes', lang)}</p>{d.notes || '—'}</div>
           <div className="flex justify-end"><Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button></div>
         </div>}

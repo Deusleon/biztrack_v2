@@ -47,7 +47,7 @@ export const printReceipt = async ({ pdfBase64, printerName, receiptSize = '80mm
 
 /** Send a receipt straight to the default printer. No browser print window. */
 export const printReceiptDirect = async ({ receiptData, printerName, receiptSize = '80mm' }) => {
-  const { generateReceiptPDFBase64 } = await import('./receiptPdf'); // the PDF engine is only needed when something is printed
-  const pdfBase64 = generateReceiptPDFBase64(receiptData, receiptSize);
+  const { generateReceiptPDFBase64Async } = await import('./receiptPdf'); // the PDF engine is only needed when something is printed
+  const pdfBase64 = await generateReceiptPDFBase64Async(receiptData, receiptSize);
   await printReceipt({ pdfBase64, printerName, receiptSize });
 };

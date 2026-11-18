@@ -62,7 +62,7 @@ export default function Returns() {
     { key: 'return_number', label: t('return_number', lang), render: (r) => <span className="font-medium text-gray-900">#{r.return_number}</span> },
     { key: 'supplier_name', label: t('supplier', lang) },
     { key: 'grn_number', label: t('grn', lang), render: (r) => (r.grn_number ? `#${r.grn_number}` : '—') },
-    { key: 'return_date', label: t('date', lang), render: (r) => dateOnly(r.return_date) },
+    { key: 'return_date', label: t('date', lang), render: (r) => dateOnly(r.return_date, settings) },
     { key: 'return_reason', label: t('reason', lang), render: (r) => t(r.return_reason, lang) },
     { key: 'total_value', label: t('total', lang), align: 'right', render: (r) => money(r.total_value) },
     { key: 'status', label: t('status', lang), render: (r) => <PStatus value={r.status} /> },
@@ -88,7 +88,7 @@ export default function Returns() {
       <FormModal isOpen={!!create} onClose={() => !busy && setCreate(null)} size="xl" title={t('new_return', lang)}>
         {create && (
           <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>
-            <Select label={t('grn', lang)} required searchable value={create.grn?.id || ''} onChange={(e) => pickGrn(e.target.value)} placeholder={t('select_grn', lang)} options={grns.map((g) => ({ value: g.id, label: `#${g.grn_number} · ${g.supplier_name} · ${dateOnly(g.received_date)}` }))} />
+            <Select label={t('grn', lang)} required searchable value={create.grn?.id || ''} onChange={(e) => pickGrn(e.target.value)} placeholder={t('select_grn', lang)} options={grns.map((g) => ({ value: g.id, label: `#${g.grn_number} · ${g.supplier_name} · ${dateOnly(g.received_date, settings)}` }))} />
             {create.grn && <>
               <div className="overflow-x-auto border border-gray-100 rounded"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-2 py-2 text-right">{t('received', lang)}</th><th className="px-2 py-2 text-right">{t('returnable', lang)}</th><th className="px-2 py-2 w-24 text-right">{t('return_quantity', lang)}</th><th className="px-2 py-2 w-40">{t('condition', lang)}</th><th className="px-3 py-2 text-right">{t('unit_cost', lang)}</th></tr></thead>
                 <tbody>{create.lines.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-400">{t('nothing_to_return', lang)}</td></tr>}{create.lines.map((l, k) => <tr key={l.item.id} className="border-t border-gray-100"><td className="px-3 py-2 text-left">{l.item.product_name}</td><td className="px-2 py-2 text-right">{num(l.item.received_quantity)}</td><td className="px-2 py-2 text-right">{num(l.item.remaining_returnable_quantity)}</td>
@@ -106,7 +106,7 @@ export default function Returns() {
       <FormModal isOpen={!!d} onClose={() => setDetail(null)} size="xl" title={`${t('supplier_return', lang)} #${d?.return_number || ''}`}>
         {d && (
           <div className="space-y-4">
-            <Dl items={[[t('supplier', lang), d.supplier_name], [t('grn', lang), d.grn_number && `#${d.grn_number}`], [t('return_date', lang), dateOnly(d.return_date)], [t('status', lang), <PStatus key="s" value={d.status} />], [t('return_reason', lang), t(d.return_reason, lang)], [t('refund_method', lang), t(d.refund_method, lang)], [t('total', lang), money(d.total_value)], [t('created_by', lang), d.created_by_name], [t('approved_by', lang), d.approved_by_name]]} />
+            <Dl items={[[t('supplier', lang), d.supplier_name], [t('grn', lang), d.grn_number && `#${d.grn_number}`], [t('return_date', lang), dateOnly(d.return_date, settings)], [t('status', lang), <PStatus key="s" value={d.status} />], [t('return_reason', lang), t(d.return_reason, lang)], [t('refund_method', lang), t(d.refund_method, lang)], [t('total', lang), money(d.total_value)], [t('created_by', lang), d.created_by_name], [t('approved_by', lang), d.approved_by_name]]} />
             <div className="overflow-x-auto border border-gray-200 rounded-md"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('quantity', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('condition', lang)}</th><th className="px-3 py-2.5 text-left font-medium">{t('batch_number', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('total', lang)}</th></tr></thead>
               <tbody>{(d.items || []).map((i) => <tr key={i.id} className="border-t border-gray-100"><td className="px-3 py-2.5 text-left">{i.product_name}</td><td className="px-3 py-2.5 text-right">{num(i.quantity)}</td><td className="px-3 py-2.5 text-left">{t(i.condition, lang)}</td><td className="px-3 py-2.5 text-left">{i.batch_number || '—'}</td><td className="px-3 py-2.5 text-right font-medium">{money(i.line_total)}</td></tr>)}</tbody></table></div>
             <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-600"><p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{t('notes', lang)}</p>{[d.reason_details, d.notes].filter(Boolean).join(' · ') || '—'}</div>

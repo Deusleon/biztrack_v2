@@ -2,6 +2,7 @@
 import { Input, Select, DatePicker } from '../../components/ui';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { t } from '../../utils/i18n';
+import { formatDateOnly } from '../../utils/formatDateLocalized';
 
 const TONES = { green: 'bg-green-50 text-green-700', red: 'bg-red-50 text-red-700', amber: 'bg-amber-50 text-amber-700', gray: 'bg-gray-100 text-gray-600', blue: 'bg-blue-50 text-blue-700' };
 const STATUS_TONE = { paid: 'green', completed: 'green', approved: 'green', active: 'green', sold: 'green', cash: 'green', partial_paid: 'amber', partial: 'amber', pending: 'amber', saved: 'amber', onprocess: 'amber', credit: 'blue', partly_returned: 'amber', returned: 'red', overdue: 'red', unpaid: 'red', not_paid: 'red', rejected: 'red', cancelled: 'red', canceled: 'red' };
@@ -29,7 +30,15 @@ export function FilterBar({ list, statusOptions, statusKey = 'status', dates = t
 
 /** Server paging block { total, page, limit, totalPages } → the DataTable's { totalItems, currentPage, … } */
 export const toPaging = (p = {}, limit = 25) => ({ currentPage: p.page ?? 1, totalPages: p.totalPages ?? 1, totalItems: p.total ?? 0, limit: p.limit ?? limit });
-export const dateOnly = (v) => (v ? String(v).slice(0, 10) : '');
+/** ISO date (YYYY-MM-DD) for form values. Pass store settings as 2nd arg to format for display. */
+export const dateOnly = (v, settings) => {
+  if (!v) return '';
+  if (settings && typeof settings === 'object') {
+    // lazy import avoided — use formatDateOnly via dynamic would be async; import at top
+    return formatDateOnly(v, settings);
+  }
+  return String(v).slice(0, 10);
+};
 
 const SYSTEM_NOTE = /^order_modified_on_(.+)_by_[0-9a-f-]{36}$/i;
 /** A saved edit used to stamp the cart with a timestamp and a user id. Show a date instead. */
