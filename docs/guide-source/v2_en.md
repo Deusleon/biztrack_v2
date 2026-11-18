@@ -44,11 +44,11 @@ Every user has their own account with an email address and a password.
 After you log in you land on the Dashboard, with a greeting and the name of the store you are working in. Use [[Refresh]] to reload the figures. It shows:
 
 - [[Today's Sales]] — revenue and number of sales today, with the change compared with yesterday.
-- [[This Month]] — revenue and number of sales for the month so far.
+- [[Today's Profit]] — today's profit (sales less cost of goods and expenses), with the change compared with yesterday.
 - [[Amount Due]] — money still owed on today's sales. Click it to open Debits.
 - [[Expenses]] — what you spent this month.
-- [[Revenue Trend]] — a chart of revenue over the recent days.
-- [[Payment Method Breakdown]] — how customers paid.
+- [[Revenue Trend]] — a chart of revenue over the recent days, with labelled dates on the X axis and amounts formatted using your currency and decimal settings.
+- [[Monthly Statistics]] — this month's revenue, sales count, expenses and profit in summary.
 - [[Recent sales]] and [[Top Products]], with [[View all]] to open the full list.
 - [[Quick Actions]] — shortcuts to the pages you use most, such as Invoice, Day Report, Products, Customers, Purchase Orders, Expenses and Sales Reports. Only the shortcuts your role may use are shown.
 
@@ -293,14 +293,14 @@ Use [[Clear]] to remove everything from the sale and start again.
 
 PATH: [[Sales]] › [[Pending Orders]]
 
-Here you see all orders that were saved but not yet completed.
+Here you see orders that were saved but not yet completed, plus completed (sold) pending orders kept for reference.
 
 1. Go to [[Sales]] → [[Pending Orders]].
-2. Search for an order by number or customer.
-3. Use the row actions: [[View]] opens the order details; [[Edit]] reopens it on the Invoice page; [[Cancel order]] cancels it; [[Delete]] removes it.
-4. In the order details you can [[Record Payment]] (see the [[Payments]] list), [[Edit]] the order, or click [[Complete Sale]] to finish it as a sale.
+2. Search for an order by number or customer. Filter by pending, sold or cancelled.
+3. Use the row actions: [[View]] opens the order details; [[Edit]] reopens it on the Invoice page; [[Cancel order]] cancels it; [[Delete]] removes it. Sold orders stay on the list for reference and cannot be edited, cancelled or deleted.
+4. In the order details you can [[Record Payment]] (see the [[Payments]] list), [[Edit]] the order, or click [[Complete Sale]] to finish it as a sale. If the order is not fully paid, BizTrack warns that it will be sold as credit before you confirm.
 
-> NOTE: Cancelling an order that already has payments asks for a note — [[Reason for cancelling]]. An order with payments cannot be deleted, only cancelled. After a cancelled order you can use [[Reopen]] if it needs to be worked on again.
+> NOTE: Cancelling an order that already has payments asks for a note — [[Reason for cancelling]]. An order with payments cannot be deleted, only cancelled. After a cancelled order you can use [[Reopen]] if it needs to be worked on again. A sold order remains as a locked record linked to its invoice.
 
 ## 4.4  Sales History
 
@@ -311,8 +311,9 @@ A list of every sale, with search by invoice number or customer and filters for 
 1. Go to [[Sales]] → [[Sales History]].
 2. Click [[View]] to see the details of an invoice.
 3. Click [[Receipt]] to reprint the receipt, [[Delivery Note]] to download a delivery note as a PDF, or [[Sales Return]] to return goods from this sale.
+4. If your role includes [[Edit sales date]] (`edit_sales_date`), use [[Edit sales date]] to correct a sale that was recorded on the wrong date (for example a backdated sale). The new date updates everywhere that sale appears — history, reports, inventory movements and credit records.
 
-> NOTE: Receipt printing has two modes, set in Settings → Configurations. With [[Receipt Preview]] on, the receipt page opens first and you print from it. With Receipt Preview off (and [[Enable Receipt Printing]] on), the receipt is sent straight to the printer through QZ Tray. QZ Tray must be installed and running on the computer connected to the printer. On the receipt page, the button [[Print with QZ Tray]] sends the receipt straight to the printer too, and [[Print]] opens the browser's print window.
+> NOTE: Receipt printing has two modes, set in Settings → Configurations. With [[Receipt Preview]] on, the receipt page opens first and you print from there with [[Print]] (QZ Tray). With Receipt Preview off (and [[Enable Receipt Printing]] on), the receipt is sent straight to the printer through QZ Tray. QZ Tray must be installed and running on the computer connected to the printer. Each printed receipt includes a QR code; scanning it opens a public verification page for that invoice.
 
 ## 4.5  Sales Returns
 
@@ -761,7 +762,8 @@ These switches turn features on or off to suit your business:
 | Allow Discount | Enables discounts on sales. |
 | Allow VAT | Shows and calculates VAT on invoices. |
 | Multi-Price Support | Enables price categories (retail, wholesale). |
-| Show Currency | Shows the currency next to prices and totals. |
+| Show Currency | Shows the currency next to prices and totals. Money inputs and totals follow the currency, position and decimal-places settings everywhere. |
+| Default Date Format | How dates appear on screens, receipts and reports. Date pickers and lists use the same format. |
 | Make Price Fixed | Stops the price being changed during a sale. |
 | Use Batch-wise Price | The price depends on the batch of goods received. |
 | Allow Record Sales for Past Dates | Allows a sale to be recorded with an earlier date. |

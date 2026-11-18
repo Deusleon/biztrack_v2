@@ -5,6 +5,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { supplierService, productService } from '../../services/api';
 import { t } from '../../utils/i18n';
+import { formatDateOnly } from '../../utils/formatDateLocalized';
 
 const TONES = { green: 'bg-green-50 text-green-700', red: 'bg-red-50 text-red-700', amber: 'bg-amber-50 text-amber-700', gray: 'bg-gray-100 text-gray-600', blue: 'bg-blue-50 text-blue-700' };
 const TONE_OF = { approved: 'green', received: 'green', paid: 'green', passed: 'green', completed: 'green', active: 'green', credited: 'green',
@@ -60,7 +61,11 @@ export function PFilters({ list, statusOptions, statusKey = 'status', suppliers 
 export const listFetcher = (service, extraKeys = []) => async ({ page, limit, search, status, supplier_id, from_date, to_date, ...rest }) =>
   service.list({ page, limit, search: search || undefined, status: status || undefined, supplier_id: supplier_id || undefined, from_date: from_date || undefined, to_date: to_date || undefined, ...Object.fromEntries(extraKeys.map((k) => [k, rest[k] || undefined])) });
 
-export const dateOnly = (v) => (v ? String(v).slice(0, 10) : '');
+export const dateOnly = (v, settings) => {
+  if (!v) return '';
+  if (settings && typeof settings === 'object') return formatDateOnly(v, settings);
+  return String(v).slice(0, 10);
+};
 export const num = (v) => Number(v) || 0;
 export const INITIAL = { search: '', status: '', supplier_id: '', from_date: '', to_date: '' };
 

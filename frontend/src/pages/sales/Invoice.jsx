@@ -11,7 +11,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { useSaleItems } from '../../hooks/useSaleItems';
 import { salesService, productService, customerService, priceCategoryService } from '../../services/api';
 import { Input, NumberInput, Select, Textarea, Button, ConfirmModal, FormModal, DatePicker } from '../../components/ui';
-import { formatCurrency, formatNumberWithCommas, removeNumberFormatting } from '../../utils/numberUtils';
+import { formatCurrency, formatNumberWithCommas, removeNumberFormatting, getMoneyInputProps} from '../../utils/numberUtils';
 import { getMoneyDecimals } from '../../utils/money';
 import { printReceiptViaQz } from '../../utils/qzReceipt';
 import { t } from '../../utils/i18n';
@@ -94,6 +94,7 @@ export default function Invoice() {
 
   const customer = customers.find((c) => c.id === customerId) || null;
   const money = (v) => formatCurrency(Number(v) || 0, settings);
+  const moneyInput = getMoneyInputProps(settings);
   const priceFrom = (p) => {
     const direct = Number(p.selling_price ?? p.sellingPrice) || 0;
     if (direct > 0) return direct;
@@ -430,7 +431,7 @@ export default function Invoice() {
                 <>
                   <Select label={t('payment_method', lang)} value={method} onChange={(e) => setMethod(e.target.value)} options={PAYMENT_METHODS.map((m) => ({ value: m, label: t(m, lang) }))} />
                   {method === 'bank_transfer' && <Input label={t('reference_number', lang)} value={reference} onChange={(e) => setReference(e.target.value)} />}
-                  <NumberInput label={t('amount_paid', lang)} value={paid} decimals={moneyDecimals} onChange={(e) => setPaid(e.target.value)} />
+                  <NumberInput label={t('amount_paid', lang)} value={paid} onChange={(e) => setPaid(e.target.value)} {...getMoneyInputProps(settings, moneyDecimals)} />
                   <div className="flex justify-between text-sm"><button type="button" className="text-primary hover:underline" onClick={() => setPaid(total.toFixed(moneyDecimals))}>{t('full_payment', lang)}</button>
                     <span className={fullyPaid ? 'text-green-600' : 'text-red-600'}>{fullyPaid ? `${t('change', lang)}: ${money(paidNum - total)}` : `${t('amount_due', lang)}: ${money(total - paidNum)}`}</span></div>
                 </>

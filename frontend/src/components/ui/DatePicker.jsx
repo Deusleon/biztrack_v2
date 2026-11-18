@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useStoreSettings } from "../../hooks/useStoreSettings";
+import { formatDateOnly } from "../../utils/formatDateLocalized";
 
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTHS = [
@@ -81,6 +83,7 @@ export default function DatePicker({
   className = "",
   align = "left",
 }) {
+  const { settings } = useStoreSettings();
   const parsed = parseDate(value);
 
   // Calendar navigation state — defaults to current month or selected month
@@ -184,7 +187,8 @@ export default function DatePicker({
 
   const grid = buildGrid(viewYear, viewMonth);
 
-  const displayValue = parsed ? toDisplay(parsed.year, parsed.month, parsed.day) : "";
+  const isoValue = parsed ? toValue(parsed.year, parsed.month, parsed.day) : "";
+  const displayValue = isoValue ? formatDateOnly(isoValue, settings) : "";
   const todayStr = toValue(today.getFullYear(), today.getMonth(), today.getDate());
 
   return (

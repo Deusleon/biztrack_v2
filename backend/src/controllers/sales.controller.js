@@ -3145,9 +3145,21 @@ export const saveOrderChanges = async (req, res) => {
   const userNote = typeof note === 'string' ? note.trim() : '';
   const noteToSave = userNote && !/^order_modified_on_/i.test(userNote) ? userNote : '';
 
+  const effectiveStoreId = storeId || req.user.current_store_id;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+
+    const statusCheck = await client.query(
+      `SELECT status FROM cart WHERE cart_code = $1 AND store_id = $2 LIMIT 1`,
+      [cart_code, effectiveStoreId],
+    );
+    if (!statusCheck.rows.length) {
+      throw new Error(t("order_not_found", lang));
+    }
+    if (String(statusCheck.rows[0].status) === "Sold") {
+      throw new Error(t("order_already_sold", lang));
+    }
 
     for (const item of items) {
       // Check if item exists in cart
@@ -3243,13 +3255,17 @@ export const saveOrderChanges = async (req, res) => {
  */
 export const getOrders = async (req, res) => {
   const storeId = req.user.current_store_id;
-  // 'Saved' = waiting orders (default); ?status=Cancelled lists the cancelled ones.
-  const wanted = req.query?.status === "Cancelled" ? "Cancelled" : "Saved";
+  // 'Saved' = waiting orders (default); Cancelled / Sold keep a historical record for reference.
+  const statusParam = String(req.query?.status || "Saved");
+  const wanted =
+    statusParam === "Cancelled" ? "Cancelled"
+      : statusParam === "Sold" ? "Sold"
+        : "Saved";
 
   try {
     const ordersQuery = `
             SELECT DISTINCT ON (ct.cart_code)
-                ct.cart_code, ct.status as order_status,
+                ct.cart_code, ct.status as order_status, ct.invoice_number,
                 cst.name AS customer_name, cst.phone AS customer_phone, 
                 po.order_number AS order_number,
                 po.total_amount AS order_value, ct.created_at,
@@ -3268,6 +3284,7 @@ export const getOrders = async (req, res) => {
                 WHERE pop.cart_code = ct.cart_code
             ) pay ON true
             WHERE ct.status = $1 AND ct.store_id = $2
+              AND po.order_number IS NOT NULL
             ORDER BY ct.cart_code, po.order_number ASC;
         `;
     const ordersResult = await pool.query(ordersQuery, [wanted, storeId]);
@@ -3326,6 +3343,7 @@ export const getOrderDetails = async (req, res) => {
 export const getOrderDetailsForEdit = async (req, res) => {
   const cart_code = req.params.cartCode;
   const storeId = req.user.current_store_id;
+  const lang = getLang(req);
 
   try {
     const cartQuery = `
@@ -3338,6 +3356,10 @@ export const getOrderDetailsForEdit = async (req, res) => {
             ORDER BY p.name ASC
         `;
     const cartResult = await pool.query(cartQuery, [cart_code, storeId]);
+
+    if (cartResult.rows[0] && String(cartResult.rows[0].status) === "Sold") {
+      return res.status(400).json({ success: false, message: t("order_already_sold", lang) });
+    }
 
     const paymentQuery = `
             SELECT pop.*, u.name AS receiver
@@ -3369,8 +3391,20 @@ export const saveOrderPayments = async (req, res) => {
     req.body;
   const storeId = req.user.current_store_id;
   const userId = req.user.id;
+  const lang = getLang(req);
 
   try {
+    const cartStatus = await pool.query(
+      `SELECT status FROM cart WHERE cart_code = $1 AND store_id = $2 LIMIT 1`,
+      [cart_code, storeId],
+    );
+    if (!cartStatus.rows.length) {
+      return res.status(404).json({ success: false, message: t("order_not_found", lang) });
+    }
+    if (String(cartStatus.rows[0].status) === "Sold") {
+      return res.status(400).json({ success: false, message: t("order_already_sold", lang) });
+    }
+
     const diff = amount_due - amount_paid;
     const dueAmt = diff > 0 ? diff : 0;
     const changeAmt = diff < 0 ? Math.abs(diff) : 0;
@@ -3910,7 +3944,7 @@ export const reopenOrder = async (req, res) => {
   try {
     const result = await pool.query(
       `UPDATE cart SET status = CASE WHEN status = 'Cancelled' THEN 'Saved' ELSE 'OnProcess' END, user_id = $3, updated_at = NOW() 
-             WHERE cart_code = $1 AND store_id = $2 AND status IN ('Pending', 'Saved', 'Cancelled')
+             WHERE cart_code = $1 AND store_id = $2 AND status IN ('Pending', 'Saved', 'Cancelled') AND status <> 'Sold'
              RETURNING *`,
       [cartCode, storeId, userId],
     );
@@ -4015,6 +4049,120 @@ export const deletePendingOrder = async (req, res) => {
       success: false,
       message: err.message,
     });
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * PUT /api/sales/history/:invoiceNumber/sales-date
+ * Correct a sale's business date (backdated sales). Updates every place that date appears.
+ */
+export const updateSalesDate = async (req, res) => {
+  const invoiceNumber = req.params.invoiceNumber;
+  const storeId = req.user.current_store_id;
+  const userId = req.user.id;
+  const lang = getLang(req);
+  const salesDateRaw = req.body?.salesDate || req.body?.sales_date;
+
+  if (!salesDateRaw || !/^\d{4}-\d{2}-\d{2}$/.test(String(salesDateRaw))) {
+    return res.status(400).json({ success: false, message: t("invalid_date", lang) || "invalid_date" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const paymentRes = await client.query(
+      `SELECT id, sales_date, cart_code FROM payments
+       WHERE invoice_number = $1 AND store_id = $2
+       FOR UPDATE`,
+      [invoiceNumber, storeId],
+    );
+
+    if (paymentRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, message: "sale_not_found" });
+    }
+
+    const previous = paymentRes.rows[0].sales_date;
+    const cartCode = paymentRes.rows[0].cart_code;
+
+    // Keep the original time-of-day when only the calendar date is corrected.
+    await client.query(
+      `UPDATE payments
+       SET sales_date = ($1::date + COALESCE(sales_date::time, TIME '00:00'))
+       WHERE invoice_number = $2 AND store_id = $3`,
+      [salesDateRaw, invoiceNumber, storeId],
+    );
+
+    await client.query(
+      `UPDATE inventory_movements
+       SET transaction_date = ($1::date + COALESCE(transaction_date::time, TIME '00:00'))
+       WHERE store_id = $2
+         AND (
+           note ILIKE $3
+           OR cart_id IN (SELECT id FROM cart WHERE cart_code = $4 AND store_id = $2)
+         )`,
+      [salesDateRaw, storeId, `Sold in invoice ${invoiceNumber}%`, cartCode],
+    );
+
+    await client.query(
+      `UPDATE salesrecord
+       SET created_at = ($1::date + COALESCE(created_at::time, TIME '00:00'))
+       WHERE invoice_number = $2 AND store_id = $3`,
+      [salesDateRaw, invoiceNumber, storeId],
+    );
+
+    // Shift credit due dates by the same number of days as the sales-date correction.
+    await client.query(
+      `UPDATE credit_sales
+       SET due_date = CASE
+             WHEN due_date IS NULL THEN NULL
+             ELSE due_date + ($1::date - DATE($2::timestamptz))
+           END,
+           created_at = ($1::date + COALESCE(created_at::time, TIME '00:00'))
+       WHERE invoice_number = $3 AND store_id = $4`,
+      [salesDateRaw, previous, invoiceNumber, storeId],
+    );
+
+    await logActivity(client, {
+      userId,
+      storeId,
+      action: "update_sales_date",
+      description: {
+        invoice_number: invoiceNumber,
+        previous_sales_date: previous,
+        sales_date: salesDateRaw,
+      },
+      ip: req.ip,
+    });
+
+    await client.query("COMMIT");
+
+    notifyStore({
+      storeId,
+      type: "sale_updated",
+      title: "Sale date updated",
+      message: `Invoice ${invoiceNumber} sales date was corrected`,
+      meta: { invoice_number: invoiceNumber, sales_date: salesDateRaw },
+    }).catch(() => { });
+
+    const updated = await pool.query(
+      `SELECT sales_date FROM payments WHERE invoice_number = $1 AND store_id = $2 LIMIT 1`,
+      [invoiceNumber, storeId],
+    );
+
+    res.json({
+      success: true,
+      message: "sales_date_updated",
+      invoice_number: invoiceNumber,
+      sales_date: updated.rows[0]?.sales_date || salesDateRaw,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error updating sales date:", err);
+    res.status(500).json({ success: false, message: err.message });
   } finally {
     client.release();
   }

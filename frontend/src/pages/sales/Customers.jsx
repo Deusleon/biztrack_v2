@@ -13,7 +13,7 @@ import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { Input, PhoneInput, NumberInput, Textarea, Select, DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { DetailGrid } from './common';
-import { formatCurrency } from '../../utils/numberUtils';
+import { formatCurrency, getMoneyInputProps} from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
 const EMPTY = { name: '', phone: '', email: '', customer_type: '', credit_limit: '', credit_due_days: '', address: '' };
@@ -46,6 +46,7 @@ export default function Customers() {
   }, [currentStore?.id]);
   const typeName = (id) => types.find((x) => x.id === id)?.name || '';
   const money = (v) => formatCurrency(Number(v) || 0, settings);
+  const moneyInput = getMoneyInputProps(settings);
 
   const openCreate = () => { setForm({ ...EMPTY, customer_type: types.find((x) => x.is_default)?.id || types[0]?.id || '' }); setErrors({}); setModal({ isOpen: true, mode: 'create' }); };
   const openEdit = (c) => {
@@ -152,8 +153,8 @@ export default function Customers() {
             <PhoneInput label={t('phone', lang)} name="phone" value={form.phone} onChange={set('phone')} placeholder={t('enter_phone', lang)} helperText=" " error={errors.phone} />
             <Input type="email" label={t('email', lang)} value={form.email} onChange={set('email')} error={errors.email} />
             <Select label={t('customer_type', lang)} value={form.customer_type} onChange={(e) => setForm((x) => ({ ...x, customer_type: e.target.value }))} placeholder={t('select_customer_type', lang)} options={types.map((x) => ({ value: x.id, label: x.name }))} />
-            <NumberInput label={t('credit_limit', lang)} name="credit_limit" value={form.credit_limit} onChange={set('credit_limit')} />
-            <NumberInput label={t('credit_due_days', lang)} name="credit_due_days" allowDecimals={false} value={form.credit_due_days} onChange={set('credit_due_days')} />
+            <NumberInput label={t('credit_limit', lang)} name="credit_limit" value={form.credit_limit} onChange={set('credit_limit')} {...moneyInput} />
+            <NumberInput label={t('credit_due_days', lang)} name="credit_due_days" allowDecimals={false} value={form.credit_due_days} onChange={set('credit_due_days')} placeholder="0" />
           </div>
           <Textarea label={t('address', lang)} value={form.address} onChange={set('address')} />
           <div className="flex justify-end gap-3 pt-1">

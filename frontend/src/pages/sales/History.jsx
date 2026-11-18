@@ -10,7 +10,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { salesService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
-import { DataTable, Button, RowActions, ACTION_ICONS } from '../../components/ui';
+import { DataTable, Button, RowActions, ACTION_ICONS, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { FilterBar, StatusBadge, DetailGrid, toPaging, dateOnly } from './common';
 import { formatCurrency } from '../../utils/numberUtils';
@@ -29,9 +29,12 @@ export default function History() {
   const { settings } = useStoreSettings();
   const navigate = useNavigate();
   const list = useServerList({ fetcher: fetchSales, initialFilters: { search: '', saleType: '', startDate: '', endDate: '' } });
-  useLiveRefresh(['newSale', 'saleCreated', 'sales_return'], list.reload);
+  useLiveRefresh(['newSale', 'saleCreated', 'saleUpdated', 'sales_return'], list.reload);
   const [detail, setDetail] = useState(null);
+  const [editDate, setEditDate] = useState(null); // { invoice, value }
+  const [savingDate, setSavingDate] = useState(false);
   const money = (v) => formatCurrency(Number(v) || 0, settings);
+  const canEditDate = can('edit_sales_date');
 
   const open = async (s, then) => {
     try { const d = await salesService.saleDetails(s.invoice_number); if (then) then(d); else setDetail(d); }
@@ -60,9 +63,25 @@ export default function History() {
     } catch (err) { console.error(err); showError(t('something_went_wrong', lang)); }
   });
 
+  const saveSalesDate = async () => {
+    if (!editDate?.invoice || !editDate.value) return;
+    setSavingDate(true);
+    try {
+      await salesService.updateSalesDate(editDate.invoice, editDate.value);
+      showSuccess('sales_date_updated');
+      setEditDate(null);
+      if (detail?.payment?.invoice_number === editDate.invoice) {
+        const refreshed = await salesService.saleDetails(editDate.invoice);
+        setDetail(refreshed);
+      }
+      list.reload();
+    } catch (err) { showError(err.message); }
+    finally { setSavingDate(false); }
+  };
+
   const columns = [
     { key: 'invoice_number', label: t('invoice_number', lang), render: (s) => <span className="inline-flex items-center gap-2"><span className="font-medium text-gray-900">#{s.invoice_number}</span>{s.was_returned && <StatusBadge value={Number(s.total_amount) <= 0.005 ? 'returned' : 'partly_returned'} />}</span> },
-    { key: 'sales_date', label: t('date', lang), render: (s) => dateOnly(s.sales_date || s.created_at) },
+    { key: 'sales_date', label: t('date', lang), render: (s) => dateOnly(s.sales_date || s.created_at, settings) },
     { key: 'customer_name', label: t('customer', lang), render: (s) => s.customer_name || t('walk_in', lang) },
     { key: 'sale_type', label: t('type', lang), render: (s) => <StatusBadge value={s.sale_type} /> },
     { key: 'total_amount', label: t('total', lang), align: 'right', render: (s) => money(s.total_amount) },
@@ -73,7 +92,7 @@ export default function History() {
   ];
 
   const exportCols = [{ key: 'index', title: 'no.', width: '45px' }, { key: 'invoice_number', title: 'invoice_number' }, { key: 'date', title: 'date' }, { key: 'customer_name', title: 'customer' }, { key: 'sale_type', title: 'type' }, { key: 'total_amount', title: 'total' }, { key: 'amount_paid', title: 'amount_paid' }, { key: 'amount_due', title: 'amount_due' }];
-  const toRows = (rows, offset = 0) => rows.map((s, i) => ({ index: `${offset + i + 1}.`, invoice_number: s.invoice_number, date: dateOnly(s.sales_date || s.created_at), customer_name: s.customer_name || t('walk_in', lang), sale_type: t(s.sale_type, lang), total_amount: money(s.total_amount), amount_paid: money(s.amount_paid), amount_due: money(s.amount_due) }));
+  const toRows = (rows, offset = 0) => rows.map((s, i) => ({ index: `${offset + i + 1}.`, invoice_number: s.invoice_number, date: dateOnly(s.sales_date || s.created_at, settings), customer_name: s.customer_name || t('walk_in', lang), sale_type: t(s.sale_type, lang), total_amount: money(s.total_amount), amount_paid: money(s.amount_paid), amount_due: money(s.amount_due) }));
   const exportRows = useMemo(() => toRows(list.rows, (list.pagination.currentPage - 1) * list.pagination.limit), [list.rows, settings, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   const loadAllRows = async () => { const all = []; let page = 1; let pages = 1; do { const r = await fetchSales({ ...list.filters, page, limit: 100 }); all.push(...r.data); pages = r.pagination.totalPages; page += 1; } while (page <= pages && page <= 200); return toRows(all); };
 
@@ -92,6 +111,7 @@ export default function History() {
         <DataTable columns={columns} data={list.rows} loading={list.loading} rowId="invoice_number" emptyMessage={list.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={list.pagination} onPageChange={list.setPage}
           renderActions={(s) => <RowActions actions={[
             { label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(s) },
+            { label: t('edit_sales_date', lang), icon: ACTION_ICONS.edit, onClick: () => setEditDate({ invoice: s.invoice_number, value: dateOnly(s.sales_date || s.created_at) }), hidden: !canEditDate },
             { label: t('receipt', lang), icon: ACTION_ICONS.print, onClick: () => receipt(s) },
             { label: t('delivery_note', lang), icon: ACTION_ICONS.download, onClick: () => deliveryNote(s) },
             { label: t('sales_return', lang), icon: ACTION_ICONS.edit, onClick: () => navigate('/sales/returns', { state: { invoiceNumber: s.invoice_number } }), hidden: !can('create_sales_return') },
@@ -105,14 +125,14 @@ export default function History() {
               <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
                 <p className="text-sm font-semibold text-amber-900">{t(fullyReturned ? 'invoice_returned' : 'invoice_partly_returned', lang)}</p>
                 <ul className="mt-2 space-y-1 text-sm text-amber-800">
-                  {doneReturns.map((r) => <li key={r.return_number}>{r.return_number} · {dateOnly(r.completed_at || r.created_at)} · {t('returned_by', lang)}: {r.returned_by || '—'} · {money(r.refund_amount || r.total_amount)}</li>)}
+                  {doneReturns.map((r) => <li key={r.return_number}>{r.return_number} · {dateOnly(r.completed_at || r.created_at, settings)} · {t('returned_by', lang)}: {r.returned_by || '—'} · {money(r.refund_amount || r.total_amount)}</li>)}
                 </ul>
               </div>
             )}
             <DetailGrid items={[
               [t('customer', lang), pay.customer_name || t('walk_in', lang)],
               [t('phone', lang), pay.customer_phone],
-              [t('date', lang), dateOnly(pay.sales_date || pay.created_at)],
+              [t('date', lang), dateOnly(pay.sales_date || pay.created_at, settings)],
               [t('cashier', lang), pay.cashier_name],
               [t('type', lang), <StatusBadge value={pay.sale_type} />],
               [t('payment_method', lang), t(pay.payment_method, lang)],
@@ -152,12 +172,25 @@ export default function History() {
               </div>
             </div>
             <div className="flex flex-wrap justify-end gap-2 pt-1 border-t border-gray-100">
+              {canEditDate && <Button variant="secondary" onClick={() => setEditDate({ invoice: pay.invoice_number, value: dateOnly(pay.sales_date || pay.created_at) })}>{t('edit_sales_date', lang)}</Button>}
               <Button variant="secondary" onClick={() => { const s = { invoice_number: pay.invoice_number, customer_name: pay.customer_name, customer_phone: pay.customer_phone }; setDetail(null); navigate('/sales/receipt', { state: { saleData: { ...d, invoice_number: s.invoice_number, items: d.items, paymentInfo: d.payment, customerInfo: { name: s.customer_name, phone: s.customer_phone } } } }); }}>{t('receipt', lang)}</Button>
               <Button variant="secondary" onClick={() => deliveryNote({ invoice_number: pay.invoice_number, customer_name: pay.customer_name, customer_phone: pay.customer_phone, cashier_name: pay.cashier_name })}>{t('delivery_note', lang)}</Button>
               <Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button>
             </div>
           </div>
         )}
+      </FormModal>
+
+      <FormModal isOpen={!!editDate} onClose={() => setEditDate(null)} title={t('edit_sales_date', lang)}>
+        <div className="space-y-3 text-left">
+          <p className="text-sm text-gray-600">{t('edit_sales_date_help', lang)}</p>
+          <p className="text-sm text-gray-500">{t('invoice_number', lang)}: <b>#{editDate?.invoice}</b></p>
+          <DatePicker label={t('sales_date', lang)} value={editDate?.value || ''} onChange={(e) => setEditDate((x) => ({ ...x, value: e.target.value }))} />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={() => setEditDate(null)}>{t('ui_cancel', lang)}</Button>
+            <Button loading={savingDate} disabled={!editDate?.value} onClick={saveSalesDate}>{t('save', lang)}</Button>
+          </div>
+        </div>
       </FormModal>
     </MainLayout>
   );

@@ -9,7 +9,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { salesService } from '../../services/api';
 import { Button, ConfirmModal, FormModal, Loader, NumberInput, Select, Textarea } from '../../components/ui';
 import { StatusBadge, dateOnly, readableNote, isSystemPayment, readableMethod } from './common';
-import { formatCurrency, removeNumberFormatting } from '../../utils/numberUtils';
+import { formatCurrency, getMoneyInputProps, removeNumberFormatting } from '../../utils/numberUtils';
 import { printReceiptViaQz } from '../../utils/qzReceipt';
 import { t } from '../../utils/i18n';
 
@@ -31,6 +31,7 @@ export default function OrderPreview() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const money = (v) => formatCurrency(Number(v) || 0, settings);
+  const moneyInput = getMoneyInputProps(settings);
   const manage = can('manage_pending_invoices');
 
   const load = useCallback(async () => {
@@ -47,6 +48,8 @@ export default function OrderPreview() {
   const hasPayment = payments.some((p) => Number(p.amount_paid) > 0);
   const due = Math.max(0, total - paid);
   const cancelled = String(head.status || '').toLowerCase().includes('cancel');
+  const sold = String(head.status || '').toLowerCase() === 'sold';
+  const locked = sold || cancelled;
 
   const run = async (name, fn, okMsg, after) => {
     try { setBusy(name); const r = await fn(); showSuccess(okMsg || r?.message); await (after ? after(r) : load()); }
@@ -59,21 +62,31 @@ export default function OrderPreview() {
     run('pay', () => salesService.recordOrderPayments({ amount: total, amount_paid: a, amount_due: due, cart_code: code, payment_method: method }), 'payment_recorded', () => { setAmount(''); return load(); });
   };
 
+  const sellMessage = due > 0
+    ? `${t('confirm_complete_sale', lang)} ${t('will_be_sold_as_credit', lang)}`
+    : t('confirm_complete_sale', lang);
+
   return (
     <MainLayout>
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('order_details', lang)} {order?.order_number ? `#${order.order_number}` : ''}</h1>
-            {head.customer_name && <p className="text-sm text-gray-500 mt-0.5">{head.customer_name}{head.customer_phone ? ` · ${head.customer_phone}` : ''} · {dateOnly(head.created_at)}</p>}</div>
+            {head.customer_name && <p className="text-sm text-gray-500 mt-0.5">{head.customer_name}{head.customer_phone ? ` · ${head.customer_phone}` : ''} · {dateOnly(head.created_at, settings)}</p>}</div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => navigate('/sales/pending')}>{t('back', lang)}</Button>
-            {manage && !cancelled && <Button variant="secondary" onClick={() => navigate('/sales/invoice', { state: { fromPendingOrder: true, cartCode: code } })}>{t('edit', lang)}</Button>}
-            {manage && !cancelled && <Button onClick={() => setConfirm('sell')} loading={busy === 'sell'}>{t('complete_sale', lang)}</Button>}
+            {manage && !locked && <Button variant="secondary" onClick={() => navigate('/sales/invoice', { state: { fromPendingOrder: true, cartCode: code } })}>{t('edit', lang)}</Button>}
+            {manage && !locked && <Button onClick={() => setConfirm('sell')} loading={busy === 'sell'}>{t('complete_sale', lang)}</Button>}
             {manage && cancelled && <Button variant="secondary" onClick={() => run('reopen', () => salesService.reopenOrder(code), 'order_reopened')}>{t('reopen', lang)}</Button>}
-            {manage && !cancelled && <Button variant="secondary" onClick={() => { if (hasPayment) { setCancelReason(''); setCancelOpen(true); } else setConfirm('cancel'); }}>{t('cancel_order', lang)}</Button>}
-            {manage && !hasPayment && <Button variant="danger" onClick={() => setConfirm('delete')}>{t('delete', lang)}</Button>}
+            {manage && !locked && <Button variant="secondary" onClick={() => { if (hasPayment) { setCancelReason(''); setCancelOpen(true); } else setConfirm('cancel'); }}>{t('cancel_order', lang)}</Button>}
+            {manage && !hasPayment && !sold && <Button variant="danger" onClick={() => setConfirm('delete')}>{t('delete', lang)}</Button>}
           </div>
         </div>
+
+        {sold && (
+          <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900 text-left">
+            {t('order_sold_locked', lang)}{head.invoice_number ? ` · #${head.invoice_number}` : ''}
+          </div>
+        )}
 
         {loading && <Loader />}
         {!loading && !order && <div className="bg-white rounded shadow p-8 text-center text-gray-500">{t('order_not_found', lang)}</div>}
@@ -94,10 +107,10 @@ export default function OrderPreview() {
               <div className="bg-white rounded shadow p-4 space-y-3 text-left">
                 <h2 className="text-sm font-semibold text-gray-700">{t('payments', lang)}</h2>
                 {payments.length === 0 && <p className="text-sm text-gray-400">{t('ui_nothing_yet', lang)}</p>}
-                <ul className="divide-y divide-gray-100 text-sm">{payments.map((p, i) => <li key={p.id || i} className="py-1.5 flex justify-between gap-3"><span>{dateOnly(p.created_at)} · {readableMethod(p.payment_method, lang)}{p.receiver ? ` · ${t('recorded_by', lang)}: ${p.receiver}` : ''}</span><span className="font-medium">{money(p.amount_paid)}</span></li>)}</ul>
-                {manage && !cancelled && due > 0 && (
+                <ul className="divide-y divide-gray-100 text-sm">{payments.map((p, i) => <li key={p.id || i} className="py-1.5 flex justify-between gap-3"><span>{dateOnly(p.created_at, settings)} · {readableMethod(p.payment_method, lang)}{p.receiver ? ` · ${t('recorded_by', lang)}: ${p.receiver}` : ''}</span><span className="font-medium">{money(p.amount_paid)}</span></li>)}</ul>
+                {manage && !locked && due > 0 && (
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
-                    <NumberInput label={t('amount_paid', lang)} value={amount} onChange={(e) => setAmount(e.target.value)} />
+                    <NumberInput label={t('amount_paid', lang)} value={amount} onChange={(e) => setAmount(e.target.value)} {...moneyInput} />
                     <Select label={t('payment_method', lang)} value={method} onChange={(e) => setMethod(e.target.value)} options={['cash', 'mobile_money', 'bank_transfer'].map((m) => ({ value: m, label: t(m, lang) }))} />
                     <div className="col-span-2 flex justify-end"><Button loading={busy === 'pay'} onClick={pay}>{t('record_payment', lang)}</Button></div>
                   </div>
@@ -108,7 +121,7 @@ export default function OrderPreview() {
         )}
       </div>
       <ConfirmModal isOpen={!!confirm} variant={confirm === 'delete' ? 'danger' : 'warning'} title={t(confirm === 'sell' ? 'complete_sale' : confirm === 'cancel' ? 'cancel_order' : 'delete', lang)} confirmText={t('confirm', lang)} cancelText={t('ui_cancel', lang)}
-        message={t(confirm === 'sell' ? 'confirm_complete_sale' : confirm === 'cancel' ? 'confirm_cancel_order' : 'confirm_delete_order', lang)} onClose={() => setConfirm(null)}
+        message={confirm === 'sell' ? sellMessage : t(confirm === 'cancel' ? 'confirm_cancel_order' : 'confirm_delete_order', lang)} onClose={() => setConfirm(null)}
         onConfirm={() => {
           if (confirm === 'sell') run('sell', () => salesService.sellOrder(code), 'sale_processed_successfully', async (res) => {
             if (settings?.enableReceiptPrinting && res?.invoice_number) {

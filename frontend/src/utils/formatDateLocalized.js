@@ -18,9 +18,10 @@ export const formatDateLocalized = (isoDate, settings = {}) => {
     const monthFull = t(`months.${monthKeys[date.getMonth()]}`);
     const monthShort = monthFull.substring(0, 3); // e.g., "Jan"
 
-    // Get date format from settings (default: 1 = DD-MM-YYYY)
-    const dateFormat = settings.defaultDateFormat || 1;
-    
+    // Get date format from settings (default: 1 = DD-MM-YYYY). Coerce to string so
+    // both "1" and 1 from JSON settings match the cases below.
+    const dateFormat = String(settings.defaultDateFormat ?? 1);
+
     let formattedDate;
     switch (dateFormat) {
         case "1": // DD-MM-YYYY
@@ -101,3 +102,7 @@ export const DATE_FORMATS = {
   4: "MMM dd, yyyy",   // dd_mmm_yyyy
   5: "MMMM dd, yyyy",  // dd_mmmm_yyyy
 };
+
+/** Date-only display using store settings (no time). Prefer this over slicing ISO strings. */
+export const formatDateOnly = (isoDate, settings = {}) =>
+  formatDateLocalized(isoDate, { ...settings, showDateWithTime: false });

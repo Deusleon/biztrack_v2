@@ -260,6 +260,14 @@ router.get(
     salesController.getSaleDetails
 );
 
+// Correct a sale's business date (backdated sales) — permission-gated
+router.put(
+    '/history/:invoiceNumber/sales-date',
+    verifyToken,
+    checkStorePermission(['edit_sales_date']),
+    salesController.updateSalesDate
+);
+
 // =====================================================
 // SALES RETURNS
 // =====================================================
