@@ -7,6 +7,9 @@ import validate from '../middlewares/validate.js';
 import { validateBarCode, validateSaleItems, validateCartItems, validateSaveOrder, validateCreditPayment, validateCreditNotification, validateSalesReturn, validateSalesOrderPayment } from '../validators/sales.validator.js';
 const router = express.Router();
 
+// A scanned receipt opens this without signing in. It returns only the facts needed to confirm the sale.
+router.get('/receipts/verify', salesController.verifyReceipt);
+
 // =====================================================
 // CART OPERATIONS
 // =====================================================
