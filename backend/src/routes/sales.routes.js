@@ -7,6 +7,9 @@ import validate from '../middlewares/validate.js';
 import { validateBarCode, validateSaleItems, validateCartItems, validateSaveOrder, validateCreditPayment, validateCreditNotification, validateSalesReturn, validateSalesOrderPayment } from '../validators/sales.validator.js';
 const router = express.Router();
 
+// A scanned receipt opens this without signing in. It returns only the facts needed to confirm the sale.
+router.get('/receipts/verify', salesController.verifyReceipt);
+
 // =====================================================
 // CART OPERATIONS
 // =====================================================
@@ -258,6 +261,14 @@ router.get(
     verifyToken,
     checkStorePermission(['view_sales_records', 'create_invoice']),
     salesController.getSaleDetails
+);
+
+// Correct the business date of one completed sale
+router.put(
+    '/history/:invoiceNumber/date',
+    verifyToken,
+    checkStorePermission(['correct_sale_date']),
+    salesController.correctSaleDate
 );
 
 // =====================================================

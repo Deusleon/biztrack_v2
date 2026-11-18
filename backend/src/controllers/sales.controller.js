@@ -2161,6 +2161,141 @@ export const getSaleDetails = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/sales/receipts/verify?invoice=&store=
+ * Public. A scanned receipt opens this. Only the facts needed to confirm the sale.
+ */
+export const verifyReceipt = async (req, res) => {
+  const invoice = String(req.query.invoice || "").trim();
+  const storeId = String(req.query.store || "").trim();
+  if (!invoice || !storeId) return res.json({ valid: false });
+  try {
+    const found = await pool.query(
+      `SELECT p.invoice_number, p.sales_date, p.total_amount, p.amount_due, s.name AS business_name,
+              EXISTS (
+                SELECT 1 FROM sales_returns sr
+                WHERE sr.invoice_number = p.invoice_number AND sr.store_id = p.store_id
+                  AND sr.status IN ('approved', 'completed')
+              ) AS returned
+       FROM payments p
+       JOIN stores s ON s.id = p.store_id
+       WHERE p.invoice_number = $1 AND p.store_id = $2::uuid
+       LIMIT 1`,
+      [invoice, storeId],
+    );
+    if (!found.rows.length) return res.json({ valid: false });
+    const row = found.rows[0];
+    const due = Number(row.amount_due) || 0;
+    res.json({
+      valid: true,
+      invoice_number: row.invoice_number,
+      sales_date: row.sales_date,
+      total_amount: row.total_amount,
+      business_name: row.business_name,
+      returned: row.returned,
+      status: row.returned ? "returned" : due > 0 ? "partial_paid" : "paid",
+    });
+  } catch (err) {
+    console.error(err);
+    res.json({ valid: false });
+  }
+};
+
+/**
+ * PUT /api/sales/history/:invoiceNumber/date
+ * Move one completed sale onto the date it should have had.
+ * The same day-shift is applied to every date that reports, stock and credit use for THIS sale.
+ * Later credit collections and returns keep their own dates.
+ */
+export const correctSaleDate = async (req, res) => {
+  const invoiceNumber = req.params.invoiceNumber;
+  const storeId = req.user.current_store_id;
+  const userId = req.user.id;
+  const lang = getLang(req);
+  const date = String(req.body?.sales_date || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ success: false, message: t("invalid_date", lang) });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const pay = await client.query(
+      `SELECT to_char(COALESCE(sales_date, created_at), 'YYYY-MM-DD') AS old_iso,
+              ($3::date - COALESCE(sales_date, created_at)::date) AS days
+       FROM payments
+       WHERE invoice_number = $1 AND store_id = $2
+       FOR UPDATE`,
+      [invoiceNumber, storeId, date],
+    );
+    if (!pay.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ success: false, message: t("sale_not_found", lang) });
+    }
+    const bounds = await client.query(
+      `SELECT $1::date > CURRENT_DATE AS future, $1::date < DATE '2000-01-01' AS too_old`,
+      [date],
+    );
+    if (bounds.rows[0].future || bounds.rows[0].too_old) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ success: false, message: t("invalid_date", lang) });
+    }
+    const oldIso = pay.rows[0].old_iso;
+    const days = Number(pay.rows[0].days);
+    if (!Number.isFinite(days)) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ success: false, message: t("invalid_date", lang) });
+    }
+    if (days === 0) {
+      await client.query("ROLLBACK");
+      return res.json({ success: true, message: "sale_date_unchanged", sales_date: date });
+    }
+    const step = `${days} days`;
+    await client.query(
+      `UPDATE payments
+       SET sales_date = COALESCE(sales_date, created_at) + $3::interval,
+           created_at = created_at + $3::interval
+       WHERE invoice_number = $1 AND store_id = $2`,
+      [invoiceNumber, storeId, step],
+    );
+    await client.query(
+      `UPDATE inventory_movements
+       SET transaction_date = COALESCE(transaction_date, created_at) + $3::interval,
+           created_at = created_at + $3::interval
+       WHERE store_id = $2 AND note = ('Sold in invoice ' || $1)`,
+      [invoiceNumber, storeId, step],
+    );
+    await client.query(
+      `UPDATE salesrecord
+       SET created_at = created_at + $3::interval
+       WHERE invoice_number = $1 AND store_id = $2`,
+      [invoiceNumber, storeId, step],
+    );
+    await client.query(
+      `UPDATE credit_sales
+       SET created_at = created_at + $3::interval,
+           due_date = CASE WHEN due_date IS NULL THEN NULL ELSE due_date + $3::interval END
+       WHERE invoice_number = $1 AND store_id = $2`,
+      [invoiceNumber, storeId, step],
+    );
+    await logActivity(client, {
+      userId,
+      storeId,
+      action: "correct_sale_date",
+      description: { invoice: invoiceNumber, from: oldIso, to: date },
+      ip: req.ip,
+    });
+    await client.query("COMMIT");
+    res.json({ success: true, message: "sale_date_corrected", sales_date: date });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    client.release();
+  }
+};
+
 // =====================================================
 // SALES RETURNS
 // =====================================================
@@ -3148,6 +3283,14 @@ export const saveOrderChanges = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    const locked = await client.query(
+      `SELECT 1 FROM cart WHERE cart_code = $1 AND store_id = $2 AND status = 'Sold' LIMIT 1`,
+      [cart_code, storeId],
+    );
+    if (locked.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ success: false, message: t("order_already_sold", lang) });
+    }
 
     for (const item of items) {
       // Check if item exists in cart
@@ -3243,13 +3386,13 @@ export const saveOrderChanges = async (req, res) => {
  */
 export const getOrders = async (req, res) => {
   const storeId = req.user.current_store_id;
-  // 'Saved' = waiting orders (default); ?status=Cancelled lists the cancelled ones.
-  const wanted = req.query?.status === "Cancelled" ? "Cancelled" : "Saved";
+  // Saved = waiting. Cancelled and Sold stay listed; a sold order is kept and cannot be changed.
+  const wanted = req.query?.status === "Cancelled" ? "Cancelled" : req.query?.status === "Sold" ? "Sold" : "Saved";
 
   try {
     const ordersQuery = `
             SELECT DISTINCT ON (ct.cart_code)
-                ct.cart_code, ct.status as order_status,
+                ct.cart_code, ct.status as order_status, ct.invoice_number,
                 cst.name AS customer_name, cst.phone AS customer_phone, 
                 po.order_number AS order_number,
                 po.total_amount AS order_value, ct.created_at,
@@ -3268,6 +3411,7 @@ export const getOrders = async (req, res) => {
                 WHERE pop.cart_code = ct.cart_code
             ) pay ON true
             WHERE ct.status = $1 AND ct.store_id = $2
+              AND (ct.status <> 'Sold' OR po.cart_code IS NOT NULL)
             ORDER BY ct.cart_code, po.order_number ASC;
         `;
     const ordersResult = await pool.query(ordersQuery, [wanted, storeId]);
@@ -3338,6 +3482,9 @@ export const getOrderDetailsForEdit = async (req, res) => {
             ORDER BY p.name ASC
         `;
     const cartResult = await pool.query(cartQuery, [cart_code, storeId]);
+    if (String(cartResult.rows[0]?.status || "") === "Sold") {
+      return res.status(400).json({ success: false, message: t("order_already_sold", getLang(req)) });
+    }
 
     const paymentQuery = `
             SELECT pop.*, u.name AS receiver
@@ -3369,8 +3516,16 @@ export const saveOrderPayments = async (req, res) => {
     req.body;
   const storeId = req.user.current_store_id;
   const userId = req.user.id;
+  const lang = getLang(req);
 
   try {
+    const locked = await pool.query(
+      `SELECT 1 FROM cart WHERE cart_code = $1 AND store_id = $2 AND status = 'Sold' LIMIT 1`,
+      [cart_code, storeId],
+    );
+    if (locked.rows.length) {
+      return res.status(400).json({ success: false, message: t("order_already_sold", lang) });
+    }
     const diff = amount_due - amount_paid;
     const dueAmt = diff > 0 ? diff : 0;
     const changeAmt = diff < 0 ? Math.abs(diff) : 0;
