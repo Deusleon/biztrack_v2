@@ -127,6 +127,8 @@ function buildEmailHtml({
   title,
   message,
   meta,
+  storeName = "",
+  detailHtml = "",
   actionUrl = null,
   actionLabel = "View Details",
   footerNote = null,
@@ -146,7 +148,7 @@ function buildEmailHtml({
 
   const metaEntries = Object.entries(meta || {})
     .filter(([, value]) => value !== null && value !== undefined && value !== "")
-    .slice(0, 8);
+    .slice(0, 12);
 
   const metaRows = metaEntries
     .map(
@@ -225,6 +227,8 @@ function buildEmailHtml({
                 Hello ${safeName},
               </p>
 
+              ${storeName ? `<p style="margin:0 0 6px;font-size:15px;line-height:1.4;font-weight:bold;color:${B.heading};">${escapeHtml(storeName)}</p>` : ""}
+
               <h1 style="margin:0 0 10px;font-size:19px;line-height:1.35;color:${B.heading};">
                 ${safeTitle}
               </h1>
@@ -233,6 +237,7 @@ function buildEmailHtml({
                 ${safeMessage}
               </p>
 
+              ${detailHtml || ""}
               ${metaTable}
               ${actionButton}
             </td>
@@ -295,6 +300,8 @@ async function notifyStore({
   smsMessage,
   localize,
   meta = {},
+  detailHtml = "",
+  attachments,
   roles,
   recipientUserIds,
   excludeUserId,
@@ -305,6 +312,10 @@ async function notifyStore({
   if (!storeId || !type) return { skipped: true, reason: "missing_store_or_type" };
 
   const settings = await getNotificationSettings(storeId);
+  let storeName = "";
+  try {
+    storeName = (await pool.query("SELECT name FROM stores WHERE id = $1", [storeId])).rows[0]?.name || "";
+  } catch { storeName = ""; }
   const enabledChannels = channels.filter((channel) => settings[`${channel}_${type}`] === true);
   if (!enabledChannels.length) return { skipped: true, reason: "disabled_by_settings" };
 
@@ -335,15 +346,18 @@ async function notifyStore({
           const emailBody = local.email || emailMessage || message || title || type;
           return sendEmail({
             to: recipient.email,
-            subject: `BizTrack: ${humanize(emailTitle)}`,
+            subject: `BizTrack: ${humanize(emailTitle)}${storeName && !String(emailTitle).includes(storeName) ? ` — ${storeName}` : ""}`,
             html: buildEmailHtml({
               recipientName: recipient.name,
               title: emailTitle,
               message: emailBody,
               meta,
+              storeName,
+              detailHtml,
               actionUrl,
               actionLabel,
             }),
+            attachments,
           });
         }),
       );

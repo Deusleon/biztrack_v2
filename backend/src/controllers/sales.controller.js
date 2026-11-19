@@ -141,7 +141,17 @@ async function generateReturnNumber(store_id) {
 async function checkCustomerCreditLimit(customerId, storeId, amount) {
   try {
     const result = await pool.query(
-      `SELECT credit_limit, current_balance FROM customers WHERE id = $1 AND store_id = $2`,
+      `SELECT c.credit_limit,
+              COALESCE((
+                SELECT SUM(cs.amount_due)
+                FROM credit_sales cs
+                WHERE cs.customer_id = c.id
+                  AND cs.store_id = c.store_id
+                  AND cs.status NOT IN ('paid', 'cancelled')
+                  AND cs.amount_due > 0
+              ), 0) AS amount_owed
+       FROM customers c
+       WHERE c.id = $1 AND c.store_id = $2`,
       [customerId, storeId],
     );
 
@@ -151,8 +161,8 @@ async function checkCustomerCreditLimit(customerId, storeId, amount) {
 
     const customer = result.rows[0];
     const creditLimit = parseFloat(customer.credit_limit) || 0;
-    const currentBalance = parseFloat(customer.current_balance) || 0;
-    const availableCredit = creditLimit - currentBalance;
+    const amountOwed = parseFloat(customer.amount_owed) || 0;
+    const availableCredit = creditLimit - amountOwed;
 
     if (amount > availableCredit) {
       return {
@@ -168,6 +178,34 @@ async function checkCustomerCreditLimit(customerId, storeId, amount) {
     console.error("Error checking credit limit:", err);
     return { allowed: false, message: "error_checking_credit" };
   }
+}
+
+function notifyNewSale({ storeId, userId, lang, currency, invoiceNumber, amountTotal, saleType, customerName, roles }) {
+  const customer = customerName || "Walk-in";
+  let amount = String(amountTotal ?? "");
+  try {
+    amount = new Intl.NumberFormat(lang === "sw" ? "sw-KE" : "en-US", {
+      style: "currency",
+      currency: currency || "USD",
+    }).format(amountTotal);
+  } catch { /* keep the plain number if the currency code is not valid */ }
+  pool.query("SELECT name FROM users WHERE id = $1", [userId]).then((seller) => {
+    const soldBy = seller.rows[0]?.name || "—";
+    notifyStore({
+      storeId,
+      type: "new_sale",
+      title: "New sale",
+      message: `Invoice ${invoiceNumber}: ${amount}. Type: ${saleType}. Customer: ${customer}. Sold by ${soldBy}.`,
+      meta: {
+        invoice_number: invoiceNumber,
+        amount,
+        sales_type: saleType,
+        customer,
+        sold_by: soldBy,
+      },
+      ...(roles ? { roles } : {}),
+    }).catch(() => { });
+  }).catch(() => { });
 }
 
 // =====================================================
@@ -1063,21 +1101,17 @@ export const recordSale = async (req, res) => {
     
     await client.query("COMMIT");
 
-    const formatAmount = (amt) => {
-      return new Intl.NumberFormat(lang === "sw" ? "sw-KE" : "en-US", {
-        style: "currency",
-        currency: storeSettings.operations.defaultCurrency || "USD",
-      }).format(amt);
-    };
-
-    notifyStore({
+    notifyNewSale({
       storeId,
-      type: "new_sale",
-      title: "New sale",
-      message: `${t("a_sale_of", lang)} ${formatAmount(amountTotal)} ${t("was_processed_successfully", lang)}. ${t("invoice_no", lang)} ${invoice_number}.`,
-      meta: { invoice_number, amount: amountTotal, sale_type: saleType, lang: lang },
+      userId,
+      lang,
+      currency: storeSettings.operations.defaultCurrency,
+      invoiceNumber: invoice_number,
+      amountTotal,
+      saleType,
+      customerName: customerInfo?.name || customerName,
       roles: ["Owner"],
-    }).catch(() => { });
+    });
 
     res.status(201).json({
       success: true,
@@ -4039,13 +4073,16 @@ export const sellPendingOrder = async (req, res) => {
     
     await client.query("COMMIT");
 
-    notifyStore({
+    notifyNewSale({
       storeId,
-      type: "new_sale",
-      title: "New sale",
-      message: "A sale was processed successfully",
-      meta: { invoice_number, amount: amountTotal, sale_type: saleType },
-    }).catch(() => { });
+      userId,
+      lang,
+      currency: storeSettings.operations.defaultCurrency,
+      invoiceNumber: invoice_number,
+      amountTotal,
+      saleType,
+      customerName: customerInfo?.name || firstRow.customer_name,
+    });
 
     res.status(201).json({
       success: true,
@@ -4233,43 +4270,47 @@ export const updateSalesDate = async (req, res) => {
 
     const previous = paymentRes.rows[0].sales_date;
     const cartCode = paymentRes.rows[0].cart_code;
+    // Noon in the business timezone stays on the chosen calendar day both on screen
+    // and in DATE(sales_date). Grafting the old clock time on as UTC pushed cash
+    // sales into the next day in East Africa (13 November became 14 November).
+    const businessTz = process.env.BUSINESS_TIMEZONE || "Africa/Dar_es_Salaam";
+    const atNoon = (tzParam) => `(($1::date + TIME '12:00') AT TIME ZONE ${tzParam})`;
 
-    // Keep the original time-of-day when only the calendar date is corrected.
     await client.query(
       `UPDATE payments
-       SET sales_date = ($1::date + COALESCE(sales_date::time, TIME '00:00'))
+       SET sales_date = ${atNoon("$4")}
        WHERE invoice_number = $2 AND store_id = $3`,
-      [salesDateRaw, invoiceNumber, storeId],
+      [salesDateRaw, invoiceNumber, storeId, businessTz],
     );
 
     await client.query(
       `UPDATE inventory_movements
-       SET transaction_date = ($1::date + COALESCE(transaction_date::time, TIME '00:00'))
+       SET transaction_date = ${atNoon("$5")}
        WHERE store_id = $2
          AND (
            note ILIKE $3
            OR cart_id IN (SELECT id FROM cart WHERE cart_code = $4 AND store_id = $2)
          )`,
-      [salesDateRaw, storeId, `Sold in invoice ${invoiceNumber}%`, cartCode],
+      [salesDateRaw, storeId, `Sold in invoice ${invoiceNumber}%`, cartCode, businessTz],
     );
 
     await client.query(
       `UPDATE salesrecord
-       SET created_at = ($1::date + COALESCE(created_at::time, TIME '00:00'))
+       SET created_at = ${atNoon("$4")}
        WHERE invoice_number = $2 AND store_id = $3`,
-      [salesDateRaw, invoiceNumber, storeId],
+      [salesDateRaw, invoiceNumber, storeId, businessTz],
     );
 
-    // Shift credit due dates by the same number of days as the sales-date correction.
+    // Date minus date is an integer. A timestamp cannot be added to an integer, so the shift is an interval.
     await client.query(
       `UPDATE credit_sales
        SET due_date = CASE
              WHEN due_date IS NULL THEN NULL
-             ELSE due_date + ($1::date - DATE($2::timestamptz))
+             ELSE due_date + (($1::date - DATE($2::timestamptz)) * INTERVAL '1 day')
            END,
-           created_at = ($1::date + COALESCE(created_at::time, TIME '00:00'))
+           created_at = ${atNoon("$5")}
        WHERE invoice_number = $3 AND store_id = $4`,
-      [salesDateRaw, previous, invoiceNumber, storeId],
+      [salesDateRaw, previous, invoiceNumber, storeId, businessTz],
     );
 
     await logActivity(client, {
