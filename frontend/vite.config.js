@@ -49,4 +49,5 @@ export default defineConfig({
     chunkSizeWarningLimit: 700,
   },
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
+  server: { fs: { allow: ['..'] } },
 })

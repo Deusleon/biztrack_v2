@@ -52,6 +52,7 @@ export const AuthProvider = ({ children }) => {
     const perms = Array.isArray(res.permissions) ? res.permissions : [];
     writeSession(PERMS_KEY, JSON.stringify(perms));
     setToken(res.token); setUser(nextUser); setPermissions(perms); setPermsReady(true);
+    try { window.__auth_user = nextUser; } catch { /* ignore */ }
     return res;
   };
 

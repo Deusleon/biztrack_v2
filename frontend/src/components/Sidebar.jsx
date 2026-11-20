@@ -89,7 +89,7 @@ const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed, onHelp }) =
             </button>
           </div>
 
-          <nav ref={navRef} className="flex-1 overflow-y-auto py-4 px-1.5 space-y-1 scrollbar-thin scrollbar-thumb-primary-dark scrollbar-track-transparent">
+          <nav ref={navRef} className="flex-1 overflow-y-auto py-4 px-1.5 scrollbar-thin scrollbar-thumb-primary-dark scrollbar-track-transparent">
             {visible.map((section) => {
               const group = section.items.length > 1;
               const open = group && openKey === section.key;
@@ -100,12 +100,12 @@ const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed, onHelp }) =
                 const active = item.to ? isActive(item.to) : false;
                 const inner = (<><NavIcon name={section.icon || item.icon} className="w-4 h-4 flex-shrink-0" /><span className={`truncate ${isCollapsed ? 'lg:hidden' : ''}`}>{label}</span></>);
                 if (item.action === 'help') {
-                  return <button key={section.key} type="button" onClick={onHelp} title={isCollapsed ? label : ''} className={linkClass(false)}>{inner}</button>;
+                  return <div key={section.key} className="nav-section"><button type="button" onClick={onHelp} title={isCollapsed ? label : ''} className={linkClass(false)}>{inner}</button></div>;
                 }
-                return <Link key={section.key} to={item.to} title={isCollapsed ? label : ''} className={linkClass(active)}>{inner}</Link>;
+                return <div key={section.key} className="nav-section"><Link to={item.to} title={isCollapsed ? label : ''} className={linkClass(active)}>{inner}</Link></div>;
               }
               return (
-              <div key={section.key}>
+              <div key={section.key} className="nav-section">
                 <button type="button" onClick={() => onSection(section.key)} aria-expanded={open} className={`nav-section-btn w-full flex items-center justify-between gap-2 px-4 py-2.5 text-xs text-left font-semibold uppercase tracking-wider ${open ? 'is-open' : ''} ${isCollapsed ? 'lg:hidden' : ''}`}>
                   <span className="flex items-center gap-2 min-w-0">
                     <NavIcon name={section.icon || 'box'} className="w-4 h-4 flex-shrink-0" />

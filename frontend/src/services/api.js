@@ -12,8 +12,9 @@
  */
 import api from '../utils/api';
 import { readSession } from '../utils/sessionStore';
+import { toastLanguage } from '../utils/i18n';
 
-const lang = () => { try { const chosen = localStorage.getItem('lang'); if (chosen === 'en' || chosen === 'sw') return chosen; const preferred = window.__auth_user?.preferred_language; return preferred === 'en' || preferred === 'sw' ? preferred : 'en'; } catch { return 'en'; } };
+const lang = () => toastLanguage();
 
 /** Store the person is working in (set by StoreContext). Most BizTrack routes carry it in the URL. */
 export const currentStoreId = () => readSession('currentStoreId');

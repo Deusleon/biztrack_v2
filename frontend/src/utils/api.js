@@ -1,6 +1,6 @@
 // FILE PATH: frontend/src/utils/api.js
 import axios from 'axios';
-import { t } from './i18n';
+import { t, toastLanguage } from './i18n';
 import { readSession, clearAuthSession, setLoginNotice } from './sessionStore';
 
 // BizTrack's API lives under /api (not /api/v1).
@@ -23,14 +23,7 @@ const PUBLIC_ENDPOINTS = [
 ];
 const isPublic = (url = '') => PUBLIC_ENDPOINTS.some((e) => url.includes(e));
 
-const currentLang = () => {
-  try {
-    const chosen = localStorage.getItem('lang');
-    if (chosen === 'en' || chosen === 'sw') return chosen;
-    const preferred = window.__auth_user?.preferred_language;
-    return preferred === 'en' || preferred === 'sw' ? preferred : 'en';
-  } catch { return 'en'; }
-};
+const currentLang = () => toastLanguage();
 
 // Request: token, current store (every store-scoped route reads X-Store-ID) and language.
 api.interceptors.request.use((config) => {

@@ -507,6 +507,11 @@ main .flex-wrap:has(> div.w-14.h-14) { flex-wrap: nowrap; }
 }
 
 /* Sidebar sections ease open. The heading and the pages inside it sit on different shades, edge to edge. */
+.nav-section + .nav-section {
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
 .nav-section-btn,
 .nav-link {
   color: #fff;

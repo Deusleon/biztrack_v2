@@ -7,12 +7,12 @@ import { Input, Button } from '../../components/ui';
 import Icon from '../../components/ui/Icon';
 import AuthShell from '../../components/AuthShell';
 import { t } from '../../utils/i18n';
-import { takeLoginNotice } from '../../utils/sessionStore';
+import { peekLoginNotice, clearLoginNotice } from '../../utils/sessionStore';
 
 export default function Login() {
   const { login, isAuthenticated } = useAuth();
   const { showSuccess, showError } = useToast();
-  const { lang } = useLanguage();
+  const { lang, setLang } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [form, setForm] = useState({ email: '', password: '' });
@@ -22,12 +22,17 @@ export default function Login() {
   // Said by the server / the app when a session ended on its own.
   useEffect(() => {
     const fromUrl = new URLSearchParams(location.search).get('error');
-    const reason = takeLoginNotice() || fromUrl;
-    if (reason === 'signed_in_elsewhere') showError(t('signed_in_elsewhere', lang));
-    else if (reason === 'session_expired' || reason === 'unauthorized') showError(t('session_expired', lang));
-    if (fromUrl) navigate('/login', { replace: true });
+    const reason = peekLoginNotice() || fromUrl;
+    if (reason === 'signed_in_elsewhere') showError('signed_in_elsewhere', 8000);
+    else if (reason === 'session_expired' || reason === 'unauthorized') showError('session_expired', 8000);
+    // Clear only after this effect has run again following a strict-mode remount.
+    const timer = window.setTimeout(() => {
+      clearLoginNotice();
+      if (fromUrl) navigate('/login', { replace: true });
+    }, 400);
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [lang]);
 
   useEffect(() => { if (isAuthenticated) navigate(location.state?.from?.pathname || '/dashboard', { replace: true }); }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -37,6 +42,8 @@ export default function Login() {
     try {
       setSaving(true);
       const res = await login({ email: form.email.trim(), password: form.password });
+      const preferred = res.user?.preferred_language;
+      if (preferred === 'en' || preferred === 'sw') setLang(preferred);
       showSuccess(res.message);
       navigate(res.password_change_required ? '/dashboard' : (location.state?.from?.pathname || '/dashboard'), { replace: true });
     } catch (err) {

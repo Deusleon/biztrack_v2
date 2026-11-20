@@ -40,10 +40,14 @@ export function setLoginNotice(code) {
   writeRaw(NOTICE_KEY, code);
 }
 
-export function takeLoginNotice() {
-  const value = readRaw(NOTICE_KEY);
+// Read without deleting. A strict-mode remount would otherwise lose the message
+// before the login page can show it.
+export function peekLoginNotice() {
+  return readRaw(NOTICE_KEY);
+}
+
+export function clearLoginNotice() {
   writeRaw(NOTICE_KEY, null);
-  return value;
 }
 
 export function clearAuthSession() {
