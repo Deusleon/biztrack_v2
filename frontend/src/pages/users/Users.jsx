@@ -54,6 +54,7 @@ export default function Users() {
     } catch (err) { showError(err.message); } finally { setSaving(false); }
   };
   const remove = async () => { try { const r = await userAdminService.remove(confirm.id); showSuccess(r.message); list.reload(); } catch (err) { showError(err.message); } setConfirm(null); };
+  const enableUser = async (u) => { try { const r = await userAdminService.update(u.id, { role: u.storeInfo?.role_id, status: true }); showSuccess(r.message); list.reload(); } catch (err) { showError(err.message); } };
   const setSessions = async (u) => { try { const r = await userAdminService.sessions(u.id, !u.allow_multiple_sessions); showSuccess(r.message); list.reload(); } catch (err) { showError(err.message); } };
 
   const columns = [
@@ -77,7 +78,8 @@ export default function Users() {
           renderActions={(u) => <RowActions actions={[
             { label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => setView(u) },
             { label: t('edit', lang), icon: ACTION_ICONS.edit, onClick: () => openEdit(u), hidden: !canEdit || u.id === me?.id },
-            { label: t('delete', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ id: u.id, name: u.name }), hidden: !canDelete || u.id === me?.id },
+            { label: t('disable', lang), icon: ACTION_ICONS.delete, variant: 'danger', onClick: () => setConfirm({ id: u.id, name: u.name }), hidden: !canDelete || u.id === me?.id || !u.status },
+            { label: t('enable', lang), icon: ACTION_ICONS.edit, onClick: () => enableUser(u), hidden: !canEdit || u.id === me?.id || u.status },
             { label: u.allow_multiple_sessions ? t('one_device_only', lang) : t('allow_multiple_devices', lang), icon: u.allow_multiple_sessions ? ACTION_ICONS.device : ACTION_ICONS.devices, onClick: () => setSessions(u), hidden: !isDeveloper || u.id === me?.id },
           ]} />} />
       </div>
@@ -100,7 +102,7 @@ export default function Users() {
       <FormModal isOpen={!!modal} onClose={() => !saving && setModal(null)} size="lg" title={modal?.id ? t('edit_user', lang) : t('add_user', lang)}>
         {modal && (
           <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>
-            {!modal.id && <><Input label={t('full_name', lang)} required autoFocus value={form.full_name} onChange={set('full_name')} error={errors.full_name} /><Input type="email" label={t('email', lang)} required value={form.email} onChange={set('email')} error={errors.email} /><Input type="password" label={t('password', lang)} required autoComplete="new-password" value={form.password} onChange={set('password')} error={errors.password} helperText={t('min_8_characters', lang)} /></>}
+            {!modal.id && <><Input label={t('full_name', lang)} placeholder={t('enter_name', lang)} required autoFocus value={form.full_name} onChange={set('full_name')} error={errors.full_name} /><Input type="email" label={t('email', lang)} placeholder={t('email', lang)} required value={form.email} onChange={set('email')} error={errors.email} /><Input type="password" label={t('password', lang)} placeholder={t('password', lang)} required autoComplete="new-password" value={form.password} onChange={set('password')} error={errors.password} helperText={t('min_8_characters', lang)} /></>}
             {modal.id && <p className="text-sm text-gray-600 text-left">{form.full_name} · {form.email}</p>}
             <Select label={t('role', lang)} required value={form.role} onChange={set('role')} error={errors.role} placeholder={t('select_role', lang)} options={roles.map((r) => ({ value: modal.id ? r.id : r.name, label: r.name }))} />
             <Select label={t('account_status', lang)} value={form.status ? 'on' : 'off'} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value === 'on' }))} options={[{ value: 'on', label: t('enabled', lang) }, { value: 'off', label: t('disabled', lang) }]} />
@@ -108,7 +110,7 @@ export default function Users() {
           </form>
         )}
       </FormModal>
-      <ConfirmModal isOpen={!!confirm} variant="danger" title={t('delete', lang)} confirmText={t('delete', lang)} cancelText={t('ui_cancel', lang)} message={t('ui_confirm_delete', lang, { name: confirm?.name })} onClose={() => setConfirm(null)} onConfirm={remove} />
+      <ConfirmModal isOpen={!!confirm} variant="danger" title={t('disable', lang)} confirmText={t('disable', lang)} cancelText={t('ui_cancel', lang)} message={t('confirm_disable_user', lang, { name: confirm?.name })} onClose={() => setConfirm(null)} onConfirm={remove} />
     </MainLayout>
   );
 }

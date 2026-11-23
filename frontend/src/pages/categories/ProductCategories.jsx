@@ -95,8 +95,8 @@ export default function ProductCategories() {
 
       <FormModal isOpen={modal.isOpen} onClose={close} size="md" title={modal.mode === 'edit' ? t('update_category', lang) : t('new_category', lang)}>
         <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4">
-          <Input label={t('category_name', lang)} required autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-          <Textarea label={t('description', lang)} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+          <Input label={t('category_name', lang)} placeholder={t('category_name', lang)} required autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          <Textarea label={t('description', lang)} placeholder={t('description', lang)} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           <div className="flex justify-end gap-3 pt-1">
             <Button type="submit" loading={saving}>{modal.mode === 'edit' ? t('ui_update', lang) : t('ui_create', lang)}</Button>
             <Button type="button" variant="secondary" onClick={close}>{t('ui_cancel', lang)}</Button>

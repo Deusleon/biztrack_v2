@@ -17,7 +17,12 @@ const TYPES = [
   { key: 'prices', label: 'import_prices_only', can: ['import_prices', 'manage_products', 'manage_prices'] },
   { key: 'contacts', label: 'import_contacts', can: ['manage_contacts', 'manage_integration', 'view_bulk_operations'] },
 ];
-const EXPORTS = [['full', 'export_full'], ['products', 'export_products_only'], ['stock', 'export_stock_only'], ['prices', 'export_prices_only']];
+const EXPORTS = [
+  ['full', 'export_full', ['export_products', 'export_stock', 'export_prices']],
+  ['products', 'export_products_only', ['export_products']],
+  ['stock', 'export_stock_only', ['export_stock']],
+  ['prices', 'export_prices_only', ['export_prices']],
+];
 const MAX_MB = 10;
 
 const saveBlob = (blob, name) => { const url = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob])); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
@@ -64,7 +69,8 @@ export default function ImportExport({ bulk = false }) {
     } catch (err) { showError(err.message || t('import_failed', lang)); } finally { setBusy(null); }
   };
 
-  const canExport = !bulk && (can('view_imports_exports') || canAny(['export_products', 'export_stock', 'export_prices']));
+  const exportChoices = EXPORTS.filter(([, , need]) => need.every((name) => can(name)));
+  const canExport = !bulk && exportChoices.length > 0;
   const errs = (r) => (r?.errors || []).slice(0, 200);
 
   return (
@@ -96,7 +102,7 @@ export default function ImportExport({ bulk = false }) {
 
         {canExport && (
           <div className="bg-white p-5 rounded shadow space-y-3 text-left"><h2 className="text-base font-semibold text-gray-900">{t('export_data', lang)}</h2><p className="text-xs text-gray-500">{t('export_hint', lang)}</p>
-            <div className="flex flex-wrap gap-2">{EXPORTS.map(([k, label]) => <Button key={k} variant="secondary" loading={busy === `export-${k}`} onClick={() => exportData(k)}>{t(label, lang)}</Button>)}</div></div>
+            <div className="flex flex-wrap gap-2">{exportChoices.map(([k, label]) => <Button key={k} variant="secondary" loading={busy === `export-${k}`} onClick={() => exportData(k)}>{t(label, lang)}</Button>)}</div></div>
         )}
       </div>
 

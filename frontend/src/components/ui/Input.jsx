@@ -10,6 +10,7 @@ const Input = forwardRef(({
   rightIcon,
   required = false,
   type,
+  align = 'left',
   ...props 
 }, ref) => {
   if (type === 'date') {
@@ -25,7 +26,7 @@ const Input = forwardRef(({
         min={props.min}
         max={props.max}
         disabled={props.disabled}
-        align={props.align}
+        align={align}
         placeholder={props.placeholder || props['aria-label']}
       />
     );
@@ -52,6 +53,7 @@ const Input = forwardRef(({
             w-full px-4 py-2.5
             ${leftIcon ? 'pl-10' : ''}
             ${rightIcon ? 'pr-10' : ''}
+            ${align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left'}
             bg-white border rounded
             text-gray-900 text-sm
             placeholder-gray-400

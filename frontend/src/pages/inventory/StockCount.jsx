@@ -10,7 +10,7 @@ import useServerList from '../../hooks/useServerList';
 import { DataTable, Button, RowActions, ACTION_ICONS, Input, NumberInput, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { toPaging, dateOnly, DetailGrid } from '../sales/common';
-import { formatNumberWithCommas } from '../../utils/numberUtils';
+import { formatNumberWithCommas, getQuantityInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
 const num = (v) => Number(v) || 0;
@@ -62,7 +62,7 @@ export default function StockCount() {
     { key: 'product_name', label: t('product_name', lang), render: (p) => <span className="font-medium text-gray-900">{p.product_name}</span> },
     { key: 'category_name', label: t('category', lang), render: (p) => p.category_name || '—' },
     { key: 'system_stock', label: t('system_stock', lang), align: 'right', render: (p) => `${formatNumberWithCommas(p.system_stock)} ${t(p.unit, lang)}` },
-    { key: 'counted', label: t('counted_quantity', lang), align: 'right', render: (p) => <NumberInput allowDecimals className="w-32" placeholder="0" aria-label={t('counted_quantity', lang)} value={counted[p.product_id] ?? ''} onChange={(e) => setCount(p, e.target.value)} /> },
+    { key: 'counted', label: t('counted_quantity', lang), align: 'center', render: (p) => <NumberInput className="w-32 mx-auto" align="center" aria-label={t('counted_quantity', lang)} value={counted[p.product_id] ?? ''} onChange={(e) => setCount(p, e.target.value)} {...getQuantityInputProps()} /> },
     { key: 'difference', label: t('difference', lang), align: 'right', render: (p) => { const v = counted[p.product_id]; if (v === '' || v == null) return <span className="text-gray-300">—</span>; const dlt = num(v) - num(p.system_stock); return <span className={dlt === 0 ? 'text-gray-500' : dlt > 0 ? 'text-green-700 font-medium' : 'text-red-600 font-medium'}>{dlt > 0 ? '+' : ''}{formatNumberWithCommas(dlt)}</span>; } },
   ];
   const hcols = [

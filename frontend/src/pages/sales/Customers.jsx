@@ -125,7 +125,7 @@ export default function Customers() {
             <p className="text-sm text-gray-500 mt-0.5">{t('manage_customers', lang)}</p>
           </div>
           <div className="flex items-center gap-3">
-            <ExportMenu rows={exportRows} columns={exportColumns} title="customers" disabled={list.loading || list.rows.length === 0} />
+            {can('export_sales_pdf') && <ExportMenu rows={exportRows} columns={exportColumns} title="customers" disabled={list.loading || list.rows.length === 0} />}
             {canCreate && <Button variant="primary" mobileLabel={t('new_customer', lang)} onClick={openCreate}>{t('new_customer', lang)}</Button>}
           </div>
         </div>

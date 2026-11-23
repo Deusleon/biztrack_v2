@@ -9,10 +9,10 @@ import { useStore } from '../../contexts/StoreContext';
 import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { inventoryService, priceCategoryService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
-import { DataTable, Button, RowActions, ACTION_ICONS, Input, Select } from '../../components/ui';
+import { DataTable, Button, RowActions, ACTION_ICONS, Input, NumberInput, Select } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { toPaging } from '../sales/common';
-import { formatCurrency, formatNumberWithCommas } from '../../utils/numberUtils';
+import { formatCurrency, formatNumberWithCommas, getMoneyInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
 const num = (v) => Number(v) || 0;
@@ -64,14 +64,14 @@ export default function PriceList() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('price_list', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('product_prices_desc', lang)}</p></div>
-          <ExportMenu rows={exportRows} columns={exportCols} title="price_list" disabled={list.loading || list.rows.length === 0} />
+          {can('export_prices') && <ExportMenu rows={exportRows} columns={exportCols} title="price_list" disabled={list.loading || list.rows.length === 0} />}
         </div>
         <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 gap-3"><Select label={t('price_category', lang)} value={cat} onChange={(e) => setCat(e.target.value)} placeholder={t('select_price_category', lang)} options={cats.map((c) => ({ value: c.id, label: c.name }))} /><Input label={t('search', lang)} value={list.searchText} onChange={(e) => list.setFilter('search', e.target.value)} placeholder={t('ui_search_placeholder', lang)} /></div>
         <DataTable columns={columns} data={list.rows} loading={list.loading} rowId="id" emptyMessage={t('ui_nothing_yet', lang)} pagination={list.pagination} onPageChange={list.setPage}
           renderActions={canManage ? (r) => <RowActions actions={[{ label: t('update_price', lang), icon: ACTION_ICONS.edit, onClick: () => setEdit({ row: r, sellingPrice: String(num(r.sellingPrice)), buyingPrice: String(num(r.buyingPrice)) }) }]} /> : undefined} />
       </div>
       <FormModal isOpen={!!edit} onClose={() => !saving && setEdit(null)} size="md" title={t('update_price', lang)}>
-        {edit && <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4"><p className="text-sm text-gray-600 text-left">{edit.row.productName}{edit.row.batchNumber ? ` · ${edit.row.batchNumber}` : ''} · {catName}</p><Input label={t('selling_price', lang)} required autoFocus value={edit.sellingPrice} onChange={(e) => setEdit((x) => ({ ...x, sellingPrice: e.target.value }))} /><Input label={t('cost_price', lang)} value={edit.buyingPrice} onChange={(e) => setEdit((x) => ({ ...x, buyingPrice: e.target.value }))} /><div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{t('ui_update', lang)}</Button><Button type="button" variant="secondary" onClick={() => setEdit(null)}>{t('ui_cancel', lang)}</Button></div></form>}
+        {edit && <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4"><p className="text-sm text-gray-600 text-left">{edit.row.productName}{edit.row.batchNumber ? ` · ${edit.row.batchNumber}` : ''} · {catName}</p><NumberInput label={t('selling_price', lang)} required autoFocus value={edit.sellingPrice} onChange={(e) => setEdit((x) => ({ ...x, sellingPrice: e.target.value }))} {...getMoneyInputProps(settings)} /><NumberInput label={t('cost_price', lang)} value={edit.buyingPrice} onChange={(e) => setEdit((x) => ({ ...x, buyingPrice: e.target.value }))} {...getMoneyInputProps(settings)} /><div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{t('ui_update', lang)}</Button><Button type="button" variant="secondary" onClick={() => setEdit(null)}>{t('ui_cancel', lang)}</Button></div></form>}
       </FormModal>
     </MainLayout>
   );

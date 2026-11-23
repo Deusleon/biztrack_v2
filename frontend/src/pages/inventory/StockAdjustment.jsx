@@ -13,7 +13,7 @@ import { DataTable, Button, RowActions, ACTION_ICONS, NumberInput, Select, Texta
 import FormModal from '../../components/ui/FormModal';
 import { toPaging, dateOnly, DetailGrid } from '../sales/common';
 import { useAllProducts } from '../purchases/common';
-import { formatNumberWithCommas } from '../../utils/numberUtils';
+import { formatNumberWithCommas, getQuantityInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
 const REASONS = ['damaged', 'expired', 'lost', 'found', 'correction', 'return', 'other'];
@@ -123,7 +123,7 @@ export default function StockAdjustment() {
             {batchWise && batches.length > 0 && <Select label={t('batch_number', lang)} value={form.batch_id} onChange={(e) => setForm((f) => ({ ...f, batch_id: e.target.value }))} options={[{ value: '', label: t('latest_batch', lang) }, ...batches.map((b) => ({ value: b.batch_id, label: `${b.batch_number || '—'} (${formatNumberWithCommas(b.current_stock)})` }))]} />}
             <div className="grid grid-cols-2 gap-3">
               <Select label={t('type', lang)} value={form.adjustment_type} onChange={(e) => setForm((f) => ({ ...f, adjustment_type: e.target.value }))} options={[{ value: 'add', label: t('stock_add', lang) }, { value: 'subtract', label: t('stock_subtract', lang) }]} />
-              <NumberInput label={t('quantity', lang)} required allowDecimals placeholder="0" value={form.quantity} onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))} />
+              <NumberInput label={t('quantity', lang)} required value={form.quantity} onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))} {...getQuantityInputProps()} />
             </div>
             <Select label={t('reason', lang)} value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))} options={REASONS.map((r) => ({ value: r, label: t(r, lang) }))} />
             <Textarea rows={2} label={t('notes', lang)} placeholder={t('notes', lang)} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />

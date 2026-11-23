@@ -9,12 +9,12 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { purchaseService } from '../../services/api';
 import { Button, DatePicker, Input, Loader, NumberInput, Select, Textarea } from '../../components/ui';
 import { useSuppliers, useAllProducts, dateOnly, num } from './common';
-import { formatCurrency, formatNumberWithCommas, getMoneyInputProps, removeNumberFormatting } from '../../utils/numberUtils';
+import { formatCurrency, formatNumberWithCommas, formatQuantity, getMoneyInputProps, getQuantityInputProps, removeNumberFormatting } from '../../utils/numberUtils';
 import { getMoneyDecimals } from '../../utils/money';
 import { t } from '../../utils/i18n';
 
 const EMPTY = { supplier_id: '', expected_delivery_date: '', delivery_address: '', payment_terms: '', notes: '', internal_notes: '', items: [] };
-const QTY_DECIMALS = 3;
+const QTY_DECIMALS = 2;
 const amount = (v) => removeNumberFormatting(v) || 0;
 
 /** Digits and one decimal point, with commas, while the person is still typing. */
@@ -69,7 +69,7 @@ export default function OrderForm() {
     product_name: i.product_name || '',
     unit: i.unit || '',
     stock: i.current_stock,
-    quantity: formatNumberWithCommas(num(i.quantity), QTY_DECIMALS) || '1',
+    quantity: formatQuantity(i.quantity) || '1',
     unit_price: formatNumberWithCommas(num(i.unit_price), moneyDec),
     discount_percent: String(num(i.discount_percent) || 0),
     tax_rate: String(num(i.tax_rate) || 0),
@@ -114,7 +114,7 @@ export default function OrderForm() {
       const product = products.find((row) => row.id === item.id) || products.find((row) => String(row.name || '').trim().toLowerCase() === wanted);
       if (!product || lines.some((line) => line.product_id === product.id)) continue;
       const quantity = Math.max(Number(item.quantity) || 1, 1);
-      lines.push({ key: Math.random().toString(36).slice(2), product_id: product.id, product_name: product.name, unit: product.unit || '', stock: product.current_stock, quantity: formatNumberWithCommas(quantity, QTY_DECIMALS), unit_price: formatNumberWithCommas(num(product.cost_price), moneyDecimals), discount_percent: '0', tax_rate: '0', notes: '' });
+      lines.push({ key: Math.random().toString(36).slice(2), product_id: product.id, product_name: product.name, unit: product.unit || '', stock: product.current_stock, quantity: formatQuantity(quantity), unit_price: formatNumberWithCommas(num(product.cost_price), moneyDecimals), discount_percent: '0', tax_rate: '0', notes: '' });
     }
     sessionStorage.removeItem('biztrackAiPurchaseDraft');
     draftDone.current = true;
@@ -173,7 +173,7 @@ export default function OrderForm() {
   const fieldsMobile = (i) => (
     <>
       <label className="block text-left"><span className="item-label">{t('quantity', lang)}</span>
-        <NumberInput allowDecimals decimals={QTY_DECIMALS} placeholder="0" aria-label={t('quantity', lang)} value={i.quantity} onChange={(e) => setItem(i.key, { quantity: e.target.value })} onBlur={() => { if (!i.quantity) setItem(i.key, { quantity: '1' }); }} /></label>
+        <NumberInput aria-label={t('quantity', lang)} value={i.quantity} onChange={(e) => setItem(i.key, { quantity: e.target.value })} onBlur={() => { if (!i.quantity) setItem(i.key, { quantity: '1' }); }} {...getQuantityInputProps()} /></label>
       <label className="block text-left"><span className="item-label">{t('unit_price', lang)}</span>
         <NumberInput aria-label={t('unit_price', lang)} value={i.unit_price} onChange={(e) => setItem(i.key, { unit_price: e.target.value })} {...getMoneyInputProps(settings, moneyDecimals)} /></label>
       <label className="block text-left"><span className="item-label">{t('discount', lang)} %</span>
@@ -244,10 +244,10 @@ export default function OrderForm() {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 text-gray-600"><tr>
                       <th className="px-3 py-2 text-left">{t('product_name', lang)}</th>
-                      <th className="px-2 py-2 w-28 text-right">{t('quantity', lang)}</th>
-                      <th className="px-2 py-2 w-36 text-right">{t('unit_price', lang)}</th>
-                      <th className="px-2 py-2 w-28 text-right">{t('discount', lang)} %</th>
-                      <th className="px-2 py-2 w-24 text-right">{t('tax', lang)} %</th>
+                      <th className="px-2 py-2 w-28 text-left">{t('quantity', lang)}</th>
+                      <th className="px-2 py-2 w-36 text-left">{t('unit_price', lang)}</th>
+                      <th className="px-2 py-2 w-28 text-left">{t('discount', lang)} %</th>
+                      <th className="px-2 py-2 w-24 text-left">{t('tax', lang)} %</th>
                       <th className="px-3 py-2 w-32 text-right">{t('total', lang)}</th>
                       <th className="w-10" />
                     </tr></thead>
@@ -259,7 +259,7 @@ export default function OrderForm() {
                             <div className="font-medium text-gray-900">{i.product_name}</div>
                             <div className="text-xs text-gray-400">{[i.unit && t(i.unit, lang), i.stock != null && `${t('available', lang)}: ${formatNumberWithCommas(i.stock)}`].filter(Boolean).join(' · ')}</div>
                           </td>
-                          <td className="px-2 py-2 min-w-[8rem]"><NumberInput allowDecimals decimals={QTY_DECIMALS} placeholder="0" aria-label={t('quantity', lang)} value={i.quantity} onChange={(e) => setItem(i.key, { quantity: e.target.value })} onBlur={() => { if (!i.quantity) setItem(i.key, { quantity: '1' }); }} /></td>
+                          <td className="px-2 py-2 min-w-[8rem]"><NumberInput aria-label={t('quantity', lang)} value={i.quantity} onChange={(e) => setItem(i.key, { quantity: e.target.value })} onBlur={() => { if (!i.quantity) setItem(i.key, { quantity: '1' }); }} {...getQuantityInputProps()} /></td>
                           <td className="px-2 py-2 min-w-[9rem]"><NumberInput aria-label={t('unit_price', lang)} value={i.unit_price} onChange={(e) => setItem(i.key, { unit_price: e.target.value })} {...getMoneyInputProps(settings, moneyDecimals)} /></td>
                           <td className="px-2 py-2 min-w-[7rem]"><NumberInput allowDecimals decimals={2} placeholder="0" aria-label={t('discount', lang)} value={i.discount_percent} onChange={(e) => setItem(i.key, { discount_percent: e.target.value })} /></td>
                           <td className="px-2 py-2 min-w-[7rem]"><NumberInput allowDecimals decimals={2} placeholder="0" aria-label={t('tax', lang)} value={i.tax_rate} onChange={(e) => setItem(i.key, { tax_rate: e.target.value })} /></td>

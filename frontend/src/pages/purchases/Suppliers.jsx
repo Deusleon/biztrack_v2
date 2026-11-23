@@ -66,7 +66,7 @@ export default function Suppliers() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('suppliers', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_suppliers', lang)}</p></div>
-          <div className="flex items-center gap-3"><ExportMenu rows={exportRows} columns={exportCols} title="suppliers" disabled={list.loading || list.rows.length === 0} />
+          <div className="flex items-center gap-3">{can('export_purchases_pdf') && <ExportMenu rows={exportRows} columns={exportCols} title="suppliers" disabled={list.loading || list.rows.length === 0} />}
             {canCreate && <Button mobileLabel={t('new_supplier', lang)} onClick={openCreate}>{t('new_supplier', lang)}</Button>}</div>
         </div>
         <div className="bg-white p-4 rounded shadow"><Input value={list.searchText} onChange={(e) => list.setFilter('search', e.target.value)} placeholder={t('ui_search_placeholder', lang)} aria-label={t('search', lang)} /></div>

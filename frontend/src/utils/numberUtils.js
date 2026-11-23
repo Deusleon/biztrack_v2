@@ -31,9 +31,27 @@ export const getMoneyInputProps = (settings = {}, maxDecimals = null) => {
     return {
         decimals,
         allowDecimals: decimals > 0,
+        pad: true,
         placeholder: getMoneyInputPlaceholder(settings, decimals),
     };
 };
+
+/** Quantity never follows the store's money decimals: at most two places, and no trailing zeros. */
+export const QTY_MAX_DECIMALS = 2;
+
+export const formatQuantity = (value) => {
+    if (value === undefined || value === null || value === "") return "";
+    const n = Number(String(value).replace(/,/g, ""));
+    if (!Number.isFinite(n)) return "";
+    return formatNumberWithCommas(String(Number(n.toFixed(QTY_MAX_DECIMALS))));
+};
+
+export const getQuantityInputProps = () => ({
+    allowDecimals: true,
+    decimals: QTY_MAX_DECIMALS,
+    pad: false,
+    placeholder: "0",
+});
 
 export const formatCurrency = (value, settings = {}, maxDecimals = null) => {
     const decimals = resolveMoneyDecimals(settings, maxDecimals);

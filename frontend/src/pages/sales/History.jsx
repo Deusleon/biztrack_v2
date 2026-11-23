@@ -111,7 +111,7 @@ export default function History() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('sales_history', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_sales_history', lang)}</p></div>
-          <div className="flex gap-2"><ExportMenu rows={exportRows} columns={exportCols} title="sales_history" loadRows={loadAllRows} orientation="landscape" disabled={list.loading || list.rows.length === 0} />
+          <div className="flex gap-2">{can('export_sales_pdf') && <ExportMenu rows={exportRows} columns={exportCols} title="sales_history" loadRows={loadAllRows} orientation="landscape" disabled={list.loading || list.rows.length === 0} />}
             {can('create_invoice') && <Button onClick={() => navigate('/sales/invoice')}>{t('new_sale', lang)}</Button>}</div>
         </div>
         <FilterBar list={list} statusKey="saleType" statusOptions={['cash', 'credit']} />

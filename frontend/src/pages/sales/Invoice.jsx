@@ -11,7 +11,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { useSaleItems } from '../../hooks/useSaleItems';
 import { salesService, productService, customerService, priceCategoryService } from '../../services/api';
 import { Input, NumberInput, Select, Textarea, Button, ConfirmModal, FormModal, DatePicker } from '../../components/ui';
-import { formatCurrency, formatNumberWithCommas, removeNumberFormatting, getMoneyInputProps} from '../../utils/numberUtils';
+import { formatCurrency, formatNumberWithCommas, removeNumberFormatting, getMoneyInputProps, getQuantityInputProps } from '../../utils/numberUtils';
 import { getMoneyDecimals } from '../../utils/money';
 import { printReceiptViaQz } from '../../utils/qzReceipt';
 import { t } from '../../utils/i18n';
@@ -20,7 +20,7 @@ const newCode = () => `S-ID-${Date.now()}`;
 const nowLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 const toServerDate = (v) => `${v.replace('T', ' ')}:00`;
 const PAYMENT_METHODS = ['cash', 'mobile_money', 'bank_transfer'];
-const QTY_DECIMALS = 3;
+const QTY_DECIMALS = 2;
 
 /** Digits and one decimal point, with commas, while the person is still typing. */
 const shapeNumber = (value, maxDecimals) => {
@@ -377,7 +377,7 @@ export default function Invoice() {
                 <div className="space-y-3 text-left">
                   <div className="text-xs opacity-70">{t('available', lang)}: {formatNumberWithCommas(editRow.quantityLeft)}</div>
                   <div className="grid grid-cols-2 gap-3">
-                    <label className="block"><span className="item-label">{t('quantity', lang)}</span><NumberInput allowDecimals decimals={QTY_DECIMALS} placeholder="0" aria-label={t('quantity', lang)} value={editRow.quantity} onChange={(e) => sale.updateItem(editRow.id, 'quantity', e.target.value)} onBlur={() => { if (!editRow.quantity) sale.updateItem(editRow.id, 'quantity', '1'); }} /></label>
+                    <label className="block"><span className="item-label">{t('quantity', lang)}</span><NumberInput aria-label={t('quantity', lang)} value={editRow.quantity} onChange={(e) => sale.updateItem(editRow.id, 'quantity', e.target.value)} onBlur={() => { if (!editRow.quantity) sale.updateItem(editRow.id, 'quantity', '1'); }} {...getQuantityInputProps()} /></label>
                     <label className="block"><span className="item-label">{t('price', lang)}</span><NumberInput aria-label={t('price', lang)} value={editRow.price} onChange={(e) => sale.updateItem(editRow.id, 'price', e.target.value)} {...moneyInput} /></label>
                   </div>
                   <div className="grid grid-cols-2 gap-3 items-end">
@@ -393,9 +393,9 @@ export default function Invoice() {
             <div className="hidden md:block bg-white rounded shadow overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-gray-600"><tr>
-                  <th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('quantity', lang)}</th>
-                  <th className="px-2 py-2 w-36 text-right">{t('price', lang)}</th>
-                  {discountEnabled && <th className="px-2 py-2 w-32 text-right">{t('discount', lang)}</th>}
+                  <th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-2 py-2 w-28 text-left">{t('quantity', lang)}</th>
+                  <th className="px-2 py-2 w-36 text-left">{t('price', lang)}</th>
+                  {discountEnabled && <th className="px-2 py-2 w-32 text-left">{t('discount', lang)}</th>}
                   {vatEnabled && <th className="px-2 py-2 w-24 text-right">{t('tax', lang)}</th>}
                   <th className="px-3 py-2 w-32 text-right">{t('total', lang)}</th><th className="w-10" />
                 </tr></thead>
@@ -404,7 +404,7 @@ export default function Invoice() {
                   {rows.map((r) => (
                     <tr key={r.id} className="border-t border-gray-100 align-middle">
                       <td className="px-3 py-2 text-left"><div className="font-medium text-gray-900">{r.productName}</div><div className="text-xs text-gray-400">{t(r.unit, lang)} · {t('available', lang)}: {formatNumberWithCommas(r.quantityLeft)}</div></td>
-                      <td className="px-2 py-2 min-w-[8rem]"><NumberInput allowDecimals decimals={QTY_DECIMALS} placeholder="0" aria-label={t('quantity', lang)} value={r.quantity} onChange={(e) => sale.updateItem(r.id, 'quantity', e.target.value)} onBlur={() => { if (!r.quantity) sale.updateItem(r.id, 'quantity', '1'); }} /></td>
+                      <td className="px-2 py-2 min-w-[8rem]"><NumberInput aria-label={t('quantity', lang)} value={r.quantity} onChange={(e) => sale.updateItem(r.id, 'quantity', e.target.value)} onBlur={() => { if (!r.quantity) sale.updateItem(r.id, 'quantity', '1'); }} {...getQuantityInputProps()} /></td>
                       <td className="px-2 py-2 min-w-[9rem]"><NumberInput aria-label={t('price', lang)} value={r.price} onChange={(e) => sale.updateItem(r.id, 'price', e.target.value)} {...moneyInput} /></td>
                       {discountEnabled && <td className="px-2 py-2 min-w-[8rem]"><NumberInput allowDecimals decimals={sale.discountType === 'percentage' ? 2 : moneyDecimals} placeholder={sale.discountType === 'percentage' ? '0' : formatNumberWithCommas(0, moneyDecimals)} aria-label={t('discount', lang)} value={r.discount} onChange={(e) => sale.updateItem(r.id, 'discount', e.target.value)} /></td>}
                       {vatEnabled && <td className="px-2 py-2 text-right text-gray-600">{r.vat}</td>}

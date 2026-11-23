@@ -12,7 +12,7 @@ import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { DataTable, Button, RowActions, ACTION_ICONS, Input, NumberInput, Select, Textarea, ConfirmModal } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { FilterBar, StatusBadge, DetailGrid, toPaging, dateOnly } from './common';
-import { formatCurrency } from '../../utils/numberUtils';
+import { formatCurrency, getQuantityInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
 const fetchReturns = async ({ page, limit, search, status, startDate, endDate }) => {
@@ -96,11 +96,11 @@ export default function Returns() {
       <FormModal isOpen={!!create} onClose={() => !busy && setCreate(null)} size="xl" title={`${t('new_return', lang)} · #${create?.invoice || ''}`}>
         {create && (
           <div className="space-y-4 text-left">
-            <div className="overflow-x-auto border border-gray-100 rounded"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-2 py-2 text-right">{t('sold', lang)}</th><th className="px-2 py-2 w-24 text-right">{t('return_quantity', lang)}</th><th className="px-2 py-2 w-32">{t('condition', lang)}</th><th className="px-2 py-2 text-center">{t('restock', lang)}</th><th className="px-3 py-2 text-right">{t('refund_amount', lang)}</th></tr></thead>
+            <div className="overflow-x-auto border border-gray-100 rounded"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-2 py-2 text-right">{t('sold', lang)}</th><th className="px-2 py-2 w-24 text-left">{t('return_quantity', lang)}</th><th className="px-2 py-2 w-32">{t('condition', lang)}</th><th className="px-2 py-2 text-center">{t('restock', lang)}</th><th className="px-3 py-2 text-right">{t('refund_amount', lang)}</th></tr></thead>
               <tbody>{create.lines.map((l, i) => (
                 <tr key={`${l.product_id}-${i}`} className="border-t border-gray-100">
                   <td className="px-3 py-2">{l.name}</td><td className="px-2 py-2 text-right">{l.sold}</td>
-                  <td className="px-2 py-2 min-w-[8rem]"><NumberInput allowDecimals placeholder="0" aria-label={t('return_quantity', lang)} value={l.qty || ''} onChange={(e) => setLine(i, { qty: e.target.value })} /></td>
+                  <td className="px-2 py-2 min-w-[8rem]"><NumberInput aria-label={t('return_quantity', lang)} value={l.qty || ''} onChange={(e) => setLine(i, { qty: e.target.value })} {...getQuantityInputProps()} /></td>
                   <td className="px-2 py-2 min-w-[10rem]"><Select aria-label={t('condition', lang)} value={l.condition} onChange={(e) => setLine(i, { condition: e.target.value })} options={CONDITIONS.map((c) => ({ value: c, label: t(c, lang) }))} /></td>
                   <td className="px-2 py-2 text-center"><input type="checkbox" checked={l.restock && l.condition === 'good'} disabled={l.condition !== 'good'} onChange={(e) => setLine(i, { restock: e.target.checked })} /></td>
                   <td className="px-3 py-2 text-right">{money(l.qty * l.price)}</td>

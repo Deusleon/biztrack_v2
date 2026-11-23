@@ -113,7 +113,7 @@ export default function ReportPage({ group }) {
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t(g.title, lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t(g.desc, lang)}</p></div>
           <div className="flex items-center gap-2">
             {['sales', 'profit', 'inventory'].includes(group) && can('ai_explain_reports') && <ExplainReportPanel reportType={group} reportKey={report.id} filters={{ ...(report.dates ? { startDate: filters.startDate, endDate: filters.endDate } : {}), ...Object.fromEntries(report.filters.filter((f) => filters[f]).map((f) => [FILTER_OPTIONS[f]?.param || f, filters[f]])) }} />}
-            <ExportMenu loadRows={loadRows} columns={exportCols} withFooter={foot} title={report.label} orientation={cols.length > 6 ? 'landscape' : 'portrait'} fromDate={report.dates ? filters.startDate : null} toDate={report.dates ? filters.endDate : null} disabled={state.loading || shown.length === 0} />
+            {can('export_reports_pdf') && <ExportMenu loadRows={loadRows} columns={exportCols} withFooter={foot} title={report.label} orientation={cols.length > 6 ? 'landscape' : 'portrait'} fromDate={report.dates ? filters.startDate : null} toDate={report.dates ? filters.endDate : null} disabled={state.loading || shown.length === 0} />}
           </div>
         </div>
 

@@ -56,7 +56,7 @@ export default function Payments() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('supplier_payments', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_supplier_payments', lang)}</p></div>
-          <div className="flex items-center gap-3"><ExportMenu rows={exportRows} columns={exportCols} title="supplier_payments" disabled={list.loading || list.rows.length === 0} />{can('create_supplier_payments') && <Button onClick={openNew} mobileLabel={t('new_payment', lang)}>{t('new_payment', lang)}</Button>}</div>
+          <div className="flex items-center gap-3">{can('export_purchases_pdf') && <ExportMenu rows={exportRows} columns={exportCols} title="supplier_payments" disabled={list.loading || list.rows.length === 0} />}{can('create_supplier_payments') && <Button onClick={openNew} mobileLabel={t('new_payment', lang)}>{t('new_payment', lang)}</Button>}</div>
         </div>
         <PFilters list={list} statusOptions={['completed', 'cancelled']} suppliers={suppliers} />
         <DataTable columns={columns} data={list.rows} loading={list.loading} emptyMessage={list.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={list.pagination} onPageChange={list.setPage}

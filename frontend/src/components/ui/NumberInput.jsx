@@ -22,10 +22,11 @@ export default function NumberInput({
   name,
   allowDecimals = true,
   decimals,
+  pad = true,
   onBlur,
   placeholder,
   bare = false,
-  align = "right",
+  align = "left",
   className = "",
   ...props
 }) {
@@ -68,7 +69,11 @@ export default function NumberInput({
     const current = sanitize(e.target.value);
     if (maxDecimals != null && current !== "" && current !== ".") {
       const n = Number(current);
-      if (Number.isFinite(n)) onChange?.({ ...e, target: { ...e.target, name, value: n.toFixed(maxDecimals) } });
+      if (Number.isFinite(n)) {
+        const fixed = n.toFixed(maxDecimals);
+        const next = pad ? fixed : String(Number(fixed));
+        onChange?.({ ...e, target: { ...e.target, name, value: next } });
+      }
     }
     onBlur?.(e);
   };
@@ -84,7 +89,7 @@ export default function NumberInput({
         onChange={handleChange}
         onBlur={handleBlur}
         placeholder={resolvedPlaceholder}
-        className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-20 ${align === "left" ? "text-left" : "text-right"} ${className}`}
+        className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-20 ${align === "center" ? "text-center" : align === "right" ? "text-right" : "text-left"} ${className}`}
       />
     );
   }
@@ -93,6 +98,7 @@ export default function NumberInput({
     <Input
       {...props}
       className={className}
+      align={align}
       name={name}
       type="text"
       inputMode={allowDec ? "decimal" : "numeric"}

@@ -57,7 +57,7 @@ export default function StockValue() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('current_stock_value', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('view_stock_value_and_profit', lang)}</p></div>
-          {(can('export_inventory_pdf') || can('view_current_stock_value')) && <ExportMenu rows={exportRows} columns={exportCols} title="current_stock_value" orientation="landscape" disabled={list.loading || list.rows.length === 0} />}
+          {can('export_inventory_pdf') && <ExportMenu rows={exportRows} columns={exportCols} title="current_stock_value" orientation="landscape" disabled={list.loading || list.rows.length === 0} />}
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[['total_cost_value', money(tot.totalWorth)], ['total_selling_value', money(tot.totalRevenue)], [num(tot.totalProfit) < 0 ? 'total_potential_loss' : 'total_potential_profit', money(Math.abs(num(tot.totalProfit)))], ['profit_margin', `${margin.toFixed(1)}%`]].map(([k, v]) => <div key={k} className="bg-white p-4 rounded shadow text-left"><p className="text-xs uppercase tracking-wide text-gray-400">{t(k, lang)}</p><p className="text-lg font-bold text-gray-900 mt-1">{v}</p></div>)}

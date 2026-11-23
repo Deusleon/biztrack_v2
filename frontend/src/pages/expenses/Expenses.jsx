@@ -80,7 +80,7 @@ export default function Expenses() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('expenses', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('expenses_desc', lang)}</p></div>
-          <div className="flex items-center gap-3"><ExportMenu rows={exportRows} columns={exportCols} title="expenses" loadRows={loadAll} disabled={list.loading || list.rows.length === 0} />{canCreate && <Button onClick={openCreate} mobileLabel={t('add_expense', lang)}>{t('add_expense', lang)}</Button>}</div>
+          <div className="flex items-center gap-3">{can('export_expenses_pdf') && <ExportMenu rows={exportRows} columns={exportCols} title="expenses" loadRows={loadAll} disabled={list.loading || list.rows.length === 0} />}{canCreate && <Button onClick={openCreate} mobileLabel={t('add_expense', lang)}>{t('add_expense', lang)}</Button>}</div>
         </div>
         <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
           <Select value={list.filters.category || ''} onChange={(e) => list.setFilter('category', e.target.value)} options={[{ value: '', label: t('all_categories', lang) }, ...cats.map((c) => ({ value: c, label: c }))]} />
@@ -113,8 +113,8 @@ export default function Expenses() {
             <Select label={t('category', lang)} required searchable value={newCat ? '__new__' : form.category} placeholder={t('select_category', lang)} onChange={(e) => { if (e.target.value === '__new__') { setNewCat(true); setForm((f) => ({ ...f, category: '' })); } else { setNewCat(false); setForm((f) => ({ ...f, category: e.target.value })); } }} options={[...[...new Set([...cats, ...(newCat ? [] : [form.category])].filter(Boolean))].map((c) => ({ value: c, label: c })), { value: '__new__', label: t('new_expense_category', lang) }]} />
             {newCat && <Input label={t('new_expense_category', lang)} required autoFocus value={form.category} onChange={set('category')} placeholder={t('category', lang)} />}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><NumberInput label={t('amount', lang)} required value={form.amount} onChange={set('amount')} {...moneyInput} /><DatePicker label={t('date', lang)} value={form.expense_date} onChange={set('expense_date')} /></div>
-            <div className="grid grid-cols-2 gap-3"><Select label={t('payment_method', lang)} value={form.payment_method} onChange={set('payment_method')} options={METHODS.map((m) => ({ value: m, label: t(m, lang) }))} /><Input label={t('reference_number', lang)} value={form.reference_number} onChange={set('reference_number')} /></div>
-            <Textarea rows={2} label={t('description', lang)} value={form.description} onChange={set('description')} />
+            <div className="grid grid-cols-2 gap-3"><Select label={t('payment_method', lang)} value={form.payment_method} onChange={set('payment_method')} options={METHODS.map((m) => ({ value: m, label: t(m, lang) }))} /><Input label={t('reference_number', lang)} placeholder={t('reference_number', lang)} value={form.reference_number} onChange={set('reference_number')} /></div>
+            <Textarea rows={2} label={t('description', lang)} placeholder={t('description', lang)} value={form.description} onChange={set('description')} />
             <div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{modal.mode === 'edit' ? t('ui_update', lang) : t('save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setModal(null)}>{t('ui_cancel', lang)}</Button></div>
           </form>
         )}

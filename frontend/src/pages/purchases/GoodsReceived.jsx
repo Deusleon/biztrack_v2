@@ -12,7 +12,7 @@ import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, NumberInput, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { PStatus, PFilters, useSuppliers, listFetcher, dateOnly, num, INITIAL, Dl } from './common';
-import { formatCurrency, formatNumberWithCommas, getMoneyInputProps } from '../../utils/numberUtils';
+import { formatCurrency, formatNumberWithCommas, getMoneyInputProps, getQuantityInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
 
 const STATUSES = ['pending_inspection', 'approved', 'rejected', 'cancelled'];
@@ -117,17 +117,21 @@ export default function GoodsReceived() {
             {create.po && <>
               <Dl items={[[t('supplier', lang), create.po.supplier_name], [t('expected_delivery', lang), dateOnly(create.po.expected_delivery_date, settings)], [t('items', lang), String(create.lines.length)], [t('pending', lang), formatNumberWithCommas(create.lines.reduce((s, l) => s + num(l.item.pending_quantity), 0))], [t('this_receipt', lang), money(create.lines.reduce((s, l) => s + num(l.qty) * num(l.unit_cost), 0))]]} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><Input label={t('supplier_delivery_note', lang)} placeholder={t('supplier_delivery_note', lang)} value={create.supplier_delivery_note} onChange={(e) => setCreate((c) => ({ ...c, supplier_delivery_note: e.target.value }))} /><Input label={t('supplier_invoice_number', lang)} placeholder={t('supplier_invoice_number', lang)} value={create.supplier_invoice_number} onChange={(e) => setCreate((c) => ({ ...c, supplier_invoice_number: e.target.value }))} /></div>
-              <div className="overflow-x-auto border border-gray-100 rounded"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-2 py-2 text-left">{t('product_name', lang)}</th><th className="px-2 py-2 text-right">{t('pending', lang)}</th><th className="px-2 py-2 w-24 text-right">{t('received', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('unit_cost', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('selling_price', lang)}{settings?.useBatchWisePrice ? ' *' : ''}</th><th className="px-2 py-2 w-32">{t('batch_number', lang)}</th><th className="px-2 py-2 w-36">{t('mfg_date', lang)}</th>{showExpiry && <th className="px-2 py-2 w-36">{t('exp_date', lang)}</th>}</tr></thead>
-                <tbody>{create.lines.map((l, i) => (
-                  <tr key={l.item.id} className="border-t border-gray-100">
-                    <td className="px-2 py-1.5 text-left">{l.item.product_name}</td><td className="px-2 py-1.5 text-right">{num(l.item.pending_quantity)}</td>
-                    <td className="px-2 py-1.5 min-w-[8rem]"><NumberInput allowDecimals placeholder="0" aria-label={t('received', lang)} value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} /></td>
-                    <td className="px-2 py-1.5 min-w-[9rem]"><NumberInput aria-label={t('unit_cost', lang)} value={l.unit_cost} onChange={(e) => setLine(i, { unit_cost: e.target.value })} {...moneyInput} /></td>
-                    <td className="px-2 py-1.5 min-w-[9rem]"><NumberInput aria-label={t('selling_price', lang)} value={l.selling_price} onChange={(e) => setLine(i, { selling_price: e.target.value })} {...moneyInput} /></td>
-                    <td className="px-2 py-1.5 min-w-[9rem]"><Input placeholder={t('batch_number', lang)} aria-label={t('batch_number', lang)} value={l.batch_number} onChange={(e) => setLine(i, { batch_number: e.target.value })} /></td>
-                    <td className="px-2 py-1.5 min-w-[11rem]"><DatePicker value={l.manufacturing_date} onChange={(e) => setLine(i, { manufacturing_date: e.target.value })} placeholder={t('mfg_date', lang)} /></td>
-                    {showExpiry && <td className="px-2 py-1.5 min-w-[11rem]"><DatePicker value={l.expiry_date} onChange={(e) => setLine(i, { expiry_date: e.target.value })} placeholder={t('exp_date', lang)} /></td>}
-                  </tr>))}</tbody></table></div>
+              <div className="space-y-3">{create.lines.map((l, i) => (
+                <div key={l.item.id} className="border border-gray-100 rounded p-3 space-y-3">
+                  <div className="flex items-baseline justify-between gap-3 text-left">
+                    <p className="font-medium text-gray-900">{l.item.product_name}</p>
+                    <p className="text-xs text-gray-500 shrink-0">{t('pending', lang)}: {num(l.item.pending_quantity)}</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <NumberInput label={t('received', lang)} value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} {...getQuantityInputProps()} />
+                    <NumberInput label={t('unit_cost', lang)} value={l.unit_cost} onChange={(e) => setLine(i, { unit_cost: e.target.value })} {...moneyInput} />
+                    <NumberInput label={t('selling_price', lang)} value={l.selling_price} onChange={(e) => setLine(i, { selling_price: e.target.value })} {...moneyInput} />
+                    <Input label={t('batch_number', lang)} placeholder={t('batch_number', lang)} value={l.batch_number} onChange={(e) => setLine(i, { batch_number: e.target.value })} />
+                    <DatePicker label={t('mfg_date', lang)} value={l.manufacturing_date} onChange={(e) => setLine(i, { manufacturing_date: e.target.value })} placeholder={t('mfg_date', lang)} />
+                    {showExpiry && <DatePicker label={t('exp_date', lang)} value={l.expiry_date} onChange={(e) => setLine(i, { expiry_date: e.target.value })} placeholder={t('exp_date', lang)} />}
+                  </div>
+                </div>))}</div>
               <Textarea rows={2} label={t('notes', lang)} placeholder={t('notes', lang)} value={create.notes} onChange={(e) => setCreate((c) => ({ ...c, notes: e.target.value }))} />
             </>}
             <div className="flex justify-end gap-3"><Button type="submit" loading={busy} disabled={!create.po}>{t('save', lang)}</Button><Button type="button" variant="secondary" onClick={() => setCreate(null)}>{t('ui_cancel', lang)}</Button></div>
@@ -154,11 +158,11 @@ export default function GoodsReceived() {
         {inspect && (
           <div className="space-y-4">
             <p className="text-sm text-gray-500 text-left">{t('inspection_help', lang)}</p>
-            <div className="overflow-x-auto border border-gray-100 rounded"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-3 py-2 text-right">{t('received', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('accepted', lang)}</th><th className="px-2 py-2 w-28 text-right">{t('rejected', lang)}</th><th className="px-2 py-2 w-48">{t('rejection_reason', lang)}</th></tr></thead>
+            <div className="overflow-x-auto border border-gray-100 rounded"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('product_name', lang)}</th><th className="px-3 py-2 text-right">{t('received', lang)}</th><th className="px-2 py-2 w-28 text-left">{t('accepted', lang)}</th><th className="px-2 py-2 w-28 text-left">{t('rejected', lang)}</th><th className="px-2 py-2 w-48">{t('rejection_reason', lang)}</th></tr></thead>
               <tbody>{inspect.lines.map((l, i) => (
                 <tr key={l.item.id} className="border-t border-gray-100"><td className="px-3 py-2 text-left">{l.item.product_name}</td><td className="px-3 py-2 text-right">{num(l.item.received_quantity)}</td>
-                  <td className="px-2 py-1.5 min-w-[8rem]"><NumberInput allowDecimals placeholder="0" aria-label={t('accepted', lang)} value={l.accepted} onChange={(e) => setInspect((s) => ({ ...s, lines: s.lines.map((x, k) => (k === i ? { ...x, accepted: e.target.value } : x)) }))} /></td>
-                  <td className="px-2 py-1.5 min-w-[8rem]"><NumberInput allowDecimals placeholder="0" aria-label={t('rejected', lang)} value={l.rejected} onChange={(e) => setInspect((s) => ({ ...s, lines: s.lines.map((x, k) => (k === i ? { ...x, rejected: e.target.value } : x)) }))} /></td>
+                  <td className="px-2 py-1.5 min-w-[8rem]"><NumberInput aria-label={t('accepted', lang)} value={l.accepted} onChange={(e) => setInspect((s) => ({ ...s, lines: s.lines.map((x, k) => (k === i ? { ...x, accepted: e.target.value } : x)) }))} {...getQuantityInputProps()} /></td>
+                  <td className="px-2 py-1.5 min-w-[8rem]"><NumberInput aria-label={t('rejected', lang)} value={l.rejected} onChange={(e) => setInspect((s) => ({ ...s, lines: s.lines.map((x, k) => (k === i ? { ...x, rejected: e.target.value } : x)) }))} {...getQuantityInputProps()} /></td>
                   <td className="px-2 py-1.5 min-w-[10rem]"><Input placeholder={t('rejection_reason', lang)} aria-label={t('rejection_reason', lang)} value={l.reason} onChange={(e) => setInspect((s) => ({ ...s, lines: s.lines.map((x, k) => (k === i ? { ...x, reason: e.target.value } : x)) }))} /></td></tr>))}</tbody></table></div>
             <Textarea rows={2} label={t('inspection_notes', lang)} placeholder={t('inspection_notes', lang)} value={inspect.notes} onChange={(e) => setInspect((s) => ({ ...s, notes: e.target.value }))} />
             <div className="flex justify-end gap-3"><Button loading={busy} onClick={saveInspect}>{t('save', lang)}</Button><Button variant="secondary" onClick={() => setInspect(null)}>{t('ui_cancel', lang)}</Button></div>

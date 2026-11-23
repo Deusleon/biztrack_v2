@@ -150,7 +150,7 @@ export default function Products() {
           </div>
           <div className="flex items-center gap-3">
             {canDelete && selected.length > 0 && <Button variant="danger" mobileLabel={t('delete', lang)} onClick={() => setConfirm({ isOpen: true, ids: selected })}>{t('delete', lang)} ({selected.length})</Button>}
-            {can('export_products_pdf') || can('view_products') ? <ExportMenu rows={exportRows} columns={exportColumns} title="products" loadRows={loadAllRows} disabled={list.loading || list.rows.length === 0} /> : null}
+            {can('export_products_pdf') ? <ExportMenu rows={exportRows} columns={exportColumns} title="products" loadRows={loadAllRows} disabled={list.loading || list.rows.length === 0} /> : null}
             {canCreate && <Button variant="primary" mobileLabel={t('new_product', lang)} onClick={() => setForm({ isOpen: true, product: null })}>{t('new_product', lang)}</Button>}
           </div>
         </div>

@@ -78,7 +78,7 @@ export default function CurrentStock() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('current_stock', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_inventory_stock', lang)}</p></div>
-          {(can('export_inventory_pdf') || can('view_current_stock')) && <ExportMenu rows={exportRows} columns={exportCols} title="current_stock" loadRows={loadAll} disabled={list.loading || list.rows.length === 0} />}
+          {can('export_inventory_pdf') && <ExportMenu rows={exportRows} columns={exportCols} title="current_stock" loadRows={loadAll} disabled={list.loading || list.rows.length === 0} />}
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {stockCards.map(([k, keys]) => (
