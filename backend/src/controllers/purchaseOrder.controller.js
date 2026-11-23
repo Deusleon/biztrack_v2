@@ -4,6 +4,7 @@ import { t } from '../utils/translate.js';
 import { respondWithError } from '../utils/response.js';
 import { getIO } from '../utils/socket.js';
 import { notifyStore, notifyParty } from '../services/notification.service.js';
+import { recordAttachment, pdfQty, pdfMoney } from '../utils/recordPdf.js';
 // =====================================================
 // UTILITY FUNCTIONS
 // =====================================================
@@ -1387,23 +1388,41 @@ export const createGRN = async (req, res) => {
     });
 
     const goodsVars = { order: grn.grn_number };
-    notifyStore({
-      storeId,
-      type: "purchase_received",
-      title: "Purchase received",
-      note: "goods_received",
-      vars: goodsVars,
-    }).catch(() => {});
-    pool.query("SELECT name, email, phone FROM suppliers WHERE id = $1 AND store_id = $2", [resolvedSupplierId, storeId])
-      .then((supplier) => notifyParty({
+    pool.query(
+      `SELECT p.name AS product, gi.received_quantity AS quantity, gi.unit_cost
+       FROM grn_items gi JOIN products p ON p.id = gi.product_id
+       WHERE gi.grn_id = $1 ORDER BY p.name`,
+      [grn.id],
+    ).then((lines) => recordAttachment(storeId, {
+      title: `Goods received ${grn.grn_number}`,
+      filename: `goods-received-${grn.grn_number}.pdf`,
+      columns: [
+        { key: 'product', label: 'Product' },
+        { key: 'quantity', label: 'Received', halign: 'right' },
+        { key: 'cost', label: 'Unit cost', halign: 'right' },
+      ],
+      rows: lines.rows.map((row) => ({ product: row.product, quantity: pdfQty(row.quantity), cost: pdfMoney(row.unit_cost) })),
+    })).catch(() => undefined).then((attachments) => {
+      notifyStore({
         storeId,
-        type: "purchase_received_supplier",
-        to: supplier.rows[0],
-        title: "Goods received",
-        note: "goods_received_supplier",
-        vars: { ...goodsVars, supplier: supplier.rows[0]?.name || "" },
-      }))
-      .catch(() => {});
+        type: "purchase_received",
+        title: "Purchase received",
+        note: "goods_received",
+        vars: goodsVars,
+        attachments,
+      }).catch(() => {});
+      pool.query("SELECT name, email, phone FROM suppliers WHERE id = $1 AND store_id = $2", [resolvedSupplierId, storeId])
+        .then((supplier) => notifyParty({
+          storeId,
+          type: "purchase_received_supplier",
+          to: supplier.rows[0],
+          title: "Goods received",
+          note: "goods_received_supplier",
+          vars: { ...goodsVars, supplier: supplier.rows[0]?.name || "" },
+          attachments,
+        }))
+        .catch(() => {});
+    });
 
     res.status(201).json({
       success: true,

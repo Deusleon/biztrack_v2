@@ -486,7 +486,7 @@ async function storeNameOf(storeId) {
 }
 
 /** Email or SMS to one customer, supplier, or user, when that party's box is on. */
-async function notifyParty({ storeId, type, to, title, message, meta = {}, note, vars = {}, lang }) {
+async function notifyParty({ storeId, type, to, title, message, meta = {}, note, vars = {}, lang, attachments }) {
   if (!storeId || !type || !to) return { skipped: true };
   const settings = await getNotificationSettings(storeId);
   const emailOn = settings[`email_${type}`] === true && to.email;
@@ -499,17 +499,19 @@ async function notifyParty({ storeId, type, to, title, message, meta = {}, note,
   const spoken = note ? phrases(note, language, shared) : null;
   const result = { email: false, sms: false };
   if (emailOn) {
+    const attachmentNote = attachments?.length ? `\n\n${t("note_see_attachment", {}, language)}` : "";
     const sent = await sendEmail({
       to: to.email,
       subject: `BizTrack: ${humanize(spoken?.title || title)}${storeName ? ` — ${storeName}` : ""}`,
       html: buildEmailHtml({
         recipientName: to.name,
         title: spoken?.title || title,
-        message: spoken?.body || message,
+        message: `${spoken?.body || message || ""}${attachmentNote}`,
         meta: note ? {} : meta,
         storeName,
         ...(note ? letterOptions(language) : {}),
       }),
+      attachments,
     });
     result.email = sent?.success !== false;
   }
@@ -522,7 +524,7 @@ async function notifyParty({ storeId, type, to, title, message, meta = {}, note,
 }
 
 /** Tell the other store, using the acting store's "other store" boxes. */
-async function notifyOtherStore({ actingStoreId, otherStoreId, title, message, meta = {}, note, vars = {} }) {
+async function notifyOtherStore({ actingStoreId, otherStoreId, title, message, meta = {}, note, vars = {}, attachments }) {
   if (!actingStoreId || !otherStoreId || actingStoreId === otherStoreId) return { skipped: true };
   const settings = await getNotificationSettings(actingStoreId);
   const emailOn = settings.email_stock_transfer_store === true;
@@ -547,17 +549,19 @@ async function notifyOtherStore({ actingStoreId, otherStoreId, title, message, m
     await Promise.allSettled(people.filter((p) => p.email).map((p) => {
       const lang = langOf(p.preferred_language || voice.lang);
       const letter = note ? phrases(note, lang, { ...shared, name: p.name || "" }) : null;
+      const attachmentNote = attachments?.length ? `\n\n${t("note_see_attachment", {}, lang)}` : "";
       return sendEmail({
         to: p.email,
         subject: `BizTrack: ${humanize(letter?.title || title)}${storeName ? ` — ${storeName}` : ""}`,
         html: buildEmailHtml({
           recipientName: p.name,
           title: letter?.title || title,
-          message: letter?.body || message,
+          message: `${letter?.body || message || ""}${attachmentNote}`,
           meta: note ? {} : meta,
           storeName,
           ...(note ? letterOptions(lang) : {}),
         }),
+        attachments,
       });
     }));
   }

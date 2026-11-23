@@ -81,6 +81,7 @@
   "store_user_not_found": "Store user not found",
   "new_user_registered": "New user registered",
   "store_user_removed": "User deleted successfully",
+  "user_disabled": "User disabled. Their records stay, and you can enable them again.",
   "role_exists": "Role with this name already exists",
   "role_added": "Role added successfully",
   "roles_fetched": "Roles fetched successfully",

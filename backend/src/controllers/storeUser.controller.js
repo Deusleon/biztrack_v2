@@ -219,7 +219,7 @@ export const getStoreUsers = async (req, res) => {
                 u.name,
                 u.email,
                 u.preferred_language,
-                u.status,
+                su.status,
                 u.allow_multiple_sessions,
                 u.created_at,
                 su.role_id,
@@ -330,7 +330,7 @@ export const updateStoreUserRole = async (req, res) => {
                 u.name,
                 u.email,
                 u.preferred_language,
-                u.status,
+                su.status,
                 u.created_at,
                 su.role_id,
                 r.name AS role_name,
@@ -416,16 +416,9 @@ export const removeUserFromStore = async (req, res) => {
         if (id === req.user.id) {
             return res.status(403).json({ message: t('cannot_remove_self', lang) });
         }
-        // Take them out of THIS store only.
-        await pool.query('DELETE FROM store_users WHERE user_id = $1 AND store_id = $2', [id, storeId]);
-        // If they now belong to no store at all, remove the account too — unless it already created records (sales, customers…),
-        // in which case it is switched off instead so that history keeps its author.
-        const left = await pool.query('SELECT 1 FROM store_users WHERE user_id = $1 LIMIT 1', [id]);
-        const owns = await pool.query('SELECT 1 FROM stores WHERE owner_id = $1 LIMIT 1', [id]);
-        if (left.rows.length === 0 && owns.rows.length === 0) {
-            try { await pool.query('DELETE FROM users WHERE id = $1', [id]); }
-            catch (e) { if (e.code === '23503') await pool.query('UPDATE users SET status = false WHERE id = $1', [id]); else throw e; }
-        }
+        // A person who has sold, received stock, or otherwise left a record stays in the store.
+        // Disable the membership so they can be switched back on. The account itself is never deleted.
+        await pool.query('UPDATE store_users SET status = false, updated_at = NOW() WHERE user_id = $1 AND store_id = $2', [id, storeId]);
 
         const io = getIO();
         io.to(`store_${storeId}_Owner`).emit("userDeleted", {
@@ -446,7 +439,7 @@ export const removeUserFromStore = async (req, res) => {
           ip: req.ip,
         });
         
-        res.status(200).json({ message: t('store_user_removed', lang) });
+        res.status(200).json({ message: t('user_disabled', lang) });
     } catch (err) {
         console.error('Remove store user error:', err.message);
         res.status(500).json({ message: t('server_error', lang) });

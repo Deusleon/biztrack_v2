@@ -77,6 +77,7 @@
   "store_user_not_found": "Mtumiaji wa duka hakupatikana",
   "new_user_registered": "Mtumiaji mpya amesajiliwa",
   "store_user_removed": "Mtumiaji ameondolewa kwenye duka kwa mafanikio",
+  "user_disabled": "Mtumiaji amezimwa. Kumbukumbu zake zinabaki, na unaweza kumwasha tena.",
   "role_exists": "Jukumu lenye jina hili tayari lipo",
   "role_added": "Jukumu limeongezwa kwa mafanikio",
   "roles_fetched": "Majukumu yamepatikana kwa mafanikio",

@@ -4,6 +4,7 @@ import { getLang } from '../utils/getLang.js';
 import { respondWithError } from '../utils/response.js';
 import { getIO, emitToStore } from '../utils/socket.js';
 import { notifyStore, notifyParty } from '../services/notification.service.js';
+import { recordAttachment, pdfQty, pdfMoney } from '../utils/recordPdf.js';
 import * as smsService from '../utils/smsService.js';
 import getStoreSettings from '../utils/getStoreSettings.js';
 import { logActivity } from '../utils/activityLog.js';
@@ -189,15 +190,39 @@ async function checkCustomerCreditLimit(customerId, storeId, amount) {
 function notifyNewSale({ storeId, userId, currency, invoiceNumber, amountTotal, saleType, customerName, customerEmail, customerPhone, roles }) {
   const customer = customerName || "Walk-in";
   const amount = Number(amountTotal || 0).toLocaleString("en-US");
-  pool.query("SELECT name FROM users WHERE id = $1", [userId]).then((seller) => {
+  Promise.all([
+    pool.query("SELECT name FROM users WHERE id = $1", [userId]),
+    pool.query(
+      `SELECT p.name AS product, c.quantity, c.price
+       FROM cart c JOIN products p ON p.id = c.product_id
+       WHERE c.store_id = $1 AND c.invoice_number = $2
+       ORDER BY p.name`,
+      [storeId, invoiceNumber],
+    ),
+  ]).then(async ([seller, items]) => {
     const soldBy = seller.rows[0]?.name || "—";
     const vars = { invoice: invoiceNumber, amount, currency: currency || "TZS", sale_type: saleType, customer, sold_by: soldBy };
+    let attachments;
+    try {
+      attachments = await recordAttachment(storeId, {
+        title: `Sale ${invoiceNumber}`,
+        subtitle: customer,
+        filename: `sale-${invoiceNumber}.pdf`,
+        columns: [
+          { key: 'product', label: 'Product' },
+          { key: 'quantity', label: 'Quantity', halign: 'right' },
+          { key: 'price', label: 'Price', halign: 'right' },
+        ],
+        rows: items.rows.map((row) => ({ product: row.product, quantity: pdfQty(row.quantity), price: pdfMoney(row.price) })),
+      });
+    } catch { attachments = undefined; }
     notifyStore({
       storeId,
       type: "new_sale",
       title: "New sale",
       note: "new_sale",
       vars,
+      attachments,
       ...(roles ? { roles } : {}),
     }).catch(() => { });
     notifyParty({
@@ -207,6 +232,7 @@ function notifyNewSale({ storeId, userId, currency, invoiceNumber, amountTotal, 
       title: "Your purchase",
       note: "new_sale_customer",
       vars,
+      attachments,
     }).catch(() => { });
   }).catch(() => { });
 }
@@ -247,7 +273,7 @@ async function customerByInvoice(storeId, invoiceNumber) {
   return result.rows[0]?.name || result.rows[0]?.email || result.rows[0]?.phone ? result.rows[0] : null;
 }
 
-function notifyReturnCustomer(storeId, invoiceNumber, note, vars) {
+function notifyReturnCustomer(storeId, invoiceNumber, note, vars, attachments) {
   customerByInvoice(storeId, invoiceNumber).then((customer) => notifyParty({
     storeId,
     type: "sales_return_customer",
@@ -255,6 +281,7 @@ function notifyReturnCustomer(storeId, invoiceNumber, note, vars) {
     title: "Your return",
     note,
     vars,
+    attachments,
   })).catch(() => { });
 }
 
@@ -2551,14 +2578,32 @@ export const createSalesReturn = async (req, res) => {
     await client.query("COMMIT");
 
     const returnVars = { return_no: returnNumber, invoice: invoiceNumber, amount: Number(totalReturnAmount || 0).toLocaleString("en-US") };
-    notifyStore({
-      storeId,
-      type: "sales_return",
-      title: "Sales return created",
-      note: "return_recorded",
-      vars: returnVars,
-    }).catch(() => { });
-    notifyReturnCustomer(storeId, invoiceNumber, "return_recorded_customer", returnVars);
+    pool.query(
+      `SELECT p.name AS product, sri.quantity, sri.price
+       FROM sales_return_items sri JOIN products p ON p.id = sri.product_id
+       WHERE sri.sales_return_id = $1 ORDER BY p.name`,
+      [salesReturnId],
+    ).then((lines) => recordAttachment(storeId, {
+      title: `Return ${returnNumber}`,
+      subtitle: `Invoice ${invoiceNumber}`,
+      filename: `return-${returnNumber}.pdf`,
+      columns: [
+        { key: 'product', label: 'Product' },
+        { key: 'quantity', label: 'Quantity', halign: 'right' },
+        { key: 'price', label: 'Price', halign: 'right' },
+      ],
+      rows: lines.rows.map((row) => ({ product: row.product, quantity: pdfQty(row.quantity), price: pdfMoney(row.price) })),
+    })).catch(() => undefined).then((attachments) => {
+      notifyStore({
+        storeId,
+        type: "sales_return",
+        title: "Sales return created",
+        note: "return_recorded",
+        vars: returnVars,
+        attachments,
+      }).catch(() => {});
+      notifyReturnCustomer(storeId, invoiceNumber, "return_recorded_customer", returnVars, attachments);
+    });
 
     res.status(201).json({
       success: true,
@@ -3136,14 +3181,32 @@ export const approveSalesReturn = async (req, res) => {
     emitToStore(storeId, 'sales_return', { return_number: salesReturn.return_number });
 
     const approvedVars = { return_no: salesReturn.return_number, invoice: salesReturn.original_invoice_number, amount: Number(salesReturn.refund_amount || 0).toLocaleString("en-US") };
-    notifyStore({
-      storeId,
-      type: "sales_return",
-      title: "Sales return approved",
-      note: "return_approved",
-      vars: approvedVars,
-    }).catch(() => { });
-    notifyReturnCustomer(storeId, salesReturn.original_invoice_number, "return_approved_customer", approvedVars);
+    pool.query(
+      `SELECT p.name AS product, sri.quantity, sri.price
+       FROM sales_return_items sri JOIN products p ON p.id = sri.product_id
+       WHERE sri.sales_return_id = $1 ORDER BY p.name`,
+      [returnId],
+    ).then((lines) => recordAttachment(storeId, {
+      title: `Return ${salesReturn.return_number}`,
+      subtitle: `Invoice ${salesReturn.original_invoice_number}`,
+      filename: `return-${salesReturn.return_number}.pdf`,
+      columns: [
+        { key: 'product', label: 'Product' },
+        { key: 'quantity', label: 'Quantity', halign: 'right' },
+        { key: 'price', label: 'Price', halign: 'right' },
+      ],
+      rows: lines.rows.map((row) => ({ product: row.product, quantity: pdfQty(row.quantity), price: pdfMoney(row.price) })),
+    })).catch(() => undefined).then((attachments) => {
+      notifyStore({
+        storeId,
+        type: "sales_return",
+        title: "Sales return approved",
+        note: "return_approved",
+        vars: approvedVars,
+        attachments,
+      }).catch(() => {});
+      notifyReturnCustomer(storeId, salesReturn.original_invoice_number, "return_approved_customer", approvedVars, attachments);
+    });
 
     return res.json({
       success: true,

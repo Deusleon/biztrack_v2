@@ -46,6 +46,7 @@ const permissions = [
   { name: 'create_customers',         description: 'Add a new customer',                                 module: 'Sales',        submodule: 'Customers',          display_no: 21  },
   { name: 'update_customers',         description: 'Edit customer information',                          module: 'Sales',        submodule: 'Customers',          display_no: 22  },
   { name: 'delete_customers',         description: 'Delete a customer record',                           module: 'Sales',        submodule: 'Customers',          display_no: 23  },
+  { name: 'export_sales_pdf',         description: 'Export sales, customers and debits',                 module: 'Sales',        submodule: 'Sales History',      display_no: 26  },
   { name: 'view_credit_sales',        description: 'View credit / debit sales',                          module: 'Sales',        submodule: 'Credit Sales',       display_no: 24  },
   { name: 'manage_credit_sales',      description: 'Manage and settle credit sales',                     module: 'Sales',        submodule: 'Credit Sales',       display_no: 25  },
 
@@ -79,12 +80,14 @@ const permissions = [
   { name: 'create_supplier_returns',  description: 'Create a supplier return',                           module: 'Purchases',    submodule: 'Supplier Returns',   display_no: 48  },
   { name: 'approve_supplier_returns', description: 'Approve a supplier return',                          module: 'Purchases',    submodule: 'Supplier Returns',   display_no: 49  },
   { name: 'delete_supplier_returns',  description: 'Delete a supplier return',                           module: 'Purchases',    submodule: 'Supplier Returns',   display_no: 50  },
+  { name: 'export_purchases_pdf',     description: 'Export purchases, suppliers and payments',           module: 'Purchases',    submodule: 'Purchase Orders',    display_no: 51  },
 
   // ─── EXPENSES ──────────────────────────────────────────────────────────────
   { name: 'view_expenses',            description: 'View expense records',                               module: 'Expenses',     submodule: 'Expenses',           display_no: 55  },
   { name: 'create_expenses',          description: 'Add a new expense record',                           module: 'Expenses',     submodule: 'Expenses',           display_no: 56  },
   { name: 'update_expenses',          description: 'Edit an existing expense record',                    module: 'Expenses',     submodule: 'Expenses',           display_no: 57  },
   { name: 'delete_expenses',          description: 'Delete an expense record',                           module: 'Expenses',     submodule: 'Expenses',           display_no: 58  },
+  { name: 'export_expenses_pdf',      description: 'Export expenses',                                    module: 'Expenses',     submodule: 'Expenses',           display_no: 59  },
 
   // ─── INVENTORY ──────────────────────────────────────────────────────────────
   { name: 'view_products',            description: 'View product list',                                  module: 'Inventory',    submodule: 'Products',           display_no: 60  },
@@ -127,6 +130,7 @@ const permissions = [
 
   // ─── REPORTS ────────────────────────────────────────────────────────────────
   { name: 'view_sales_reports',             description: 'View sales-related reports',                   module: 'Reports',      submodule: 'Sales Reports',            display_no: 100 },
+  { name: 'export_reports_pdf',             description: 'Export reports',                               module: 'Reports',      submodule: 'Sales Reports',            display_no: 100 },
   { name: 'view_sales_summary_report',     description: 'View sales summary report',                     module: 'Reports',      submodule: 'Sales Reports',            display_no: 101 },
   { name: 'view_sales_detailed_report',    description: 'View sales detailed report',                    module: 'Reports',      submodule: 'Sales Reports',            display_no: 102 },
   { name: 'view_sales_returns_report',     description: 'View sales returns report',                     module: 'Reports',      submodule: 'Sales Reports',            display_no: 103 },
@@ -210,6 +214,7 @@ const permissions = [
   { name: 'create_stores',            description: 'Add a new store',                                     module: 'Stores',       submodule: 'Stores',             display_no: 132 },
   { name: 'edit_stores',              description: 'Edit store information',                              module: 'Stores',       submodule: 'Stores',             display_no: 132 },
   { name: 'delete_stores',            description: 'Delete a store',                                      module: 'Stores',       submodule: 'Stores',             display_no: 133 },
+  { name: 'export_stores_pdf',        description: 'Export the store list',                              module: 'Stores',       submodule: 'Stores',             display_no: 134 },
 
   // ─── MESSAGING ──────────────────────────────────────────────────────────────
   { name: 'view_messaging',           description: 'View messaging',                                     module: 'Messaging',    submodule: 'Messaging',          display_no: 134 },

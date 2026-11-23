@@ -4,6 +4,7 @@ import { getLang } from '../utils/getLang.js';
 import { respondWithError } from '../utils/response.js';
 import { getIO } from '../utils/socket.js';
 import { notifyStore, notifyOtherStore } from '../services/notification.service.js';
+import { recordAttachment, pdfQty } from '../utils/recordPdf.js';
 // ==================== STOCK TRANSFER FUNCTIONS ====================
 
 /**
@@ -214,20 +215,48 @@ export const createStockTransfer = async (req, res) => {
     });
 
     const transferVars = { reference: transfer.reference_number || transfer.id, destination: destStore.name, from_store: sourceStoreName };
-    notifyStore({
-      storeId: sourceStoreId,
-      type: "stock_transfer",
-      title: "Stock transfer created",
-      note: "transfer_created",
-      vars: transferVars,
-    }).catch(() => {});
-    notifyOtherStore({
-      actingStoreId: sourceStoreId,
-      otherStoreId: destination_store_id,
-      title: "Incoming stock transfer",
-      note: "transfer_incoming",
-      vars: transferVars,
-    }).catch(() => {});
+    recordAttachment(sourceStoreId, {
+      title: `Stock transfer ${transfer.reference_number || transfer.id}`,
+      subtitle: `${sourceStoreName} → ${destStore.name}`,
+      filename: `transfer-${transfer.reference_number || transfer.id}.pdf`,
+      columns: [
+        { key: 'product', label: 'Product' },
+        { key: 'quantity', label: 'Quantity', halign: 'right' },
+      ],
+      rows: transferItems.map((item) => ({ product: item.product_name, quantity: pdfQty(item.quantity) })),
+    }).then((attachments) => {
+      notifyStore({
+        storeId: sourceStoreId,
+        type: "stock_transfer",
+        title: "Stock transfer created",
+        note: "transfer_created",
+        vars: transferVars,
+        attachments,
+      }).catch(() => {});
+      notifyOtherStore({
+        actingStoreId: sourceStoreId,
+        otherStoreId: destination_store_id,
+        title: "Incoming stock transfer",
+        note: "transfer_incoming",
+        vars: transferVars,
+        attachments,
+      }).catch(() => {});
+    }).catch(() => {
+      notifyStore({
+        storeId: sourceStoreId,
+        type: "stock_transfer",
+        title: "Stock transfer created",
+        note: "transfer_created",
+        vars: transferVars,
+      }).catch(() => {});
+      notifyOtherStore({
+        actingStoreId: sourceStoreId,
+        otherStoreId: destination_store_id,
+        title: "Incoming stock transfer",
+        note: "transfer_incoming",
+        vars: transferVars,
+      }).catch(() => {});
+    });
 
     res.status(201).json({
       success: true,
@@ -925,13 +954,28 @@ export const approveTransfer = async (req, res) => {
 
     const sourceName = (await pool.query("SELECT name FROM stores WHERE id = $1", [transfer.source_store_id])).rows[0]?.name || "";
     const approvedTransfer = { reference: transfer.reference_number || transferId, store: sourceName };
-    notifyStore({
+    pool.query(
+      `SELECT p.name AS product, i.quantity
+       FROM stock_transfer_items i JOIN products p ON p.id = i.product_id
+       WHERE i.transfer_id = $1 ORDER BY p.name`,
+      [transferId],
+    ).then((lines) => recordAttachment(transfer.destination_store_id, {
+      title: `Stock transfer ${transfer.reference_number || transferId}`,
+      subtitle: sourceName,
+      filename: `transfer-${transfer.reference_number || transferId}.pdf`,
+      columns: [
+        { key: 'product', label: 'Product' },
+        { key: 'quantity', label: 'Quantity', halign: 'right' },
+      ],
+      rows: lines.rows.map((row) => ({ product: row.product, quantity: pdfQty(row.quantity) })),
+    })).catch(() => undefined).then((attachments) => notifyStore({
       storeId: transfer.destination_store_id,
       type: "stock_transfer",
       title: "Incoming stock transfer",
       note: "transfer_incoming",
       vars: approvedTransfer,
-    }).catch(() => {});
+      attachments,
+    })).catch(() => {});
     notifyOtherStore({
       actingStoreId: storeId,
       otherStoreId: transfer.source_store_id,
