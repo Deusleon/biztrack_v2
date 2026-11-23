@@ -7,6 +7,8 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
 import { stockCountService, categoryService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
+import ExportMenu from '../../components/ExportMenu';
+import useListExport from '../../hooks/useListExport';
 import { DataTable, Button, RowActions, ACTION_ICONS, Input, NumberInput, Select, Textarea, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { toPaging, dateOnly, DetailGrid } from '../sales/common';
@@ -61,17 +63,18 @@ export default function StockCount() {
   const pcols = [
     { key: 'product_name', label: t('product_name', lang), render: (p) => <span className="font-medium text-gray-900">{p.product_name}</span> },
     { key: 'category_name', label: t('category', lang), render: (p) => p.category_name || '—' },
-    { key: 'system_stock', label: t('system_stock', lang), align: 'right', render: (p) => `${formatNumberWithCommas(p.system_stock)} ${t(p.unit, lang)}` },
-    { key: 'counted', label: t('counted_quantity', lang), align: 'center', render: (p) => <NumberInput className="w-32 mx-auto" align="center" aria-label={t('counted_quantity', lang)} value={counted[p.product_id] ?? ''} onChange={(e) => setCount(p, e.target.value)} {...getQuantityInputProps()} /> },
-    { key: 'difference', label: t('difference', lang), align: 'right', render: (p) => { const v = counted[p.product_id]; if (v === '' || v == null) return <span className="text-gray-300">—</span>; const dlt = num(v) - num(p.system_stock); return <span className={dlt === 0 ? 'text-gray-500' : dlt > 0 ? 'text-green-700 font-medium' : 'text-red-600 font-medium'}>{dlt > 0 ? '+' : ''}{formatNumberWithCommas(dlt)}</span>; } },
+    { key: 'system_stock', label: t('system_stock', lang), render: (p) => `${formatNumberWithCommas(p.system_stock)} ${t(p.unit, lang)}` },
+    { key: 'counted', label: t('counted_quantity', lang), render: (p) => <NumberInput className="w-full max-w-[9rem]" align="left" aria-label={t('counted_quantity', lang)} value={counted[p.product_id] ?? ''} onChange={(e) => setCount(p, e.target.value)} {...getQuantityInputProps()} /> },
+    { key: 'difference', label: t('difference', lang), render: (p) => { const v = counted[p.product_id]; if (v === '' || v == null) return <span className="text-gray-300">—</span>; const dlt = num(v) - num(p.system_stock); return <span className={dlt === 0 ? 'text-gray-500' : dlt > 0 ? 'text-green-700 font-medium' : 'text-red-600 font-medium'}>{dlt > 0 ? '+' : ''}{formatNumberWithCommas(dlt)}</span>; } },
   ];
   const hcols = [
     { key: 'reference_number', label: t('reference', lang), render: (h) => <span className="font-medium text-gray-900">{h.reference_number}</span> },
     { key: 'created_at', label: t('date', lang), render: (h) => dateOnly(h.created_at) },
-    { key: 'items_checked', label: t('items_checked', lang), align: 'right', render: (h) => h.items_checked ?? h.total_items ?? '—' },
-    { key: 'adjustments_made', label: t('adjustments_made', lang), align: 'right', render: (h) => h.adjustments_made ?? '—' },
+    { key: 'items_checked', label: t('items_checked', lang), render: (h) => h.items_checked ?? h.total_items ?? '—' },
+    { key: 'adjustments_made', label: t('adjustments_made', lang), render: (h) => h.adjustments_made ?? '—' },
     { key: 'created_by_name', label: t('created_by', lang), render: (h) => h.created_by_name || '—' },
   ];
+  const hexp = useListExport({ columns: hcols, list: history, fetcher: fetchHistory });
   const d = detail;
 
   return (
@@ -86,7 +89,7 @@ export default function StockCount() {
         {tab === 'count' && canCount && (<>
           <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 gap-3"><Input value={products.searchText} onChange={(e) => products.setFilter('search', e.target.value)} placeholder={t('ui_search_placeholder', lang)} /><Select searchable value={products.filters.category_id || ''} onChange={(e) => products.setFilter('category_id', e.target.value)} options={[{ value: '', label: t('all_categories', lang) }, ...cats.map((c) => ({ value: c.id, label: c.name }))]} /></div>
           <p className="text-xs text-gray-500 text-left">{t('stock_count_help', lang)}</p>
-          <DataTable columns={pcols} data={products.rows} loading={products.loading} rowId="product_id" emptyMessage={t('ui_nothing_yet', lang)} pagination={products.pagination} onPageChange={products.setPage} />
+          <DataTable evenColumns columns={pcols} data={products.rows} loading={products.loading} rowId="product_id" emptyMessage={t('ui_nothing_yet', lang)} pagination={products.pagination} onPageChange={products.setPage} />
         </>)}
         {tab === 'movements' && canHistory && (<>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{[['total_movements', moves.summary?.total_movements], ['total_quantity', formatNumberWithCommas(moves.summary?.total_quantity)]].map(([k, v]) => <div key={k} className="bg-white p-4 rounded shadow text-left"><p className="text-xs uppercase tracking-wide text-gray-400">{t(k, lang)}</p><p className="text-lg font-bold text-gray-900 mt-1">{v ?? 0}</p></div>)}</div>
@@ -108,7 +111,8 @@ export default function StockCount() {
         </>)}
         {tab === 'history' && canHistory && (<>
           <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"><DatePicker value={history.filters.startDate || ''} onChange={(e) => history.setFilter('startDate', e.target.value)} placeholder={t('start_date', lang)} /><DatePicker align="right" value={history.filters.endDate || ''} onChange={(e) => history.setFilter('endDate', e.target.value)} placeholder={t('end_date', lang)} /></div>
-          <DataTable columns={hcols} data={history.rows} loading={history.loading} emptyMessage={history.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={history.pagination} onPageChange={history.setPage} renderActions={(h) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(h) }]} />} />
+          {can('export_inventory_pdf') && <div className="flex justify-end"><ExportMenu rows={hexp.rows} columns={hexp.columns} loadRows={hexp.loadAllRows} title="count_history" disabled={history.loading || history.rows.length === 0} /></div>}
+          <DataTable evenColumns columns={hcols} data={history.rows} loading={history.loading} emptyMessage={history.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={history.pagination} onPageChange={history.setPage} renderActions={(h) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(h) }]} />} />
         </>)}
       </div>
 

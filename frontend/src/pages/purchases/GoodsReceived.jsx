@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStoreSettings } from '../../hooks/useStoreSettings';
-import { purchaseService } from '../../services/api';
+import { purchaseService, priceCategoryService } from '../../services/api';
 import useServerList from '../../hooks/useServerList';
 import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS, Input, NumberInput, Select, Textarea, DatePicker } from '../../components/ui';
@@ -14,6 +14,8 @@ import FormModal from '../../components/ui/FormModal';
 import { PStatus, PFilters, useSuppliers, listFetcher, dateOnly, num, INITIAL, Dl } from './common';
 import { formatCurrency, formatNumberWithCommas, getMoneyInputProps, getQuantityInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
+import ExportMenu from '../../components/ExportMenu';
+import useListExport from '../../hooks/useListExport';
 
 const STATUSES = ['pending_inspection', 'approved', 'rejected', 'cancelled'];
 
@@ -27,6 +29,13 @@ export default function GoodsReceived() {
   const list = useServerList({ fetcher: listFetcher(purchaseService.grn), initialFilters: INITIAL });
   useLiveRefresh(['grnCreated', 'grnUpdated'], list.reload);
   const money = (v) => formatCurrency(num(v), settings);
+  // The selling price typed while receiving goes to this price category (the default one from Settings,
+  // or the first active one when none is chosen), so the label says exactly where it will appear.
+  const [priceCategories, setPriceCategories] = useState([]);
+  useEffect(() => { priceCategoryService.getAll().then((res) => setPriceCategories(Array.isArray(res?.data) ? res.data : [])).catch(() => setPriceCategories([])); }, []);
+  const targetCategory = (priceCategories.find((c) => c.id === settings?.defaultPriceCategory && c.is_active !== false)
+    || priceCategories.find((c) => c.is_active !== false) || {}).name;
+  const sellingLabel = targetCategory ? `${t('selling_price', lang)} (${targetCategory})` : t('selling_price', lang);
   const moneyInput = getMoneyInputProps(settings);
   const showExpiry = !!settings?.allowExpireDate;
 
@@ -91,6 +100,7 @@ export default function GoodsReceived() {
     { key: 'status', label: t('status', lang), render: (g) => <PStatus value={g.status} /> },
     { key: 'received_by_name', label: t('received_by', lang), render: (g) => g.received_by_name || '—' },
   ];
+  const exp = useListExport({ columns, list, fetcher: listFetcher(purchaseService.grn) });
   const d = detail;
 
   return (
@@ -98,6 +108,7 @@ export default function GoodsReceived() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('goods_received', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_goods_received', lang)}</p></div>
+          {can('export_purchases_pdf') && <div className="ml-auto"><ExportMenu rows={exp.rows} columns={exp.columns} loadRows={exp.loadAllRows} title="goods_received" disabled={list.loading || list.rows.length === 0} /></div>}
           {can('create_grn') && <Button onClick={() => openCreate()} mobileLabel={t('new_grn', lang)}>{t('new_grn', lang)}</Button>}
         </div>
         <PFilters list={list} statusOptions={STATUSES} suppliers={suppliers} />
@@ -126,7 +137,7 @@ export default function GoodsReceived() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <NumberInput label={t('received', lang)} value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} {...getQuantityInputProps()} />
                     <NumberInput label={t('unit_cost', lang)} value={l.unit_cost} onChange={(e) => setLine(i, { unit_cost: e.target.value })} {...moneyInput} />
-                    <NumberInput label={t('selling_price', lang)} value={l.selling_price} onChange={(e) => setLine(i, { selling_price: e.target.value })} {...moneyInput} />
+                    <NumberInput label={sellingLabel} value={l.selling_price} onChange={(e) => setLine(i, { selling_price: e.target.value })} {...moneyInput} />
                     <Input label={t('batch_number', lang)} placeholder={t('batch_number', lang)} value={l.batch_number} onChange={(e) => setLine(i, { batch_number: e.target.value })} />
                     <DatePicker label={t('mfg_date', lang)} value={l.manufacturing_date} onChange={(e) => setLine(i, { manufacturing_date: e.target.value })} placeholder={t('mfg_date', lang)} />
                     {showExpiry && <DatePicker label={t('exp_date', lang)} value={l.expiry_date} onChange={(e) => setLine(i, { expiry_date: e.target.value })} placeholder={t('exp_date', lang)} />}

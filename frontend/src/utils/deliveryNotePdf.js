@@ -599,9 +599,9 @@ function generateDocumentDeliveryNote(data, size) {
       minCellHeight: 7,
     },
     columnStyles: {
-      no: { cellWidth: 9, halign: "center" },
+      no: { cellWidth: 9, halign: "left" },
       item: { cellWidth: "auto" },
-      quantity: { cellWidth: size === "A5" ? 28 : 35, halign: "right", fontStyle: "bold" },
+      quantity: { cellWidth: size === "A5" ? 28 : 35, halign: "left", fontStyle: "bold" },
     },
     alternateRowStyles: { fillColor: [250, 251, 252] },
     margin: { top: 14, right: M, bottom: 24, left: M },

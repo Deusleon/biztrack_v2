@@ -409,9 +409,9 @@ export const exportPurchaseOrderToPDF = (order, settings) => {
       minCellHeight: 7,
     },
     columnStyles: {
-      no: { cellWidth: 8, halign: "center" },
+      no: { cellWidth: 8, halign: "left" },
       product: { cellWidth: "auto" },
-      quantity: { cellWidth: 20, halign: "right" },
+      quantity: { cellWidth: 20, halign: "left" },
       unit_price: { cellWidth: 28, halign: "right" },
       tax_rate: { cellWidth: 16, halign: "right" },
       discount: { cellWidth: 25, halign: "right" },
@@ -421,6 +421,10 @@ export const exportPurchaseOrderToPDF = (order, settings) => {
     margin: { top: 14, right: M, bottom: 24, left: M },
     showHead: "everyPage",
     didParseCell(data) {
+      // Headings line up with their figures: quantities left, money right.
+      if (data.section === "head") {
+        data.cell.styles.halign = ["unit_price", "tax_rate", "discount", "total"].includes(data.column.dataKey) ? "right" : "left";
+      }
       if (data.section === "body" && data.column.dataKey === "product") {
         data.cell.styles.fontStyle = "bold";
       }

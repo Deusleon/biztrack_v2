@@ -15,6 +15,8 @@ import { toPaging, dateOnly, DetailGrid } from '../sales/common';
 import { PStatus, useAllProducts } from '../purchases/common';
 import { formatNumberWithCommas, getMoneyInputProps, getQuantityInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
+import ExportMenu from '../../components/ExportMenu';
+import useListExport from '../../hooks/useListExport';
 
 const num = (v) => Number(v) || 0;
 const DIRECTIONS = ['all', 'outgoing', 'incoming'];
@@ -71,6 +73,7 @@ export default function StockTransfer() {
     { key: 'status', label: t('status', lang), render: (x) => <PStatus value={x.status} /> },
     { key: 'created_by_name', label: t('created_by', lang), render: (x) => x.created_by_name || '—' },
   ];
+  const exp = useListExport({ columns, list, fetcher: fetchTransfers });
   const d = detail; const pending = (x) => ['pending_approval', 'pending'].includes(x?.status);
   const toReceive = (x) => incoming(x) && ['approved', 'in_transit'].includes(x.status) && can('create_stock_transfer');
   const transfersOff = !settingsLoading && settings && Object.keys(settings).length > 0 && !settings.interStoreTransfer;
@@ -97,6 +100,7 @@ export default function StockTransfer() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('stock_transfer', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_stock_transfers', lang)}</p></div>
+          {can('export_inventory_pdf') && <div className="ml-auto"><ExportMenu rows={exp.rows} columns={exp.columns} loadRows={exp.loadAllRows} title="stock_transfer" disabled={list.loading || list.rows.length === 0} /></div>}
           {can('create_stock_transfer') && others.length > 0 && <Button onClick={() => setCreate({ destination: '', notes: '', items: [blank()] })} mobileLabel={t('new_transfer', lang)}>{t('new_transfer', lang)}</Button>}
         </div>
         <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">

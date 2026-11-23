@@ -3501,5 +3501,10 @@
   "manual_ai_answers_title": "Answers use your store’s figures",
   "manual_ai_answers_body": "- Amounts use your currency and decimal places, and the answer names the period.\n- Each answer links to the page the figures came from.\n- A follow-up such as “why?” uses the figures already checked. “Last month” checks that period.\n- If the AI service is down, the verified figures still appear.",
   "manual_ai_actions_title": "The next step waits for you",
-  "manual_ai_actions_body": "- When stock is low, BizTrack AI can open a purchase order with those products filled in.\n- When a customer owes money, it can open a reminder with the message filled in.\n- Nothing is saved or sent until you confirm it on that page."
+  "manual_ai_actions_body": "- When stock is low, BizTrack AI can open a purchase order with those products filled in.\n- When a customer owes money, it can open a reminder with the message filled in.\n- Nothing is saved or sent until you confirm it on that page.",
+  "count_stock": "Count Stock",
+  "count_history": "Count History",
+  "ui_brief_do_today": "Do this today",
+  "ui_brief_go": "Go",
+  "ui_brief_total_owed": "Total owed"
 }

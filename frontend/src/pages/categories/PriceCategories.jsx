@@ -10,6 +10,8 @@ import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { Input, Textarea, DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { t } from '../../utils/i18n';
+import ExportMenu from '../../components/ExportMenu';
+import useListExport from '../../hooks/useListExport';
 
 const EMPTY = { name: '', description: '' };
 
@@ -69,6 +71,7 @@ export default function PriceCategories() {
     { key: 'description', label: t('description', lang), render: (r) => r.description || <span className="text-gray-400">{t('n_a', lang)}</span> },
     { key: 'is_active', label: t('status', lang), render: (r) => <span className={`px-2 py-0.5 rounded text-xs font-medium ${r.is_active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{r.is_active ? t('active', lang) : t('inactive', lang)}</span> },
   ];
+  const exp = useListExport({ columns, list, fetcher: fetchPriceCategories });
   const hasActions = canUpdate || canDelete;
 
   return (
@@ -79,6 +82,7 @@ export default function PriceCategories() {
             <h1 className="text-xl font-bold text-gray-900">{t('price_categories', lang)}</h1>
             <p className="text-sm text-gray-500 mt-0.5">{t('manage_price_categories', lang)}</p>
           </div>
+          {can('export_products_pdf') && <div className="ml-auto"><ExportMenu rows={exp.rows} columns={exp.columns} loadRows={exp.loadAllRows} title="price_categories" disabled={list.loading || list.rows.length === 0} /></div>}
           {canCreate && <Button variant="primary" mobileLabel={t('new_price_category', lang)} onClick={openCreate}>{t('new_price_category', lang)}</Button>}
         </div>
 

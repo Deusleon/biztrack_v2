@@ -175,13 +175,18 @@ export function downloadSubscriptionReceipt(transaction, store = {}) {
       lineColor: BRAND.bg,
     },
     columnStyles: {
-      0: { cellWidth: contentWidth * 0.55 },
-      1: { cellWidth: contentWidth * 0.2, halign: "center" },
-      2: { cellWidth: contentWidth * 0.25, halign: "right" },
+      0: { cellWidth: contentWidth * 0.07, halign: "left" },
+      1: { cellWidth: contentWidth * 0.48, halign: "left" },
+      2: { cellWidth: contentWidth * 0.2, halign: "left" },
+      3: { cellWidth: contentWidth * 0.25, halign: "right" },
     },
-    head: [["DESCRIPTION", "BILLING CYCLE", "AMOUNT"]],
+    didParseCell(data) {
+      if (data.section === "head") data.cell.styles.halign = data.column.index === 3 ? "right" : "left";
+    },
+    head: [["#", "DESCRIPTION", "BILLING CYCLE", "AMOUNT"]],
     body: [
       [
+        "1",
         `${transaction.plan_name || "Subscription"} plan`,
         (transaction.billing_cycle || "-").replace(/^\w/, (c) => c.toUpperCase()),
         toCurrency(transaction.amount, transaction.currency),

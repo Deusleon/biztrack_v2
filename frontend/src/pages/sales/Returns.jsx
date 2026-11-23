@@ -14,6 +14,8 @@ import FormModal from '../../components/ui/FormModal';
 import { FilterBar, StatusBadge, DetailGrid, toPaging, dateOnly } from './common';
 import { formatCurrency, getQuantityInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
+import ExportMenu from '../../components/ExportMenu';
+import useListExport from '../../hooks/useListExport';
 
 const fetchReturns = async ({ page, limit, search, status, startDate, endDate }) => {
   const r = await salesService.returns({ page, limit, search: search || undefined, status: status || undefined, startDate: startDate || undefined, endDate: endDate || undefined });
@@ -77,6 +79,7 @@ export default function Returns() {
     { key: 'status', label: t('status', lang), render: (r) => <StatusBadge value={r.status} /> },
     { key: 'created_by_name', label: t('created_by', lang), render: (r) => r.created_by_name || '—' },
   ];
+  const exp = useListExport({ columns, list, fetcher: fetchReturns });
   const summary = list.summary || {};
   const d = detail?.return || detail?.sales_return || detail; const dItems = detail?.items || d?.items || [];
 
@@ -85,6 +88,7 @@ export default function Returns() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('sales_returns', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_sales_returns', lang)}</p></div>
+          {can('export_sales_pdf') && <div className="ml-auto"><ExportMenu rows={exp.rows} columns={exp.columns} loadRows={exp.loadAllRows} title="sales_returns" disabled={list.loading || list.rows.length === 0} /></div>}
           {canCreate && <div className="flex gap-2 items-end"><Input value={invoiceInput} onChange={(e) => setInvoiceInput(e.target.value)} placeholder={t('invoice_number', lang)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); lookup(); } }} /><Button onClick={() => lookup()}>{t('new_return', lang)}</Button></div>}
         </div>
         {Object.keys(summary).length > 0 && <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{[['total', summary.total], ['pending', summary.pending], ['approved', summary.approved], ['total_refunded', money(summary.totalRefunded)]].map(([k, v]) => <div key={k} className="bg-white p-4 rounded shadow text-left"><p className="text-xs uppercase tracking-wide text-gray-400">{t(k, lang)}</p><p className="text-lg font-bold text-gray-900 mt-1">{v ?? 0}</p></div>)}</div>}

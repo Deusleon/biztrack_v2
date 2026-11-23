@@ -13,6 +13,8 @@ import FormModal from '../../components/ui/FormModal';
 import { PStatus, PFilters, useSuppliers, listFetcher, dateOnly, num, INITIAL, Dl } from './common';
 import { formatCurrency, getQuantityInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
+import ExportMenu from '../../components/ExportMenu';
+import useListExport from '../../hooks/useListExport';
 
 const REASONS = ['damaged', 'wrong_item', 'quality_issue', 'expired', 'excess', 'other'];
 const CONDITIONS = ['damaged', 'expired', 'wrong_item', 'quality_issue'];
@@ -68,6 +70,7 @@ export default function Returns() {
     { key: 'status', label: t('status', lang), render: (r) => <PStatus value={r.status} /> },
     { key: 'created_by_name', label: t('created_by', lang), render: (r) => r.created_by_name || '—' },
   ];
+  const exp = useListExport({ columns, list, fetcher: listFetcher(purchaseService.returns) });
   const d = detail;
 
   return (
@@ -75,6 +78,7 @@ export default function Returns() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('supplier_returns', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_supplier_returns', lang)}</p></div>
+          {can('export_purchases_pdf') && <div className="ml-auto"><ExportMenu rows={exp.rows} columns={exp.columns} loadRows={exp.loadAllRows} title="supplier_returns" disabled={list.loading || list.rows.length === 0} /></div>}
           {can('create_supplier_returns') && <Button onClick={openCreate} mobileLabel={t('new_return', lang)}>{t('new_return', lang)}</Button>}
         </div>
         <PFilters list={list} statusOptions={STATUSES} suppliers={suppliers} />

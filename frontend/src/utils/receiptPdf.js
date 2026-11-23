@@ -381,11 +381,15 @@ function renderDocumentReceipt(data, receiptSize) {
       lineWidth: 0.3,
     },
     columnStyles: {
-      0: { halign: "center", cellWidth: colWidths.no },
+      0: { halign: "left", cellWidth: colWidths.no },
       1: { halign: "left", cellWidth: colWidths.item },
-      2: { halign: "center", cellWidth: colWidths.qty },
+      2: { halign: "left", cellWidth: colWidths.qty },
       3: { halign: "right", cellWidth: colWidths.price },
       4: { halign: "right", cellWidth: colWidths.total },
+    },
+    // Headings line up with their figures: quantities left, money right.
+    didParseCell(data) {
+      if (data.section === "head") data.cell.styles.halign = data.column.index >= 3 ? "right" : "left";
     },
   });
 
@@ -689,10 +693,10 @@ function renderReceipt(pageHeight, data, receiptSize) {
   // ── ITEMS TABLE ─────────────────────────────────────────
 
   const tableHead = [["Item", "Total"]];
-  const tableBody = items.map((item) => {
+  const tableBody = items.map((item, i) => {
     const total = parseFloat(item.price) * parseFloat(item.quantity);
     return [
-      `${item.name}\n(${item.quantity} x ${fmtPrc(item.price)})`,
+      `${i + 1}. ${item.name}\n(${item.quantity} x ${fmtPrc(item.price)})`,
       fmt(total),
     ];
   });

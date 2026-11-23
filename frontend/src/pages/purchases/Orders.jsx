@@ -14,6 +14,8 @@ import FormModal from '../../components/ui/FormModal';
 import { PStatus, PFilters, useSuppliers, listFetcher, dateOnly, num, INITIAL, Dl } from './common';
 import { formatCurrency } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
+import ExportMenu from '../../components/ExportMenu';
+import useListExport from '../../hooks/useListExport';
 
 const STATUSES = ['draft', 'pending_approval', 'approved', 'partially_received', 'received', 'cancelled'];
 
@@ -46,6 +48,7 @@ export default function Orders() {
     { key: 'status', label: t('status', lang), render: (o) => <PStatus value={o.status} /> },
     { key: 'created_by_name', label: t('created_by', lang), render: (o) => o.created_by_name || '—' },
   ];
+  const exp = useListExport({ columns, list, fetcher: listFetcher(purchaseService.orders) });
   const editable = (o) => can('update_purchase_orders') && ['draft', 'pending_approval'].includes(o.status);
   const d = detail;
 
@@ -54,6 +57,7 @@ export default function Orders() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('purchase_orders', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_purchase_orders', lang)}</p></div>
+          {can('export_purchases_pdf') && <div className="ml-auto"><ExportMenu rows={exp.rows} columns={exp.columns} loadRows={exp.loadAllRows} title="purchase_orders" disabled={list.loading || list.rows.length === 0} /></div>}
           {can('create_purchase_orders') && <Button onClick={() => navigate('/purchases/orders/new')} mobileLabel={t('new_purchase_order', lang)}>{t('new_purchase_order', lang)}</Button>}
         </div>
         <PFilters list={list} statusOptions={STATUSES} suppliers={suppliers} />

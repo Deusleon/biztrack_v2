@@ -1,6 +1,7 @@
 // utils/exportUtils.js
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { kindOf } from "../pages/reports/format";
 import * as XLSX from "xlsx";
 import { t } from "./i18n";
 import { readSession } from "./sessionStore";
@@ -549,7 +550,23 @@ const extractTextFromReactNode = (node) => {
   return getDisplayValue(node);
 };
 
+// Every table PDF follows the same rules: an index number first, money right-aligned, quantities
+// left-aligned, and each heading aligned exactly like the figures beneath it.
+const INDEX_KEY = "__index";
+const effectiveAlign = (col) => {
+  if (col.key === INDEX_KEY) return "left";
+  const kind = col.type || kindOf(String(col.key || ""));
+  if (kind === "money") return "right";
+  if (kind === "number" || kind === "qty") return "left";
+  return col.halign || "left";
+};
+const withIndexColumn = (columns) =>
+  columns.some((c) => ["index", "no", "#", INDEX_KEY].includes(c.key))
+    ? columns
+    : [{ key: INDEX_KEY, title: "#", cellWidth: 10 }, ...columns];
+
 const getColumnDisplayValue = (row, col, index) => {
+  if (col.key === INDEX_KEY) return String(index + 1);
   if (col.key === "image") return "";
 
   if (col.render && typeof col.render === "function") {
@@ -606,6 +623,7 @@ export const exportToPDF = async (
   toDate = null,
 ) => {
   try {
+    columns = withIndexColumn(columns);
     const resolvedSettings = await resolvePdfSettings(settings);
 
     const doc = new jsPDF({
@@ -750,7 +768,7 @@ export const exportToPDF = async (
     const pdfColumns = columns.map((col) => ({
       header: t(col.title),
       dataKey: col.key,
-      ...(col.halign && { halign: col.halign }),
+      halign: effectiveAlign(col),
       ...(col.cellWidth && { cellWidth: col.cellWidth }),
     }));
 
@@ -780,6 +798,7 @@ export const exportToPDF = async (
         columns.find(
           (col) =>
             col.key !== "index" &&
+            col.key !== INDEX_KEY &&
             !totalColumns.includes(col.key) &&
             col.key !== "image" &&
             col.key !== "image_url",
@@ -826,15 +845,13 @@ export const exportToPDF = async (
     }
 
     const normalizedColumnStyles = Object.fromEntries(
-      columns
-        .filter((col) => col.halign || col.cellWidth)
-        .map((col) => [
-          col.key,
-          {
-            ...(col.halign && { halign: col.halign }),
-            ...(col.cellWidth && { cellWidth: col.cellWidth }),
-          },
-        ]),
+      columns.map((col) => [
+        col.key,
+        {
+          halign: effectiveAlign(col),
+          ...(col.cellWidth && { cellWidth: col.cellWidth }),
+        },
+      ]),
     );
 
     autoTable(doc, {
@@ -873,7 +890,7 @@ export const exportToPDF = async (
         // Apply alignment to header cells
         if (dataCell.section === "head") {
           const col = columns.find((c) => c.key === dataCell.column.dataKey);
-          if (col?.halign) dataCell.cell.styles.halign = col.halign;
+          if (col) dataCell.cell.styles.halign = effectiveAlign(col);
         }
 
         // Handle footer row styling first

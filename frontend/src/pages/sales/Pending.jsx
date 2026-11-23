@@ -13,6 +13,8 @@ import { DataTable, ConfirmModal, FormModal, Button, RowActions, ACTION_ICONS, T
 import { FilterBar, StatusBadge, dateOnly } from './common';
 import { formatCurrency } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
+import ExportMenu from '../../components/ExportMenu';
+import useListExport from '../../hooks/useListExport';
 
 const isSold = (o) => String(o?.order_status || '').toLowerCase() === 'sold';
 const isCancelled = (o) => String(o?.order_status || '').toLowerCase().includes('cancel');
@@ -69,12 +71,14 @@ export default function Pending() {
     { key: 'order_status', label: t('status', lang), render: (o) => <StatusBadge value={o.order_status} /> },
     { key: 'created_at', label: t('date', lang), render: (o) => dateOnly(o.created_at, settings) },
   ];
+  const exp = useListExport({ columns, list, fetcher: fetchOrders });
 
   return (
     <MainLayout>
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('pending_orders', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_pending_orders', lang)}</p></div>
+          {can('export_sales_pdf') && <div className="ml-auto"><ExportMenu rows={exp.rows} columns={exp.columns} loadRows={exp.loadAllRows} title="pending_orders" disabled={list.loading || list.rows.length === 0} /></div>}
           {can('create_invoice') && <Button onClick={() => navigate('/sales/invoice')}>{t('new_sale', lang)}</Button>}
         </div>
         <FilterBar list={list} statusKey="status" statusOptions={['pending', 'sold', 'cancelled']} dates={false} />

@@ -11,8 +11,10 @@ import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { DataTable, Button, RowActions, ACTION_ICONS, NumberInput, Select, Input, Textarea } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { FilterBar, StatusBadge, DetailGrid, toPaging, dateOnly } from './common';
-import { formatCurrency, removeNumberFormatting, getMoneyInputProps} from '../../utils/numberUtils';
+import { formatCurrency, formatNumberWithCommas, removeNumberFormatting, getMoneyInputProps} from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
+import ExportMenu from '../../components/ExportMenu';
+import useListExport from '../../hooks/useListExport';
 
 const fetchCredit = async ({ page, limit, search, status, startDate, endDate }) => {
   const r = await salesService.credit({ page, limit, search: search || undefined, status: status || undefined, startDate: startDate || undefined, endDate: endDate || undefined });
@@ -68,6 +70,7 @@ export default function Debits() {
     { key: 'status', label: t('status', lang), render: (c) => <StatusBadge value={c.status} /> },
     { key: 'created_by_name', label: t('created_by', lang), render: (c) => c.created_by_name || '—' },
   ];
+  const exp = useListExport({ columns, list, fetcher: fetchCredit });
   const cs = detail?.credit_sale;
 
   return (
@@ -75,13 +78,18 @@ export default function Debits() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('debits', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_debits', lang)}</p></div>
+          {can('export_sales_pdf') && <div className="ml-auto"><ExportMenu rows={exp.rows} columns={exp.columns} loadRows={exp.loadAllRows} title="debits" disabled={list.loading || list.rows.length === 0} /></div>}
           {manage && <Button variant="secondary" onClick={markOverdue}>{t('mark_overdue', lang)}</Button>}
         </div>
         {Object.keys(summary).length > 0 && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {Object.entries(summary).filter(([, v]) => typeof v !== 'object').slice(0, 4).map(([k, v]) => (
-              <div key={k} className="bg-white p-4 rounded shadow text-left"><p className="text-xs uppercase tracking-wide text-gray-400">{t(k, lang) === k ? k.replace(/_/g, ' ') : t(k, lang)}</p><p className="text-lg font-bold text-gray-900 mt-1">{/(amount|due|paid|total|balance|outstanding)/i.test(k) ? money(v) : Number(v)}</p></div>
-            ))}
+            {Object.entries(summary).filter(([, v]) => typeof v !== 'object').slice(0, 4).map(([k, v]) => {
+              // The server sends camelCase (totalOutstanding); translations are snake_case. "total" and "...Count" are counts, not money.
+              const key = k.replace(/([A-Z])/g, '_$1').toLowerCase();
+              const isCount = key === 'total' || key.endsWith('_count');
+              const label = key === 'total' ? t('debits', lang) : (t(key, lang) === key ? key.replace(/_/g, ' ') : t(key, lang));
+              return <div key={k} className="bg-white p-4 rounded shadow text-left"><p className="text-xs uppercase tracking-wide text-gray-400">{label}</p><p className="text-lg font-bold text-gray-900 mt-1">{isCount ? formatNumberWithCommas(Number(v) || 0) : money(v)}</p></div>;
+            })}
           </div>
         )}
         <FilterBar list={list} statusKey="status" statusOptions={['not_paid', 'partial_paid', 'overdue', 'paid']} />

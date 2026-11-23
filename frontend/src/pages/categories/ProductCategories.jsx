@@ -10,6 +10,8 @@ import useLiveRefresh from '../../hooks/useLiveRefresh';
 import { Input, Textarea, DataTable, ConfirmModal, Button, RowActions, ACTION_ICONS } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
 import { t } from '../../utils/i18n';
+import ExportMenu from '../../components/ExportMenu';
+import useListExport from '../../hooks/useListExport';
 
 const EMPTY = { name: '', description: '' };
 
@@ -59,6 +61,7 @@ export default function ProductCategories() {
     { key: 'name', label: t('name', lang), render: (r) => <span className="font-medium text-gray-900">{r.name}</span> },
     { key: 'description', label: t('description', lang), render: (r) => r.description || <span className="text-gray-400">{t('n_a', lang)}</span> },
   ];
+  const exp = useListExport({ columns, list, fetcher: categoryService.getAll });
 
   const hasActions = canUpdate || canDelete;
 
@@ -70,6 +73,7 @@ export default function ProductCategories() {
             <h1 className="text-xl font-bold text-gray-900">{t('product_categories', lang)}</h1>
             <p className="text-sm text-gray-500 mt-0.5">{t('manage_product_categories', lang)}</p>
           </div>
+          {can('export_products_pdf') && <div className="ml-auto"><ExportMenu rows={exp.rows} columns={exp.columns} loadRows={exp.loadAllRows} title="product_categories" disabled={list.loading || list.rows.length === 0} /></div>}
           {canCreate && <Button variant="primary" mobileLabel={t('new_category', lang)} onClick={openCreate}>{t('new_category', lang)}</Button>}
         </div>
 

@@ -3501,5 +3501,10 @@
   "manual_ai_actions_title": "Hatua inayofuata inakusubiri",
   "manual_ai_actions_body": "- Hisa ikipungua, BizTrack AI inaweza kufungua oda ya manunuzi ikiwa na bidhaa hizo.\n- Mteja anapodaiwa, inaweza kufungua kumbusho likiwa na ujumbe.\n- Hakuna kinachohifadhiwa au kutumwa mpaka uthibitishe kwenye ukurasa huo.",
   "manual_developer_devices_title": "Akaunti ya msanidi inaweza kubaki wazi kwenye vifaa zaidi ya kimoja",
-  "manual_developer_devices_body": "- Kila akaunti nyingine hubaki imeingia kwenye kifaa kimoja.\n- Akaunti ya msanidi inaweza kubaki imeingia kwenye vifaa zaidi ya kimoja, bila ruhusa ya ziada."
+  "manual_developer_devices_body": "- Kila akaunti nyingine hubaki imeingia kwenye kifaa kimoja.\n- Akaunti ya msanidi inaweza kubaki imeingia kwenye vifaa zaidi ya kimoja, bila ruhusa ya ziada.",
+  "count_stock": "Hesabu Stoo",
+  "count_history": "Historia ya Hesabu",
+  "ui_brief_do_today": "Fanya hili leo",
+  "ui_brief_go": "Nenda",
+  "ui_brief_total_owed": "Jumla inayodaiwa"
 }

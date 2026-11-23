@@ -36,6 +36,8 @@ import Loader from './Loader';
  *                          itself (including any colSpan needed), since a
  *                          totals row rarely maps one-to-one onto `columns`.
  *
+ * evenColumns  {boolean}  Equal-width columns from tablet size up (phones keep the card layout).
+ *
  * Pagination
  * pagination   { currentPage, totalPages, totalItems, limit }
  * onPageChange {Function}  (page: number) → void
@@ -58,6 +60,7 @@ export default function DataTable({
   footer,
   pagination,
   onPageChange,
+  evenColumns = false,
 }) {
 
   const getRowId = (row, idx) =>
@@ -146,7 +149,7 @@ export default function DataTable({
       </div>
 
       <div className="hidden md:block bg-white rounded shadow max-w-full overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className={`min-w-full divide-y divide-gray-200 ${evenColumns ? "md:table-fixed md:w-full" : ""}`}>
           {/* ── thead ── */}
           <thead className="bg-gray-50">
             <tr>

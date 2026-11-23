@@ -14,6 +14,8 @@ import FormModal from '../../components/ui/FormModal';
 import { toPaging, dateOnly } from '../sales/common';
 import { formatCurrency, formatNumberWithCommas } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
+import ExportMenu from '../../components/ExportMenu';
+import useListExport from '../../hooks/useListExport';
 
 const num = (v) => Number(v) || 0;
 const fetchHistory = async ({ page, limit, search, priceCategoryId, startDate, endDate }) => {
@@ -54,6 +56,7 @@ export default function StockValueHistory() {
     { key: 'total_potential_profit', label: t('potential_profit', lang), align: 'right', render: (h) => <span className={num(h.total_potential_profit) < 0 ? 'text-red-600' : 'text-green-700'}>{money(h.total_potential_profit)}</span> },
     { key: 'profit_margin', label: t('profit_margin', lang), align: 'right', render: (h) => `${num(h.profit_margin).toFixed(1)}%` },
   ];
+  const exp = useListExport({ columns: columns, list, fetcher: fetchHistory });
   const d = detail;
 
   return (
@@ -61,6 +64,7 @@ export default function StockValueHistory() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('stock_value_history', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('view_historical_stock_values', lang)}</p></div>
+          {can('export_inventory_pdf') && <div className="ml-auto"><ExportMenu rows={exp.rows} columns={exp.columns} loadRows={exp.loadAllRows} title="stock_value_history" disabled={list.loading || list.rows.length === 0} /></div>}
           {can('save_stock_value_history') && <Button onClick={() => setSnap({ priceCategoryId: cats.find((c) => c.is_default)?.id || cats[0]?.id || '', notes: '' })} mobileLabel={t('save_snapshot', lang)}>{t('save_snapshot', lang)}</Button>}
         </div>
         <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

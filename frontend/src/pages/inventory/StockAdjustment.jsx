@@ -15,6 +15,8 @@ import { toPaging, dateOnly, DetailGrid } from '../sales/common';
 import { useAllProducts } from '../purchases/common';
 import { formatNumberWithCommas, getQuantityInputProps } from '../../utils/numberUtils';
 import { t } from '../../utils/i18n';
+import ExportMenu from '../../components/ExportMenu';
+import useListExport from '../../hooks/useListExport';
 
 const REASONS = ['damaged', 'expired', 'lost', 'found', 'correction', 'return', 'other'];
 const num = (v) => Number(v) || 0;
@@ -78,6 +80,7 @@ export default function StockAdjustment() {
     { key: 'reason', label: t('reason', lang), render: (a) => t(a.reason, lang) },
     { key: 'created_by_name', label: t('created_by', lang), render: (a) => a.created_by_name || '—' },
   ];
+  const exp = useListExport({ columns, list, fetcher: fetchAdj });
   const d = detail;
 
   return (
@@ -85,6 +88,7 @@ export default function StockAdjustment() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('stock_adjustment', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_stock_adjustments', lang)}</p></div>
+          {can('export_inventory_pdf') && <div className="ml-auto"><ExportMenu rows={exp.rows} columns={exp.columns} loadRows={exp.loadAllRows} title="stock_adjustment" disabled={list.loading || list.rows.length === 0} /></div>}
           {can('create_stock_adjustment') && <Button onClick={() => openNew()} mobileLabel={t('new_adjustment', lang)}>{t('new_adjustment', lang)}</Button>}
         </div>
         <div className="flex gap-2 border-b border-gray-200">{[['history', 'adjustment_history'], ['by-product', 'adjustments_by_product']].map(([k, label]) => <button key={k} type="button" onClick={() => setTab(k)} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === k ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{t(label, lang)}</button>)}</div>
