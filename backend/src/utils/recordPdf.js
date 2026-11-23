@@ -15,7 +15,7 @@ export const pdfMoney = (n) => {
 };
 
 /** @returns {Promise<{ filename: string, content: Buffer, contentType: string }[]>} */
-export async function recordAttachment(storeId, { title, subtitle = '', filename, columns, rows }) {
+export async function recordAttachment(storeId, { title, subtitle = '', filename, columns, rows, totals = null, index = true }) {
   const store = await pool.query('SELECT name, location FROM stores WHERE id = $1', [storeId]);
   const system = await pool.query('SELECT settings FROM system_settings LIMIT 1').catch(() => ({ rows: [] }));
   const info = system.rows[0]?.settings?.businessInfo || {};
@@ -29,7 +29,18 @@ export async function recordAttachment(storeId, { title, subtitle = '', filename
     email: info.email || '',
     columns,
     rows,
+    totals,
+    index,
   });
   const safe = String(filename || 'record.pdf').replace(/[^\w.-]+/g, '-');
   return [{ filename: safe.endsWith('.pdf') ? safe : `${safe}.pdf`, content: pdf, contentType: 'application/pdf' }];
+}
+
+/** One-record PDF (an adjustment, a payment): a short table plus the store letterhead. Never throws. */
+export async function singleRecordAttachment(storeId, { title, subtitle = '', filename, columns, row, totals = null }) {
+  try {
+    return await recordAttachment(storeId, { title, subtitle, filename, columns, rows: [row], totals });
+  } catch {
+    return undefined;
+  }
 }

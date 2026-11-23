@@ -4,7 +4,7 @@ import { getLang } from '../utils/getLang.js';
 import { respondWithError } from '../utils/response.js';
 import { getIO, emitToStore } from '../utils/socket.js';
 import { notifyStore, notifyParty } from '../services/notification.service.js';
-import { recordAttachment, pdfQty, pdfMoney } from '../utils/recordPdf.js';
+import { recordAttachment, singleRecordAttachment, pdfQty, pdfMoney } from '../utils/recordPdf.js';
 import * as smsService from '../utils/smsService.js';
 import getStoreSettings from '../utils/getStoreSettings.js';
 import { logActivity } from '../utils/activityLog.js';
@@ -210,10 +210,15 @@ function notifyNewSale({ storeId, userId, currency, invoiceNumber, amountTotal, 
         filename: `sale-${invoiceNumber}.pdf`,
         columns: [
           { key: 'product', label: 'Product' },
-          { key: 'quantity', label: 'Quantity', halign: 'right' },
-          { key: 'price', label: 'Price', halign: 'right' },
+          { key: 'quantity', label: 'Quantity', type: 'qty' },
+          { key: 'price', label: 'Price', type: 'money' },
+          { key: 'total', label: 'Total', type: 'money' },
         ],
-        rows: items.rows.map((row) => ({ product: row.product, quantity: pdfQty(row.quantity), price: pdfMoney(row.price) })),
+        rows: items.rows.map((row) => ({ product: row.product, quantity: pdfQty(row.quantity), price: pdfMoney(row.price), total: pdfMoney(Number(row.quantity || 0) * Number(row.price || 0)) })),
+        totals: {
+          quantity: pdfQty(items.rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0)),
+          total: pdfMoney(items.rows.reduce((sum, row) => sum + Number(row.quantity || 0) * Number(row.price || 0), 0)),
+        },
       });
     } catch { attachments = undefined; }
     notifyStore({
@@ -2123,8 +2128,19 @@ export const recordCreditPayment = async (req, res) => {
     const received = Number(amount || 0).toLocaleString("en-US");
     const remaining = Math.max(0, newAmountDue).toLocaleString("en-US");
     const debitVars = { invoice: sale.invoice_number, amount: received, balance: remaining, customer: payer?.name || "" };
-    notifyStore({ storeId, type: "debit_paid", title: "Debit payment received", note: "payment_received_store", vars: debitVars }).catch(() => { });
-    notifyParty({ storeId, type: "debit_paid_customer", to: payer, title: "Payment received", note: "payment_received", vars: debitVars }).catch(() => { });
+    const debitPdf = await singleRecordAttachment(storeId, {
+      title: `Payment ${sale.invoice_number}`,
+      subtitle: payer?.name || '',
+      filename: `payment-${sale.invoice_number}.pdf`,
+      columns: [
+        { key: 'invoice', label: 'Invoice' },
+        { key: 'paid', label: 'Amount paid', type: 'money' },
+        { key: 'balance', label: 'Balance left', type: 'money' },
+      ],
+      row: { invoice: sale.invoice_number, paid: pdfMoney(amount), balance: pdfMoney(Math.max(0, newAmountDue)) },
+    });
+    notifyStore({ storeId, type: "debit_paid", title: "Debit payment received", note: "payment_received_store", vars: debitVars, attachments: debitPdf }).catch(() => { });
+    notifyParty({ storeId, type: "debit_paid_customer", to: payer, title: "Payment received", note: "payment_received", vars: debitVars, attachments: debitPdf }).catch(() => { });
 
     res.json({
       success: true,
@@ -2589,10 +2605,15 @@ export const createSalesReturn = async (req, res) => {
       filename: `return-${returnNumber}.pdf`,
       columns: [
         { key: 'product', label: 'Product' },
-        { key: 'quantity', label: 'Quantity', halign: 'right' },
-        { key: 'price', label: 'Price', halign: 'right' },
+        { key: 'quantity', label: 'Quantity', type: 'qty' },
+        { key: 'price', label: 'Price', type: 'money' },
+        { key: 'total', label: 'Total', type: 'money' },
       ],
-      rows: lines.rows.map((row) => ({ product: row.product, quantity: pdfQty(row.quantity), price: pdfMoney(row.price) })),
+      rows: lines.rows.map((row) => ({ product: row.product, quantity: pdfQty(row.quantity), price: pdfMoney(row.price), total: pdfMoney(Number(row.quantity || 0) * Number(row.price || 0)) })),
+      totals: {
+        quantity: pdfQty(lines.rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0)),
+        total: pdfMoney(lines.rows.reduce((sum, row) => sum + Number(row.quantity || 0) * Number(row.price || 0), 0)),
+      },
     })).catch(() => undefined).then((attachments) => {
       notifyStore({
         storeId,
@@ -3192,10 +3213,15 @@ export const approveSalesReturn = async (req, res) => {
       filename: `return-${salesReturn.return_number}.pdf`,
       columns: [
         { key: 'product', label: 'Product' },
-        { key: 'quantity', label: 'Quantity', halign: 'right' },
-        { key: 'price', label: 'Price', halign: 'right' },
+        { key: 'quantity', label: 'Quantity', type: 'qty' },
+        { key: 'price', label: 'Price', type: 'money' },
+        { key: 'total', label: 'Total', type: 'money' },
       ],
-      rows: lines.rows.map((row) => ({ product: row.product, quantity: pdfQty(row.quantity), price: pdfMoney(row.price) })),
+      rows: lines.rows.map((row) => ({ product: row.product, quantity: pdfQty(row.quantity), price: pdfMoney(row.price), total: pdfMoney(Number(row.quantity || 0) * Number(row.price || 0)) })),
+      totals: {
+        quantity: pdfQty(lines.rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0)),
+        total: pdfMoney(lines.rows.reduce((sum, row) => sum + Number(row.quantity || 0) * Number(row.price || 0), 0)),
+      },
     })).catch(() => undefined).then((attachments) => {
       notifyStore({
         storeId,

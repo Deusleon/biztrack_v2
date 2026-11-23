@@ -1,3 +1,4 @@
+import { singleRecordAttachment, pdfMoney } from '../utils/recordPdf.js';
 import pool from '../config/db.js';
 import { getLang } from '../utils/getLang.js';
 import { t } from '../utils/translate.js';
@@ -781,12 +782,24 @@ export const createSupplierPayment = async (req, res) => {
         }
         const supplierRow = await pool.query('SELECT name, email, phone FROM suppliers WHERE id = $1 AND store_id = $2', [supplier_id, storeId]);
         const supplierVars = { invoice: payment_number, amount: paidText, balance: balanceLeft, supplier: supplierRow.rows[0]?.name || '', method: payment_method || '' };
+        const paymentPdf = await singleRecordAttachment(storeId, {
+            title: `Supplier payment ${payment_number}`,
+            subtitle: supplierRow.rows[0]?.name || '',
+            filename: `supplier-payment-${payment_number}.pdf`,
+            columns: [
+                { key: 'method', label: 'Method' },
+                { key: 'amount', label: 'Amount paid', type: 'money' },
+                { key: 'balance', label: 'Balance left', type: 'money' },
+            ],
+            row: { method: String(payment_method || '').replace(/_/g, ' '), amount: pdfMoney(amount), balance: pdfMoney(String(balanceLeft).replace(/,/g, '')) },
+        });
         notifyStore({
             storeId,
             type: 'supplier_payment',
             title: 'Supplier payment',
             note: 'supplier_payment',
             vars: supplierVars,
+            attachments: paymentPdf,
         }).catch(() => {});
         notifyParty({
             storeId,
@@ -795,6 +808,7 @@ export const createSupplierPayment = async (req, res) => {
             title: 'Payment sent',
             note: 'supplier_payment_supplier',
             vars: supplierVars,
+            attachments: paymentPdf,
         }).catch(() => {});
 
         res.status(201).json({

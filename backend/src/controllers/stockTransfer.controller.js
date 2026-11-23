@@ -48,7 +48,16 @@ export const createStockTransfer = async (req, res) => {
     const sourceStoreName = sourceStoreResult.rows[0]?.name || "Unknown";
 
     // 2. Generate transfer reference number
-    const transferRef = `TRF-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+    // Sequential per source store (TR-00001, TR-00002 ...). Taken inside this transaction, so a
+    // transfer that fails does not use up a number.
+    const counter = await client.query(
+      `INSERT INTO store_invoice_counters (store_id, last_transfer_number) VALUES ($1, 1)
+       ON CONFLICT (store_id) DO UPDATE
+       SET last_transfer_number = store_invoice_counters.last_transfer_number + 1
+       RETURNING last_transfer_number`,
+      [sourceStoreId],
+    );
+    const transferRef = `TR-${String(counter.rows[0].last_transfer_number).padStart(5, "0")}`;
 
     // 3. Create transfer record
     const transferResult = await client.query(
@@ -217,13 +226,14 @@ export const createStockTransfer = async (req, res) => {
     const transferVars = { reference: transfer.reference_number || transfer.id, destination: destStore.name, from_store: sourceStoreName };
     recordAttachment(sourceStoreId, {
       title: `Stock transfer ${transfer.reference_number || transfer.id}`,
-      subtitle: `${sourceStoreName} → ${destStore.name}`,
+      subtitle: `${sourceStoreName} to ${destStore.name}`,
       filename: `transfer-${transfer.reference_number || transfer.id}.pdf`,
       columns: [
         { key: 'product', label: 'Product' },
-        { key: 'quantity', label: 'Quantity', halign: 'right' },
+        { key: 'quantity', label: 'Quantity', type: 'qty' },
       ],
       rows: transferItems.map((item) => ({ product: item.product_name, quantity: pdfQty(item.quantity) })),
+      totals: { quantity: pdfQty(transferItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)) },
     }).then((attachments) => {
       notifyStore({
         storeId: sourceStoreId,
@@ -965,9 +975,10 @@ export const approveTransfer = async (req, res) => {
       filename: `transfer-${transfer.reference_number || transferId}.pdf`,
       columns: [
         { key: 'product', label: 'Product' },
-        { key: 'quantity', label: 'Quantity', halign: 'right' },
+        { key: 'quantity', label: 'Quantity', type: 'qty' },
       ],
       rows: lines.rows.map((row) => ({ product: row.product, quantity: pdfQty(row.quantity) })),
+      totals: { quantity: pdfQty(lines.rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0)) },
     })).catch(() => undefined).then((attachments) => notifyStore({
       storeId: transfer.destination_store_id,
       type: "stock_transfer",

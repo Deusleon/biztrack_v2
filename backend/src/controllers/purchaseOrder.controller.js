@@ -1,3 +1,4 @@
+import { resolveDefaultPriceCategory, saveBatchPrice } from '../utils/priceCategory.js';
 import pool from '../config/db.js';
 import { getLang } from '../utils/getLang.js';
 import { t } from '../utils/translate.js';
@@ -35,17 +36,18 @@ async function resolveBatchSellingPrice(
   client,
   { storeId, productId, useBatchWisePrice, providedPrice },
 ) {
+  // A price typed at receiving always wins, in both modes. It used to be ignored when the store
+  // was not batch-wise, so the price never reached the price list.
+  const typed = parseFloat(providedPrice);
+  if (Number.isFinite(typed) && typed > 0) return typed;
+
   if (useBatchWisePrice) {
-    const price = parseFloat(providedPrice);
-    if (providedPrice === undefined || providedPrice === null || isNaN(price) || price <= 0) {
-      const err = new Error("selling_price_required_for_batchwise_pricing");
-      err.code = "SELLING_PRICE_REQUIRED";
-      throw err;
-    }
-    return price;
+    const err = new Error("selling_price_required_for_batchwise_pricing");
+    err.code = "SELLING_PRICE_REQUIRED";
+    throw err;
   }
 
-  // Not batchwise: keep whatever selling price is currently in use for this product.
+  // Not batchwise and nothing typed: keep whatever selling price is currently in use for this product.
   const lastBatch = await client.query(
     `SELECT selling_price FROM inventory_batches
      WHERE store_id = $1 AND product_id = $2 AND selling_price IS NOT NULL
@@ -1168,7 +1170,7 @@ export const createGRN = async (req, res) => {
     const settings = await getStoreSettings(storeId);
     const requireInspection = settings.purchases?.requireGRNInspection || false;
     const useBatchWisePrice = settings.operations?.useBatchWisePrice || false;
-    const defaultPriceCategory = settings.operations?.defaultPriceCategory || null;
+    const defaultPriceCategory = await resolveDefaultPriceCategory(client, storeId, settings);
 
     // Calculate totals
     let totalItems = items.length;
@@ -1268,13 +1270,7 @@ export const createGRN = async (req, res) => {
         // Keep the per-price-category table (selling_prices) in sync so that
         // reports/product listings that read price via that table don't fall
         // back to 0 for the newly received batch.
-        if (defaultPriceCategory) {
-          await client.query(
-            `INSERT INTO selling_prices (batch_id, price_category_id, price)
-             VALUES ($1, $2, $3)`,
-            [batchId, defaultPriceCategory, sellingPrice],
-          );
-        }
+        await saveBatchPrice(client, { batchId, categoryId: defaultPriceCategory, price: sellingPrice });
 
         // Create inventory movement (IN)
         if (receivedQty > 0) {
@@ -1389,19 +1385,35 @@ export const createGRN = async (req, res) => {
 
     const goodsVars = { order: grn.grn_number };
     pool.query(
-      `SELECT p.name AS product, gi.received_quantity AS quantity, gi.unit_cost
+      `SELECT p.name AS product, gi.batch_number AS batch, gi.received_quantity AS quantity,
+              gi.unit_cost, gi.selling_price, gi.line_total
        FROM grn_items gi JOIN products p ON p.id = gi.product_id
        WHERE gi.grn_id = $1 ORDER BY p.name`,
       [grn.id],
     ).then((lines) => recordAttachment(storeId, {
       title: `Goods received ${grn.grn_number}`,
       filename: `goods-received-${grn.grn_number}.pdf`,
+      subtitle: new Date(grn.received_date || Date.now()).toISOString().slice(0, 10),
       columns: [
         { key: 'product', label: 'Product' },
-        { key: 'quantity', label: 'Received', halign: 'right' },
-        { key: 'cost', label: 'Unit cost', halign: 'right' },
+        { key: 'batch', label: 'Batch' },
+        { key: 'quantity', label: 'Received', type: 'qty' },
+        { key: 'cost', label: 'Unit cost', type: 'money' },
+        { key: 'selling', label: 'Selling price', type: 'money' },
+        { key: 'total', label: 'Line total', type: 'money' },
       ],
-      rows: lines.rows.map((row) => ({ product: row.product, quantity: pdfQty(row.quantity), cost: pdfMoney(row.unit_cost) })),
+      rows: lines.rows.map((row) => ({
+        product: row.product,
+        batch: row.batch || '',
+        quantity: pdfQty(row.quantity),
+        cost: pdfMoney(row.unit_cost),
+        selling: pdfMoney(row.selling_price),
+        total: pdfMoney(row.line_total),
+      })),
+      totals: {
+        quantity: pdfQty(lines.rows.reduce((s, r) => s + Number(r.quantity || 0), 0)),
+        total: pdfMoney(lines.rows.reduce((s, r) => s + Number(r.line_total || 0), 0)),
+      },
     })).catch(() => undefined).then((attachments) => {
       notifyStore({
         storeId,
@@ -1455,7 +1467,7 @@ export const inspectGRN = async (req, res) => {
 
     const settings = await getStoreSettings(storeId);
     const useBatchWisePrice = settings.operations?.useBatchWisePrice || false;
-    const defaultPriceCategory = settings.operations?.defaultPriceCategory || null;
+    const defaultPriceCategory = await resolveDefaultPriceCategory(client, storeId, settings);
 
     // Get GRN
     const grnResult = await client.query(
@@ -1548,13 +1560,7 @@ export const inspectGRN = async (req, res) => {
           ],
         );
 
-        if (defaultPriceCategory) {
-          await client.query(
-            `INSERT INTO selling_prices (batch_id, price_category_id, price)
-             VALUES ($1, $2, $3)`,
-            [batchResult.rows[0].id, defaultPriceCategory, sellingPrice],
-          );
-        }
+        await saveBatchPrice(client, { batchId: batchResult.rows[0].id, categoryId: defaultPriceCategory, price: sellingPrice });
 
         // Create inventory movement
         await client.query(

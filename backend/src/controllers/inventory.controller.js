@@ -1,3 +1,4 @@
+import { singleRecordAttachment, pdfQty } from '../utils/recordPdf.js';
 import { createStockValueSnapshot } from '../services/stockValueSnapshot.service.js';
 import pool from '../config/db.js';
 import { logActivity } from '../utils/activityLog.js';
@@ -1357,13 +1358,26 @@ export const createStockAdjustment = async (req, res) => {
     const saved = { ...adjustment, product_name: product.name, product_unit: product.unit, new_stock: newStock };
     announceAdjustment(storeId, { message: t("stock_adjusted", lang), adjustment: saved });
 
-    notifyStore({
+    singleRecordAttachment(storeId, {
+      title: `Stock adjustment ${adjustment.id ? String(adjustment.id).slice(0, 8).toUpperCase() : ''}`.trim(),
+      subtitle: String(adjustment_type || '').replace(/_/g, ' '),
+      filename: `stock-adjustment-${adjustment.id || Date.now()}.pdf`,
+      columns: [
+        { key: 'product', label: 'Product' },
+        { key: 'type', label: 'Type' },
+        { key: 'quantity', label: 'Quantity', type: 'qty' },
+        { key: 'new_stock', label: 'Stock now', type: 'qty' },
+        { key: 'reason', label: 'Reason' },
+      ],
+      row: { product: product.name, type: String(adjustment_type || '').replace(/_/g, ' '), quantity: pdfQty(quantity), new_stock: pdfQty(newStock), reason: reason || '' },
+    }).then((attachments) => notifyStore({
       storeId,
       type: "stock_adjustment",
       title: "Stock adjusted",
       note: "stock_adjusted",
       vars: { product: product.name, adjustment_type, quantity, reason: reason || "—" },
-    }).catch(() => {});
+      attachments,
+    })).catch(() => {});
 
     res.status(201).json({
       success: true,
@@ -1748,13 +1762,26 @@ export const createBatchwiseStockAdjustment = async (req, res) => {
     const saved = { ...adjustment, product_name: product.name, product_unit: product.unit, new_stock: newStock };
     announceAdjustment(storeId, { message: t("stock_adjusted", lang), adjustment: saved });
 
-    notifyStore({
+    singleRecordAttachment(storeId, {
+      title: `Stock adjustment ${adjustment.id ? String(adjustment.id).slice(0, 8).toUpperCase() : ''}`.trim(),
+      subtitle: String(adjustment_type || '').replace(/_/g, ' '),
+      filename: `stock-adjustment-${adjustment.id || Date.now()}.pdf`,
+      columns: [
+        { key: 'product', label: 'Product' },
+        { key: 'type', label: 'Type' },
+        { key: 'quantity', label: 'Quantity', type: 'qty' },
+        { key: 'new_stock', label: 'Stock now', type: 'qty' },
+        { key: 'reason', label: 'Reason' },
+      ],
+      row: { product: product.name, type: String(adjustment_type || '').replace(/_/g, ' '), quantity: pdfQty(quantity), new_stock: pdfQty(newStock), reason: reason || '' },
+    }).then((attachments) => notifyStore({
       storeId,
       type: "stock_adjustment",
       title: "Stock adjusted",
       note: "stock_adjusted",
       vars: { product: product.name, adjustment_type, quantity, reason: reason || "—" },
-    }).catch(() => {});
+      attachments,
+    })).catch(() => {});
 
     res.status(201).json({
       success: true,

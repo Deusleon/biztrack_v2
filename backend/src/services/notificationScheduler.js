@@ -3,6 +3,7 @@ import pool from '../config/db.js';
 import { t } from '../utils/translate.js';
 import { notifyStore, notifyParty, DEFAULT_NOTIFICATION_SETTINGS } from './notification.service.js';
 import { buildTablePdf } from '../utils/simplePdf.js';
+import { recordAttachment, pdfMoney } from '../utils/recordPdf.js';
 // All schedule decisions use THIS timezone, never the server's local clock.
 // The server can be in the US, Australia, anywhere — notifications still go
 // out at the configured Tanzania time.
@@ -368,7 +369,7 @@ const NEAR_DUE_DAYS = 3;
 async function sendCustomerPaymentReminders(storeId, storeName, money) {
   const result = await pool.query(
     `SELECT c.id, c.name, c.email, c.phone,
-            cs.invoice_number, cs.amount_due,
+            cs.invoice_number, cs.amount_due, cs.due_date,
             ((cs.due_date AT TIME ZONE $2)::date - (NOW() AT TIME ZONE $2)::date)::int AS days_until_due
      FROM credit_sales cs
      JOIN customers c ON c.id = cs.customer_id
@@ -390,14 +391,28 @@ async function sendCustomerPaymentReminders(storeId, storeName, money) {
     }
     const amount = Number(row.amount_due) || 0;
     customer.total += amount;
-    customer.invoices.push({ invoice_number: row.invoice_number, amount, days: Number(row.days_until_due) || 0 });
+    customer.invoices.push({ invoice_number: row.invoice_number, amount, due_date: row.due_date, days: Number(row.days_until_due) || 0 });
   }
   for (const customer of groups.values()) {
     const lead = customer.invoices.slice().sort((a, b) => a.days - b.days)[0];
     const note = lead.days < 0 ? 'payment_reminder_overdue' : lead.days === 0 ? 'payment_reminder_today' : 'payment_reminder_due';
+    // The customer's own statement: every open invoice with what is still owed.
+    const attachments = await recordAttachment(storeId, {
+      title: 'Payment reminder',
+      subtitle: customer.name,
+      filename: `payment-reminder-${String(customer.name || 'customer').slice(0, 30)}.pdf`,
+      columns: [
+        { key: 'invoice', label: 'Invoice' },
+        { key: 'due_date', label: 'Due date' },
+        { key: 'amount', label: 'Amount due', type: 'money' },
+      ],
+      rows: customer.invoices.map((inv) => ({ invoice: inv.invoice_number, due_date: formatBusinessDate(inv.due_date), amount: pdfMoney(inv.amount) })),
+      totals: { amount: pdfMoney(customer.total) },
+    }).catch(() => undefined);
     await notifyParty({
       storeId,
       type: 'payment_due_customer',
+      attachments,
       to: customer,
       title: 'Payment reminder',
       note,
@@ -438,8 +453,8 @@ async function processStore(storeId, rawSettings, dateKey, options = {}) {
           ...letterhead,
           columns: [
             { key: 'name', label: 'Item' },
-            { key: 'current_stock', label: 'Current stock', halign: 'right' },
-            { key: 'reorder_level', label: 'Reorder level', halign: 'right' },
+            { key: 'current_stock', label: 'Current stock', type: 'qty' },
+            { key: 'reorder_level', label: 'Reorder level', type: 'qty' },
           ],
           rows: lowStock.items.map((item) => ({
             name: item.name,
@@ -473,9 +488,9 @@ async function processStore(storeId, rawSettings, dateKey, options = {}) {
           columns: [
             { key: 'customer', label: 'Customer' },
             { key: 'invoice', label: 'Invoice' },
-            { key: 'amount', label: 'Amount', halign: 'right' },
+            { key: 'amount', label: 'Amount', type: 'money' },
             { key: 'due_date', label: 'Due date' },
-            { key: 'overdue_days', label: 'Overdue days', halign: 'right' },
+            { key: 'overdue_days', label: 'Overdue days', type: 'qty' },
           ],
           rows: due.customers.flatMap((customer) => customer.invoices.map((invoice) => ({
             customer: customer.name,
@@ -484,6 +499,7 @@ async function processStore(storeId, rawSettings, dateKey, options = {}) {
             due_date: formatBusinessDate(invoice.due_date),
             overdue_days: String(invoice.overdue_days),
           }))),
+          totals: { amount: money(due.total_due) },
         });
         await notifyStore({
           storeId,
@@ -516,9 +532,27 @@ async function processStore(storeId, rawSettings, dateKey, options = {}) {
         returned_amount: money(summary.returned_amount),
       };
       const langOf = (recipient) => String(recipient?.preferred_language || "en").toLowerCase().startsWith("sw") ? "sw" : "en";
+      const summaryPdf = buildTablePdf({
+        title: 'Daily summary',
+        subtitle: dateKey,
+        ...letterhead,
+        columns: [
+          { key: 'metric', label: 'Figure' },
+          { key: 'count', label: 'Count', type: 'qty' },
+          { key: 'amount', label: 'Amount', type: 'money' },
+        ],
+        rows: [
+          { metric: 'Sales (revenue)', count: String(summary.sales_count), amount: money(summary.revenue) },
+          { metric: 'Gross profit', count: '', amount: money(summary.gross_profit) },
+          { metric: 'Expenses', count: '', amount: money(summary.expenses) },
+          { metric: 'Net profit', count: '', amount: money(summary.net_profit) },
+          { metric: 'Sales returns', count: String(summary.returns_count), amount: money(summary.returned_amount) },
+        ],
+      });
       await notifyStore({
         storeId,
         type: "daily_summary",
+        attachments: [{ filename: `daily-summary-${dateKey}.pdf`, content: summaryPdf, contentType: 'application/pdf' }],
         title: `${storeName} — ${t("daily_summary_title", {}, "en")}`,
         message: t("daily_summary_sms", vars, "en"),
         roles: ["Owner"],

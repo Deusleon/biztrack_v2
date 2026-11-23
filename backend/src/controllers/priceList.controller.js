@@ -1,3 +1,4 @@
+import { resolveDefaultPriceCategory } from '../utils/priceCategory.js';
 import pool from '../config/db.js';
 import { t } from '../utils/translate.js';
 import { getLang } from '../utils/getLang.js';
@@ -11,8 +12,7 @@ export const getPricelist = async (req, res) => {
   const storeSettings = await getStoreSettings(storeId);
   const priceCategoryId =
     req?.query?.priceCategoryId ||
-    storeSettings?.operations?.defaultPriceCategory ||
-    null;
+    (storeId ? await resolveDefaultPriceCategory(pool, storeId, storeSettings) : null);
   const useBatchWisePrice =
     storeSettings?.operations?.useBatchWisePrice || false;
   const page     = Math.max(1, parseInt(req.query.page,  10) || 1);

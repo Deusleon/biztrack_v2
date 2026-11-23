@@ -10,6 +10,13 @@ const LABEL = [107, 114, 128];
 const LINE = [229, 231, 235];
 const ZEBRA = [250, 251, 252];
 
+// The built-in PDF font only draws Latin-1. Anything else would print as garbage ("→" became "!'"),
+// so common symbols are swapped for plain ones and the rest is replaced with "?".
+const SWAPS = { '→': 'to', '←': 'from', '—': '-', '–': '-', '’': "'", '‘': "'", '“': '"', '”': '"', '…': '...', '•': '-', '×': 'x' };
+export const pdfSafe = (value) => String(value ?? '')
+  .replace(/[→←—–’‘“”…•×]/g, (ch) => SWAPS[ch])
+  .replace(/[^\u0009\u000A\u0020-\u007E\u00A0-\u00FF]/g, '?');
+
 const BUSINESS_TIMEZONE = process.env.BUSINESS_TIMEZONE || 'Africa/Dar_es_Salaam';
 
 function generatedOn() {
@@ -24,8 +31,15 @@ function generatedOn() {
   }).format(new Date());
 }
 
+// Alignment rules for every table PDF: quantities left, money right, text left.
+// The heading is aligned exactly like its values.
+const ALIGN = { qty: 'left', money: 'right', text: 'left', index: 'left' };
+
 /**
- * @param {{ title: string, subtitle?: string, businessName?: string, address?: string, phone?: string, email?: string, columns: { key: string, label: string, halign?: string }[], rows: object[] }} doc
+ * @param {{ title: string, subtitle?: string, businessName?: string, address?: string, phone?: string, email?: string,
+ *   columns: { key: string, label: string, type?: 'text'|'qty'|'money' }[], rows: object[],
+ *   totals?: Record<string,string>, index?: boolean }} doc
+ *   columns[].type decides alignment. totals is keyed like a row; its first text column gets the label "Total".
  * @returns {Buffer}
  */
 export function buildTablePdf({
@@ -35,9 +49,21 @@ export function buildTablePdf({
   address = '',
   phone = '',
   email = '',
-  columns,
-  rows,
+  columns: inputColumns,
+  rows: inputRows,
+  totals = null,
+  index = true,
 }) {
+  const columns = index
+    ? [{ key: '__no', label: '#', type: 'index' }, ...inputColumns]
+    : inputColumns;
+  const rows = inputRows.map((row, i) => ({
+    __no: String(i + 1),
+    ...Object.fromEntries(Object.entries(row).map(([k, v]) => [k, pdfSafe(v)])),
+  }));
+  title = pdfSafe(title);
+  subtitle = pdfSafe(subtitle);
+  const alignOf = (col) => ALIGN[col.type || (col.halign === 'right' ? 'money' : 'text')] || 'left';
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -83,8 +109,17 @@ export function buildTablePdf({
 
   autoTable(doc, {
     startY: 32,
-    head: [columns.map((col) => col.label)],
+    head: [columns.map((col) => ({ content: col.label, styles: { halign: alignOf(col) } }))],
     body: rows.map((row) => columns.map((col) => row[col.key] ?? '')),
+    foot: totals
+      ? [columns.map((col, i) => {
+          const firstText = columns.findIndex((c) => (c.type || 'text') === 'text');
+          const content = i === firstText ? 'Total' : (totals[col.key] ?? '');
+          return { content, styles: { halign: alignOf(col) } };
+        })]
+      : undefined,
+    showFoot: 'lastPage',
+    footStyles: { fillColor: [238, 242, 247], textColor: NAVY, fontStyle: 'bold', fontSize: 9 },
     styles: {
       font: 'helvetica',
       fontSize: 9,
@@ -103,7 +138,10 @@ export function buildTablePdf({
       cellPadding: { top: 1.6, right: 1.6, bottom: 1.6, left: 1.6 },
     },
     alternateRowStyles: { fillColor: ZEBRA },
-    columnStyles: Object.fromEntries(columns.map((col, index) => [index, col.halign ? { halign: col.halign } : {}])),
+    columnStyles: Object.fromEntries(columns.map((col, i) => [i, {
+      halign: alignOf(col),
+      ...(col.type === 'index' ? { cellWidth: 11 } : {}),
+    }])),
     margin: { top: 16, right: margin, bottom: 16, left: margin },
     showHead: 'everyPage',
   });
