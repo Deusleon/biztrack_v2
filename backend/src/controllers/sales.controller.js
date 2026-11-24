@@ -2335,13 +2335,14 @@ export const getSaleDetails = async (req, res) => {
 export const verifyReceipt = async (req, res) => {
   const invoice = String(req.query.invoice || "").trim();
   const storeId = String(req.query.store || "").trim();
-  if (!invoice || !storeId) return res.json({ valid: false });
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!invoice || !uuid.test(storeId)) return res.json({ valid: false });
   try {
     const found = await pool.query(
       `SELECT p.invoice_number, p.sales_date, p.total_amount, p.amount_due, s.name AS business_name,
               EXISTS (
                 SELECT 1 FROM sales_returns sr
-                WHERE sr.invoice_number = p.invoice_number AND sr.store_id = p.store_id
+                WHERE sr.original_invoice_number = p.invoice_number AND sr.store_id = p.store_id
                   AND sr.status IN ('approved', 'completed')
               ) AS returned
        FROM payments p

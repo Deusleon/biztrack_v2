@@ -54,9 +54,12 @@ export default function NumberInput({
   };
 
   const formatDisplay = (v) => {
-    if (v === "") return "";
-    const [intPart, decPart] = v.split(".");
-    const withCommas = intPart === "" ? "" : Number(intPart).toLocaleString("en-US");
+    // Drop letters and symbols (a discount stored as "0%" used to print "NaN").
+    const clean = sanitize(v);
+    if (clean === "" || clean === ".") return clean === "." ? "0." : "";
+    const [intPart, decPart] = clean.split(".");
+    const n = Number(intPart);
+    const withCommas = intPart === "" || !Number.isFinite(n) ? "" : n.toLocaleString("en-US");
     return decPart !== undefined ? `${withCommas || "0"}.${decPart}` : withCommas;
   };
 

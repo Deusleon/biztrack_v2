@@ -607,6 +607,9 @@ function generateDocumentDeliveryNote(data, size) {
     margin: { top: 14, right: M, bottom: 24, left: M },
     showHead: "everyPage",
     didParseCell(hookData) {
+      if (hookData.section === "head") {
+        hookData.cell.styles.halign = "left";
+      }
       if (hookData.section === "body" && hookData.column.dataKey === "item") {
         hookData.cell.styles.fontStyle = "bold";
       }

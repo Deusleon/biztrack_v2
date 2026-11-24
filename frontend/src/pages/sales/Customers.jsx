@@ -151,14 +151,14 @@ export default function Customers() {
       <FormModal isOpen={modal.isOpen} onClose={close} size="lg" title={modal.mode === 'edit' ? t('update_customer', lang) : t('new_customer', lang)}>
         <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label={t('customer_name', lang)} required autoFocus value={form.name} onChange={set('name')} error={errors.name} />
+            <Input label={t('customer_name', lang)} required autoFocus placeholder={t('enter_name', lang)} value={form.name} onChange={set('name')} error={errors.name} />
             <PhoneInput label={t('phone', lang)} name="phone" value={form.phone} onChange={set('phone')} placeholder={t('enter_phone', lang)} helperText=" " error={errors.phone} />
-            <Input type="email" label={t('email', lang)} value={form.email} onChange={set('email')} error={errors.email} />
+            <Input type="email" label={t('email', lang)} placeholder={t('enter_email', lang)} value={form.email} onChange={set('email')} error={errors.email} />
             <Select label={t('customer_type', lang)} value={form.customer_type} onChange={(e) => setForm((x) => ({ ...x, customer_type: e.target.value }))} placeholder={t('select_customer_type', lang)} options={types.map((x) => ({ value: x.id, label: x.name }))} />
             <NumberInput label={t('credit_limit', lang)} name="credit_limit" value={form.credit_limit} onChange={set('credit_limit')} {...moneyInput} />
             <NumberInput label={t('credit_due_days', lang)} name="credit_due_days" allowDecimals={false} value={form.credit_due_days} onChange={set('credit_due_days')} placeholder="0" />
           </div>
-          <Textarea label={t('address', lang)} value={form.address} onChange={set('address')} />
+          <Textarea label={t('address', lang)} placeholder={t('enter_address', lang)} value={form.address} onChange={set('address')} />
           <div className="flex justify-end gap-3 pt-1">
             <Button type="submit" loading={saving}>{modal.mode === 'edit' ? t('ui_update', lang) : t('save', lang)}</Button>
             <Button type="button" variant="secondary" onClick={close}>{t('ui_cancel', lang)}</Button>

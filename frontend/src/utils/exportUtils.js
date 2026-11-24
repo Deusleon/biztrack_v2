@@ -240,10 +240,11 @@ export const exportToCSV = (
   toDate = null,
 ) => {
   try {
+    columns = withIndexColumn(columns);
     const dateRangeLabel = buildDateRangeLabel(fromDate, toDate);
-    const headers = columns.map((col) => t(col.title));
-    const rows = data.map((row) =>
-      columns.map((col) => escapeCSV(getDisplayValue(row[col.key])))
+    const headers = columns.map((col) => t(col.title === "#" ? "no." : col.title));
+    const rows = data.map((row, index) =>
+      columns.map((col) => escapeCSV(col.key === INDEX_KEY ? String(index + 1) : getDisplayValue(row[col.key])))
     );
 
     const footerEnabled = isFooterEnabled(withFooter);
@@ -294,9 +295,10 @@ export const exportToXLSX = (
   toDate = null,
 ) => {
   try {
-    const headers = columns.map((col) => t(col.title));
-    const rows = (data || []).map((row) =>
-      columns.map((col) => escapeCSV(getDisplayValue(row[col.key]))),
+    columns = withIndexColumn(columns);
+    const headers = columns.map((col) => t(col.title === "#" ? "no." : col.title));
+    const rows = (data || []).map((row, index) =>
+      columns.map((col) => escapeCSV(col.key === INDEX_KEY ? String(index + 1) : getDisplayValue(row[col.key]))),
     );
 
     const storeName = getStoreNameForExport();
@@ -554,16 +556,16 @@ const extractTextFromReactNode = (node) => {
 // left-aligned, and each heading aligned exactly like the figures beneath it.
 const INDEX_KEY = "__index";
 const effectiveAlign = (col) => {
-  if (col.key === INDEX_KEY) return "left";
-  const kind = col.type || kindOf(String(col.key || ""));
+  if (col.key === INDEX_KEY || col.key === "index" || col.key === "__no") return "left";
+  const kind = col.type || kindOf(`${col.key || ""} ${col.title || ""} ${col.label || ""}`);
   if (kind === "money") return "right";
-  if (kind === "number" || kind === "qty") return "left";
-  return col.halign || "left";
+  if (kind === "number" || kind === "qty" || kind === "percent") return "left";
+  return "left";
 };
 const withIndexColumn = (columns) =>
   columns.some((c) => ["index", "no", "#", INDEX_KEY].includes(c.key))
     ? columns
-    : [{ key: INDEX_KEY, title: "#", cellWidth: 10 }, ...columns];
+    : [{ key: INDEX_KEY, title: "no.", cellWidth: 10 }, ...columns];
 
 const getColumnDisplayValue = (row, col, index) => {
   if (col.key === INDEX_KEY) return String(index + 1);

@@ -122,6 +122,8 @@ export const salesService = {
   syncActiveCart: (payload) => api.post('/sales/sync-cart', payload),
   /** cash / credit sale → { invoice_number, payment_id, items… } */
   recordSale: (payload) => api.post('/sales/sell-cart', { storeId: currentStoreId(), ...payload }),
+  /** Public. A scanned receipt QR opens this without signing in. */
+  verifyReceipt: ({ invoice, store }) => api.get('/sales/receipts/verify', { params: { invoice, store } }),
   saveDraftOrder: (payload) => api.post('/sales/save-order', { storeId: currentStoreId(), ...payload }),
   saveOrderChanges: (payload) => api.post('/sales/save-order-changes', { storeId: currentStoreId(), ...payload }),
   // pending orders

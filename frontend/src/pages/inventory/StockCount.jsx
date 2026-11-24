@@ -82,7 +82,10 @@ export default function StockCount() {
       <div className="space-y-4">
         <div className="page-header flex items-center justify-between flex-wrap gap-3">
           <div className="text-left"><h1 className="text-xl font-bold text-gray-900">{t('stock_count', lang)}</h1><p className="text-sm text-gray-500 mt-0.5">{t('manage_stock_count', lang)}</p></div>
-          {tab === 'count' && canCount && canApply && <Button disabled={entries.length === 0} onClick={() => setConfirm(true)}>{t('save_stock_count', lang)} ({entries.length})</Button>}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {tab === 'history' && can('export_inventory_pdf') && <ExportMenu rows={hexp.rows} columns={hexp.columns} loadRows={hexp.loadAllRows} title="count_history" disabled={history.loading || history.rows.length === 0} />}
+            {tab === 'count' && canCount && canApply && <Button disabled={entries.length === 0} onClick={() => setConfirm(true)}>{t('save_stock_count', lang)} ({entries.length})</Button>}
+          </div>
         </div>
         <div className="flex gap-2 border-b border-gray-200">{[['count', canCount, 'count_stock'], ['history', canHistory, 'count_history'], ['movements', canHistory, 'stock_movements']].filter(([, ok]) => ok).map(([k, , label]) => <button key={k} type="button" onClick={() => setTab(k)} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === k ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{t(label, lang)}</button>)}</div>
 
@@ -111,13 +114,12 @@ export default function StockCount() {
         </>)}
         {tab === 'history' && canHistory && (<>
           <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"><DatePicker value={history.filters.startDate || ''} onChange={(e) => history.setFilter('startDate', e.target.value)} placeholder={t('start_date', lang)} /><DatePicker align="right" value={history.filters.endDate || ''} onChange={(e) => history.setFilter('endDate', e.target.value)} placeholder={t('end_date', lang)} /></div>
-          {can('export_inventory_pdf') && <div className="flex justify-end"><ExportMenu rows={hexp.rows} columns={hexp.columns} loadRows={hexp.loadAllRows} title="count_history" disabled={history.loading || history.rows.length === 0} /></div>}
           <DataTable evenColumns columns={hcols} data={history.rows} loading={history.loading} emptyMessage={history.hasFilters ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={history.pagination} onPageChange={history.setPage} renderActions={(h) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(h) }]} />} />
         </>)}
       </div>
 
       <FormModal isOpen={confirm} onClose={() => !saving && setConfirm(false)} size="lg" title={t('save_stock_count', lang)}>
-        <div className="space-y-4 text-left"><p className="text-sm text-gray-600">{t('stock_count_confirm', lang, { count: entries.length })}</p><Textarea rows={2} label={t('notes', lang)} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <div className="space-y-4 text-left"><p className="text-sm text-gray-600">{t('stock_count_confirm', lang, { count: entries.length })}</p><Textarea rows={2} label={t('notes', lang)} placeholder={t('notes', lang)} value={notes} onChange={(e) => setNotes(e.target.value)} />
           <div className="overflow-x-auto border border-gray-200 rounded-md max-h-64"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-3 py-2.5 text-left font-medium">{t('product_name', lang)}</th><th className="px-3 py-2.5 text-right font-medium">{t('counted_quantity', lang)}</th></tr></thead>
             <tbody>{entries.map(([id, v]) => <tr key={id} className="border-t border-gray-100"><td className="px-3 py-2.5">{names[id]}</td><td className="px-3 py-2.5 text-right font-medium">{v}</td></tr>)}</tbody></table></div>
           <div className="flex justify-end gap-3"><Button loading={saving} onClick={save}>{t('save', lang)}</Button><Button variant="secondary" onClick={() => setConfirm(false)}>{t('ui_cancel', lang)}</Button></div></div>

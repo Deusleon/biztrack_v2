@@ -91,7 +91,7 @@ export default function Orders() {
       </FormModal>
 
       <FormModal isOpen={confirm?.kind === 'reject'} onClose={() => setConfirm(null)} size="sm" title={t('reject', lang)}>
-        <div className="space-y-3"><Textarea rows={3} label={t('reason', lang)} value={reason} onChange={(e) => setReason(e.target.value)} />
+        <div className="space-y-3"><Textarea rows={3} label={t('reason', lang)} placeholder={t('reason', lang)} value={reason} onChange={(e) => setReason(e.target.value)} />
           <div className="flex justify-end gap-3"><Button variant="danger" loading={busy} onClick={() => run(() => purchaseService.orders.approve(confirm.order.id, 'cancelled', reason), () => setDetail(null))}>{t('reject', lang)}</Button><Button variant="secondary" onClick={() => setConfirm(null)}>{t('ui_cancel', lang)}</Button></div></div>
       </FormModal>
       <ConfirmModal isOpen={confirm?.kind === 'delete'} variant="danger" title={t('delete', lang)} confirmText={t('delete', lang)} cancelText={t('ui_cancel', lang)} message={t('ui_confirm_delete', lang, { name: `#${confirm?.order?.po_number || ''}` })} onClose={() => setConfirm(null)} onConfirm={() => run(() => purchaseService.orders.remove(confirm.order.id))} />

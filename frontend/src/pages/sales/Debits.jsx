@@ -133,17 +133,17 @@ export default function Debits() {
         )}
       </FormModal>
 
-      <FormModal isOpen={!!panel} onClose={() => !busy && setPanel(null)} size="sm" title={panel?.kind === 'pay' ? t('record_payment', lang) : t('send_reminder', lang)}>
+      <FormModal isOpen={!!panel} onClose={() => !busy && setPanel(null)} size="md" title={panel?.kind === 'pay' ? t('record_payment', lang) : t('send_reminder', lang)}>
         {panel && (
           <form onSubmit={(e) => { e.preventDefault(); submit(); }} className="space-y-4">
             <p className="text-sm text-gray-600 text-left">#{panel.sale.invoice_number} · {panel.sale.customer_name} · {t('amount_due', lang)}: <b>{money(panel.sale.amount_due)}</b></p>
             {panel.kind === 'pay' ? (<>
               <NumberInput label={t('amount_paid', lang)} required autoFocus value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} {...moneyInput} />
-              <Select label={t('payment_method', lang)} value={form.method} onChange={(e) => setForm((f) => ({ ...f, method: e.target.value }))} options={['cash', 'mobile_money', 'bank_transfer'].map((m) => ({ value: m, label: t(m, lang) }))} />
-              <Input label={t('reference_number', lang)} value={form.reference} onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))} />
-              <Textarea rows={2} label={t('notes', lang)} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
+              <Select label={t('payment_method', lang)} value={form.method} onChange={(e) => setForm((f) => ({ ...f, method: e.target.value }))} placeholder={t('payment_method', lang)} options={['cash', 'mobile_money', 'bank_transfer'].map((m) => ({ value: m, label: t(m, lang) }))} />
+              <Input label={t('reference_number', lang)} placeholder={t('reference_number', lang)} value={form.reference} onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))} />
+              <Textarea rows={2} label={t('notes', lang)} placeholder={t('notes', lang)} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
             </>) : (
-              <Textarea rows={4} label={t('message', lang)} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} />
+              <Textarea rows={4} label={t('message', lang)} placeholder={t('message', lang)} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} />
             )}
             <div className="flex justify-end gap-3"><Button type="submit" loading={busy}>{panel.kind === 'pay' ? t('record_payment', lang) : t('send', lang)}</Button><Button type="button" variant="secondary" onClick={() => setPanel(null)}>{t('ui_cancel', lang)}</Button></div>
           </form>

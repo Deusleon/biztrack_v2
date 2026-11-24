@@ -38,13 +38,15 @@ export default function ExportMenu({ rows, columns, title, formats = ['pdf', 'xl
   const print = (data) => {
     const w = window.open('', '_blank');
     if (!w) throw new Error('popup blocked');
-    // Same rules as the PDF: index number first, money right-aligned, quantities and text left-aligned.
-    const align = (c) => ((c.type || kindOf(String(c.key || ''))) === 'money' ? 'right' : 'left');
-    const head = `<th style="text-align:left;width:34px">#</th>${columns.map((c) => `<th style="text-align:${align(c)}">${esc(t(c.title, lang))}</th>`).join('')}`;
-    const body = data.map((r, i) => `<tr><td style="text-align:left">${i + 1}</td>${columns.map((c) => `<td style="text-align:${align(c)}">${esc(r[c.key])}</td>`).join('')}</tr>`).join('');
+    // Same rules as the PDF: one index column, money right-aligned, quantities and text left-aligned, headings included.
+    const isIndex = (c) => ['index', 'no', '#', '__index', '__no'].includes(String(c.key || ''));
+    const printable = columns.filter((c) => !isIndex(c));
+    const align = (c) => ((c.type || kindOf(`${c.key || ''} ${c.title || ''}`)) === 'money' ? 'right' : 'left');
+    const head = `<th style="text-align:left;width:34px">${esc(t('no.', lang))}</th>${printable.map((c) => `<th style="text-align:${align(c)}">${esc(t(c.title, lang))}</th>`).join('')}`;
+    const body = data.map((r, i) => `<tr><td style="text-align:left">${i + 1}</td>${printable.map((c) => `<td style="text-align:${align(c)}">${esc(r[c.key])}</td>`).join('')}</tr>`).join('');
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(t(title, lang))}</title><style>
       body{font-family:Arial,Helvetica,sans-serif;font-size:12px;margin:16px}h2{margin:0 0 2px}p{margin:0 0 10px;color:#555}
-      table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:5px 7px;text-align:left}th{background:#f1f5f9}
+      table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:5px 7px}th{background:#f1f5f9}
       *{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>
       <h2>${esc(settings?.businessName || settings?.storeName || 'BizTrack')}</h2><p>${esc(t(title, lang))} — ${new Date().toLocaleString()}</p>
       <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`);

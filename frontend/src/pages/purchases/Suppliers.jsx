@@ -81,18 +81,18 @@ export default function Suppliers() {
       <FormModal isOpen={modal.isOpen} onClose={close} size="lg" title={modal.mode === 'edit' ? t('update_supplier', lang) : t('new_supplier', lang)}>
         <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label={t('supplier_name', lang)} required autoFocus value={form.name} onChange={set('name')} error={errors.name} />
-            <Input label={t('contact_person', lang)} value={form.contact_person} onChange={set('contact_person')} />
-            <PhoneInput label={t('phone', lang)} name="phone" value={form.phone} onChange={set('phone')} helperText=" " />
-            <Input type="email" label={t('email', lang)} value={form.email} onChange={set('email')} error={errors.email} />
-            <Input label={t('city', lang)} value={form.city} onChange={set('city')} />
-            <Input label={t('country', lang)} value={form.country} onChange={set('country')} />
-            <Input label={t('tin_number', lang)} value={form.tin_number} onChange={set('tin_number')} />
-            <Input label={t('vat_number', lang)} value={form.vat_number} onChange={set('vat_number')} />
-            <Input label={t('payment_terms', lang)} value={form.payment_terms} onChange={set('payment_terms')} />
+            <Input label={t('supplier_name', lang)} required autoFocus placeholder={t('supplier_name', lang)} value={form.name} onChange={set('name')} error={errors.name} />
+            <Input label={t('contact_person', lang)} placeholder={t('contact_person', lang)} value={form.contact_person} onChange={set('contact_person')} />
+            <PhoneInput label={t('phone', lang)} name="phone" value={form.phone} onChange={set('phone')} placeholder={t('enter_phone', lang)} helperText=" " />
+            <Input type="email" label={t('email', lang)} placeholder={t('enter_email', lang)} value={form.email} onChange={set('email')} error={errors.email} />
+            <Input label={t('city', lang)} placeholder={t('city', lang)} value={form.city} onChange={set('city')} />
+            <Input label={t('country', lang)} placeholder={t('country', lang)} value={form.country} onChange={set('country')} />
+            <Input label={t('tin_number', lang)} placeholder={t('tin_number', lang)} value={form.tin_number} onChange={set('tin_number')} />
+            <Input label={t('vat_number', lang)} placeholder={t('vat_number', lang)} value={form.vat_number} onChange={set('vat_number')} />
+            <Input label={t('payment_terms', lang)} placeholder={t('payment_terms', lang)} value={form.payment_terms} onChange={set('payment_terms')} />
           </div>
-          <Textarea label={t('address', lang)} value={form.address} onChange={set('address')} />
-          <Textarea label={t('notes', lang)} value={form.notes} onChange={set('notes')} />
+          <Textarea label={t('address', lang)} placeholder={t('enter_address', lang)} value={form.address} onChange={set('address')} />
+          <Textarea label={t('notes', lang)} placeholder={t('notes', lang)} value={form.notes} onChange={set('notes')} />
           <div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{modal.mode === 'edit' ? t('ui_update', lang) : t('save', lang)}</Button><Button type="button" variant="secondary" onClick={close}>{t('ui_cancel', lang)}</Button></div>
         </form>
       </FormModal>

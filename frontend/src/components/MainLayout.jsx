@@ -62,8 +62,8 @@ export default function MainLayout({ children }) {
     <div className="min-h-screen bg-gray-100">
       <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen((o) => !o)} closeSidebar={closeSidebar} isCollapsed={collapsed} onHelp={() => { setSidebarOpen(false); setHelpOpen(true); }} />
 
-      <div className={`transition-all duration-300 min-h-screen min-w-0 flex flex-col overflow-x-hidden ${collapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
-        <header className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200 print:hidden safe-top">
+      <div className={`transition-all duration-300 min-h-screen min-w-0 ${collapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+        <header className="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-200 print:hidden safe-top">
           <div className="flex items-center justify-between px-2 sm:px-4 h-14 gap-1.5 sm:gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded text-gray-600 hover:bg-gray-100" aria-label={t('ui_menu', lang)}><Svg d={ICON_PATHS.menu} /></button>
@@ -125,7 +125,7 @@ export default function MainLayout({ children }) {
         </header>
 
         <InstallBanner />
-        <main className="flex-1 min-w-0 overflow-x-auto px-3 sm:px-4 py-3 print:p-0">{children}</main>
+        <main className="min-w-0 px-3 sm:px-4 py-3 print:p-0">{children}</main>
         <DailyBriefModal />
       </div>
           <SupportWidget isOpen={helpOpen} onClose={() => setHelpOpen(false)} />

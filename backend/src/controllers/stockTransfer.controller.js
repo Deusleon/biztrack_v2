@@ -50,6 +50,9 @@ export const createStockTransfer = async (req, res) => {
     // 2. Generate transfer reference number
     // Sequential per source store (TR-00001, TR-00002 ...). Taken inside this transaction, so a
     // transfer that fails does not use up a number.
+    await client.query(
+      `ALTER TABLE store_invoice_counters ADD COLUMN IF NOT EXISTS last_transfer_number INTEGER NOT NULL DEFAULT 0`,
+    );
     const counter = await client.query(
       `INSERT INTO store_invoice_counters (store_id, last_transfer_number) VALUES ($1, 1)
        ON CONFLICT (store_id) DO UPDATE

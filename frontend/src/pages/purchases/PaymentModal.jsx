@@ -52,12 +52,12 @@ export default function PaymentModal({ isOpen, onClose, invoice: fixed, invoices
         {invoice && <p className="text-sm text-left">{t('balance_due', lang)}: <b className="text-red-600">{money(balance)}</b></p>}
         <div className="grid grid-cols-2 gap-3">
           <NumberInput label={t('amount', lang)} required value={f.amount} onChange={set('amount')} {...moneyInput} />
-          <DatePicker label={t('payment_date', lang)} value={f.payment_date} onChange={set('payment_date')} />
-          <Select label={t('payment_method', lang)} value={f.payment_method} onChange={set('payment_method')} options={METHODS.map((m) => ({ value: m, label: t(m, lang) }))} />
-          <Input label={t('reference_number', lang)} value={f.reference_number} onChange={set('reference_number')} />
-          {f.payment_method === 'bank_transfer' && <><Input label={t('bank_name', lang)} value={f.bank_name} onChange={set('bank_name')} /><Input label={t('account_number', lang)} value={f.account_number} onChange={set('account_number')} /></>}
+          <DatePicker label={t('payment_date', lang)} placeholder={t('payment_date', lang)} value={f.payment_date} onChange={set('payment_date')} />
+          <Select label={t('payment_method', lang)} placeholder={t('payment_method', lang)} value={f.payment_method} onChange={set('payment_method')} options={METHODS.map((m) => ({ value: m, label: t(m, lang) }))} />
+          <Input label={t('reference_number', lang)} placeholder={t('reference_number', lang)} value={f.reference_number} onChange={set('reference_number')} />
+          {f.payment_method === 'bank_transfer' && <><Input label={t('bank_name', lang)} placeholder={t('bank_name', lang)} value={f.bank_name} onChange={set('bank_name')} /><Input label={t('account_number', lang)} placeholder={t('account_number', lang)} value={f.account_number} onChange={set('account_number')} /></>}
         </div>
-        <Textarea rows={2} label={t('notes', lang)} value={f.notes} onChange={set('notes')} />
+        <Textarea rows={2} label={t('notes', lang)} placeholder={t('notes', lang)} value={f.notes} onChange={set('notes')} />
         <div className="flex justify-end gap-3"><Button type="submit" loading={saving}>{t('record_payment', lang)}</Button><Button type="button" variant="secondary" onClick={onClose}>{t('ui_cancel', lang)}</Button></div>
       </form>
     </FormModal>

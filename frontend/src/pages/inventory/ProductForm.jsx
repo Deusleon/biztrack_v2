@@ -61,7 +61,7 @@ export default function ProductForm({ isOpen, onClose, product, categories, sett
       <FormModal isOpen={isOpen} onClose={onClose} size="xl" title={t('product_form', lang)}>
         <form onSubmit={submit} className="space-y-4" noValidate>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label={t('product_name', lang)} required autoFocus value={form.product_name} onChange={set('product_name')} error={errors.product_name} disabled={saving} />
+            <Input label={t('product_name', lang)} required autoFocus placeholder={t('product_name', lang)} value={form.product_name} onChange={set('product_name')} error={errors.product_name} disabled={saving} />
             <Select label={t('unit', lang)} required value={form.unit} onChange={set('unit')} error={errors.unit} disabled={saving} placeholder={t('select_unit', lang)} options={UNITS.map((u) => ({ value: u, label: t(u, lang) }))} />
             <Select label={t('category', lang)} required searchable value={form.product_category} onChange={set('product_category')} error={errors.product_category} disabled={saving} placeholder={t('select_product_category', lang)} options={categories.map((c) => ({ value: c.id, label: c.name }))} />
 
@@ -79,11 +79,11 @@ export default function ProductForm({ isOpen, onClose, product, categories, sett
             {!editing && <NumberInput label={t('current_stock', lang)} value={form.current_stock} onChange={set('current_stock')} error={errors.current_stock} disabled={saving} {...getQuantityInputProps()} />}
             <NumberInput label={t('alert_qty', lang)} value={form.alert_qty} onChange={set('alert_qty')} error={errors.alert_qty} disabled={saving} {...getQuantityInputProps()} />
             {editing && <Select label={t('status', lang)} value={form.status} onChange={set('status')} disabled={saving} options={[{ value: 'active', label: t('active', lang) }, { value: 'inactive', label: t('inactive', lang) }]} />}
-            {!editing && <DatePicker label={t('mfg_date', lang)} value={form.mfg_date} onChange={set('mfg_date')} disabled={saving} />}
-            {!editing && settings.allowExpireDate && <DatePicker label={t('exp_date', lang)} value={form.exp_date} onChange={set('exp_date')} disabled={saving} />}
+            {!editing && <DatePicker label={t('mfg_date', lang)} placeholder={t('mfg_date', lang)} value={form.mfg_date} onChange={set('mfg_date')} disabled={saving} />}
+            {!editing && settings.allowExpireDate && <DatePicker label={t('exp_date', lang)} placeholder={t('exp_date', lang)} value={form.exp_date} onChange={set('exp_date')} disabled={saving} />}
           </div>
 
-          <Textarea label={t('product_description', lang)} value={form.product_description} onChange={set('product_description')} disabled={saving} />
+          <Textarea label={t('product_description', lang)} placeholder={t('product_description', lang)} value={form.product_description} onChange={set('product_description')} disabled={saving} />
           <ImageInput label={t('image', lang)} value={form.image} onChange={(img) => setForm((x) => ({ ...x, image: img }))} disabled={saving} />
 
           <div className="flex justify-end gap-3 pt-1">

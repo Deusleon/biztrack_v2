@@ -26,7 +26,7 @@ export default function PriceList() {
   const { settings } = useStoreSettings();
   const [cats, setCats] = useState([]);
   const [cat, setCat] = useState('');
-  useEffect(() => { priceCategoryService.getAll().then((r) => { setCats(r.data); setCat((c) => c || r.data.find((x) => x.is_default)?.id || r.data[0]?.id || ''); }).catch(() => showError(t('failed_to_fetch_price_categories', lang))); }, [currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { priceCategoryService.getAll().then((r) => { const rows = r.data || []; setCats(rows); const preferred = settings?.defaultPriceCategory; setCat((c) => c || rows.find((x) => x.id === preferred)?.id || rows[0]?.id || ''); }).catch(() => showError(t('failed_to_fetch_price_categories', lang))); }, [currentStore?.id, settings?.defaultPriceCategory]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetcher = async ({ page, limit, search }) => {
     if (!cat) return { data: [], pagination: toPaging({}, limit) };

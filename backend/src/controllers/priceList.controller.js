@@ -46,7 +46,8 @@ export const getPricelist = async (req, res) => {
       });
     }
 
-    const baseParams = [storeId, useBatchWisePrice, priceCategoryId];
+    const defaultCategoryId = await resolveDefaultPriceCategory(pool, storeId, storeSettings);
+    const baseParams = [storeId, useBatchWisePrice, priceCategoryId, defaultCategoryId];
     let searchCond = '';
     if (search) {
       baseParams.push(`%${search}%`);
@@ -143,10 +144,18 @@ export const getPricelist = async (req, res) => {
             ) AS cost_price,
 
             -- SELLING PRICE
+            -- The category row is the price list. On the store's default category, a price
+            -- typed while receiving goods is also kept on the batch, so it still shows
+            -- when that category row has not been written yet.
             (
-              SELECT sp.price
-              FROM selling_prices sp
-              WHERE sp.batch_id = (
+              SELECT COALESCE(
+                sp.price,
+                CASE WHEN $3::text = $4::text THEN ibp.selling_price END
+              )
+              FROM inventory_batches ibp
+              LEFT JOIN selling_prices sp
+                ON sp.batch_id = ibp.id AND sp.price_category_id = $3
+              WHERE ibp.id = (
                 CASE
                   WHEN $2 = true THEN (
                     SELECT ib1.id
@@ -175,7 +184,6 @@ export const getPricelist = async (req, res) => {
                   )
                 END
               )
-              AND sp.price_category_id = $3
               LIMIT 1
             ) AS selling_price,
 
@@ -426,7 +434,8 @@ async function getPricelistBatchwise(
     );
     const total = Number(countResult.rows[0].count);
 
-    const dataParams = [storeId, priceCategoryId];
+    const defaultCategoryId = await resolveDefaultPriceCategory(pool, storeId, await getStoreSettings(storeId));
+    const dataParams = [storeId, priceCategoryId, defaultCategoryId];
     let searchCond = "";
     if (search) {
       dataParams.push(`%${search}%`);
@@ -448,12 +457,15 @@ async function getPricelistBatchwise(
           ib.status       AS batch_status,
           ib.created_at,
           ib.expiry_date,
-          (
-            SELECT sp.price
-            FROM selling_prices sp
-            WHERE sp.batch_id = ib.id
-              AND sp.price_category_id = $2
-            LIMIT 1
+          COALESCE(
+            (
+              SELECT sp.price
+              FROM selling_prices sp
+              WHERE sp.batch_id = ib.id
+                AND sp.price_category_id = $2
+              LIMIT 1
+            ),
+            CASE WHEN $2::text = $3::text THEN ib.selling_price END
           ) AS selling_price,
           (
             SELECT COALESCE(SUM(

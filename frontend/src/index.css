@@ -481,18 +481,25 @@ main .flex-wrap:has(> div.w-14.h-14) { flex-wrap: nowrap; }
   .fixed .btn-compact { padding-left: 1rem; padding-right: 1rem; }
 }
 
-/* ── Page header: title left, actions right ─────────────────────────────────────
- * Actions stay right-aligned even when they wrap onto their own line. */
+/* ── Page header: title left, every action (including Export) at the end ────────
+ * justify-between on a header with three children parked Export in the middle.
+ * The title takes the spare space, so Export and the other buttons sit together at the end. */
+.page-header {
+  justify-content: flex-end !important;
+}
 .page-header,
 .page-header > :first-child,
 .page-header h1,
 .page-header p {
   text-align: left !important;
 }
+.page-header > :first-child {
+  margin-right: auto;
+}
 
 /* Action controls sit on the right. A description paragraph stays a normal left-aligned block. */
 .page-header > :not(:first-child):not(p) {
-  margin-left: auto;
+  margin-left: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

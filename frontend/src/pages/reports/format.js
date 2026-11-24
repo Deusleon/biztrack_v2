@@ -10,6 +10,7 @@ export const kindOf = (key) => {
   if (/(^|_)(date|created_at|received_at|period)$/.test(k) || k.endsWith('_date')) return 'date';
   if (/(^|_)(phone|number|name|note|notes|batch_number|barcode|mode|supplier_invoice_number|bill_number|reference_number|po_number|grn_number)$/.test(k) || k.endsWith('_number') || k.endsWith('_name') || k.endsWith('_phone') || k === 'discount_mode') return 'text';
   if (/(amount|price|cost|revenue|profit|loss|value|balance|outstanding|paid|due|payable|worth|expenses|shipping|charges|tax|invoiced|discount|sales|refund)/.test(k) && !/(count|invoices|orders|_qty|quantity|items|days)$/.test(k) && !/^(total_invoices|total_orders|total_suppliers|total_products|total_batches|total_periods|total_days|total_transactions|total_items_sold|total_quantity_sold|total_quantity)$/.test(k)) return 'money';
+  if (/(^|_)total$/.test(k) && !/(qty|quantity|items|count|stock)/.test(k)) return 'money';
   if (/(quantity|qty|count|invoices|orders|items|stock|days|total_in|total_out|minimum|products|categories|suppliers|batches|periods|transactions|returns|transfers)/.test(k)) return 'number';
   return 'text';
 };

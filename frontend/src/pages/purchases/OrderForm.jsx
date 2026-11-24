@@ -204,8 +204,8 @@ export default function OrderForm() {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 <Select label={t('supplier', lang)} required searchable value={form.supplier_id} onChange={(e) => setE({ supplier_id: e.target.value, payment_terms: form.payment_terms || suppliers.find((s) => s.id === e.target.value)?.payment_terms || '' })} placeholder={t('select_supplier', lang)} options={suppliers.map((s) => ({ value: s.id, label: s.name }))} />
                 <DatePicker label={t('expected_delivery', lang)} value={form.expected_delivery_date} onChange={(e) => setE({ expected_delivery_date: e.target.value })} />
-                <Input label={t('payment_terms', lang)} value={form.payment_terms} onChange={(e) => setE({ payment_terms: e.target.value })} />
-                <div className="md:col-span-2 xl:col-span-3"><Input label={t('delivery_address', lang)} value={form.delivery_address} onChange={(e) => setE({ delivery_address: e.target.value })} /></div>
+                <Input label={t('payment_terms', lang)} placeholder={t('payment_terms', lang)} value={form.payment_terms} onChange={(e) => setE({ payment_terms: e.target.value })} />
+                <div className="md:col-span-2 xl:col-span-3"><Input label={t('delivery_address', lang)} placeholder={t('enter_address', lang)} value={form.delivery_address} onChange={(e) => setE({ delivery_address: e.target.value })} /></div>
               </div>
             </div>
 
@@ -280,8 +280,8 @@ export default function OrderForm() {
                   <div className="flex justify-between text-lg font-bold border-t border-gray-100 pt-2"><span>{t('total', lang)}</span><span>{money(totals.total)}</span></div>
                 </div>
                 <div className="bg-white p-4 rounded shadow space-y-3 text-left">
-                  <Textarea rows={2} label={t('notes', lang)} value={form.notes} onChange={(e) => setE({ notes: e.target.value })} />
-                  <Textarea rows={2} label={t('internal_notes', lang)} value={form.internal_notes} onChange={(e) => setE({ internal_notes: e.target.value })} />
+                  <Textarea rows={2} label={t('notes', lang)} placeholder={t('notes', lang)} value={form.notes} onChange={(e) => setE({ notes: e.target.value })} />
+                  <Textarea rows={2} label={t('internal_notes', lang)} placeholder={t('internal_notes', lang)} value={form.internal_notes} onChange={(e) => setE({ internal_notes: e.target.value })} />
                   <div className="flex gap-2 pt-1">
                     <Button type="submit" className="flex-1 whitespace-normal text-center leading-tight" size="" mobileIcon={false} loading={saving}>{editing ? t('ui_update', lang) : t('save', lang)}</Button>
                     <Button type="button" className="flex-1 whitespace-normal text-center leading-tight" size="" mobileIcon={false} variant="secondary" onClick={() => navigate('/purchases/orders')}>{t('ui_cancel', lang)}</Button>

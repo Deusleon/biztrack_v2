@@ -19,7 +19,7 @@ const api = axios.create({
 const PUBLIC_ENDPOINTS = [
   '/auth/login', '/auth/register', '/auth/verify-email', '/auth/resend-email',
   '/auth/forgot-password', '/auth/reset-password', '/support/tickets/public', '/support/tickets/track',
-  '/public/receipts',
+  '/public/receipts', '/sales/receipts/verify',
 ];
 const isPublic = (url = '') => PUBLIC_ENDPOINTS.some((e) => url.includes(e));
 

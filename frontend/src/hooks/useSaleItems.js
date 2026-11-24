@@ -30,7 +30,7 @@ export const useSaleItems = ({ discountEnabled = false, vatEnabled = false, vatR
     quantityLeft: 0,
     quantity: "", // Start at 1
     price: "",
-    discount: discountType === "percentage" ? "0%" : formatNumberWithCommas(0, decimalPlaces),
+    discount: discountType === "percentage" ? "0" : formatNumberWithCommas(0, decimalPlaces),
     vat: "",
     total: "",
     rawPrice: 0,
@@ -162,7 +162,7 @@ export const useSaleItems = ({ discountEnabled = false, vatEnabled = false, vatR
           price: formatNumberWithCommas(priceValue, decimalPlaces),
           rawQuantity: 1, // Set to 1 when product is selected
           quantity: "1",
-          discount: settings?.defaultDiscountType === "amount" ? formatNumberWithCommas(0, decimalPlaces) : "0%",
+          discount: settings?.defaultDiscountType === "percentage" ? "0" : formatNumberWithCommas(0, decimalPlaces),
           rawDiscount: 0,
         };
 
@@ -319,7 +319,10 @@ export const useSaleItems = ({ discountEnabled = false, vatEnabled = false, vatR
     } else {
       // Per-unit discount - sum of all row discounts
       totalDiscount = items.reduce((sum, item) => {
-        return sum + (removeNumberFormatting(item.rawDiscountAmount * item.rawQuantity) || 0);
+        const amount = Number(item.rawDiscountAmount);
+        const qty = Number(item.rawQuantity);
+        if (!Number.isFinite(amount) || !Number.isFinite(qty)) return sum;
+        return sum + amount * qty;
       }, 0);
     }
   }
