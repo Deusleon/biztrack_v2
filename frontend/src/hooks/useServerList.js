@@ -3,6 +3,14 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react
 import { usePersistedState } from './usePersistedState';
 import { useStore } from '../contexts/StoreContext';
 import { useToast } from '../contexts/ToastContext';
+import { useStoreSettings } from './useStoreSettings';
+import { reportDates } from '../utils/dateRange';
+
+const DATE_PAIRS = [['startDate', 'endDate'], ['from_date', 'to_date']];
+
+function datePair(filters) {
+  return DATE_PAIRS.find(([start, end]) => Object.prototype.hasOwnProperty.call(filters || {}, start) && Object.prototype.hasOwnProperty.call(filters || {}, end)) || null;
+}
 
 /**
  * The list half of every EduTrack-style page, in one place: filters and page number that survive leaving the page
@@ -16,6 +24,7 @@ import { useToast } from '../contexts/ToastContext';
  */
 export default function useServerList({ fetcher, initialFilters = { search: '' }, limit = 25, enabled = true }) {
   const { currentStore } = useStore();
+  const { settings, loading: settingsLoading } = useStoreSettings();
   const { showError } = useToast();
   const [filters, setFilters] = usePersistedState('filters', initialFilters);
   const [page, setPageState] = usePersistedState('page', 1);
@@ -26,10 +35,32 @@ export default function useServerList({ fetcher, initialFilters = { search: '' }
   const [searchText, setSearchText] = useState(filters.search || '');
   const seq = useRef(0);
   const fetcherRef = useRef(fetcher);
+  const datesEdited = useRef(false);
   useLayoutEffect(() => { fetcherRef.current = fetcher; });
 
+  const period = settings?.defaultReportDateRange;
+  const configured = reportDates(period);
+  const dateKeys = datePair(initialFilters);
+  const scope = `${currentStore?.id || ''}:${period || ''}`;
+  const scopeRef = useRef(scope);
+  if (scopeRef.current !== scope) {
+    scopeRef.current = scope;
+    datesEdited.current = false;
+  }
+  const datesReady = !dateKeys || datesEdited.current || (configured
+    ? filters[dateKeys[0]] === configured.startDate && filters[dateKeys[1]] === configured.endDate
+    : !settingsLoading);
+
+  useEffect(() => {
+    if (!dateKeys || !configured || datesEdited.current) return;
+    const [start, end] = dateKeys;
+    if (filters[start] === configured.startDate && filters[end] === configured.endDate) return;
+    setFilters((current) => ({ ...current, [start]: configured.startDate, [end]: configured.endDate }));
+    setPageState(1);
+  }, [configured?.startDate, configured?.endDate, currentStore?.id, period, dateKeys?.[0]]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const reload = useCallback(async () => {
-    if (!enabled) return;
+    if (!enabled || !datesReady) return;
     const mine = ++seq.current;                       // a slow answer for an old search must not overwrite a newer one
     try {
       setLoading(true);
@@ -45,7 +76,7 @@ export default function useServerList({ fetcher, initialFilters = { search: '' }
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [enabled, filters, page, limit, currentStore?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, filters, page, limit, currentStore?.id, datesReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -58,6 +89,7 @@ export default function useServerList({ fetcher, initialFilters = { search: '' }
 
   const setFilter = (name, value) => {
     if (name === 'search') { setSearchText(value); return; }
+    if (dateKeys && (name === dateKeys[0] || name === dateKeys[1])) datesEdited.current = true;
     setFilters((f) => ({ ...f, [name]: value }));
     setPageState(1);
   };

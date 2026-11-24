@@ -1,10 +1,12 @@
 // FILE PATH: frontend/src/pages/settings/Tools.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import MainLayout from '../../components/MainLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
+import { useStoreSettings } from '../../hooks/useStoreSettings';
+import { reportDates } from '../../utils/dateRange';
 import { toolsService, userAdminService } from '../../services/api';
 import { Button, Select, ConfirmModal, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
@@ -18,6 +20,7 @@ const ACTIONS = ['login_success', 'login_failed', 'password_changed', 'create_pr
 export default function Tools() {
   const { can } = useAuth();
   const { currentStore } = useStore();
+  const { settings } = useStoreSettings();
   const { showSuccess, showError } = useToast();
   const { lang } = useLanguage();
   const [busy, setBusy] = useState(null);
@@ -30,14 +33,34 @@ export default function Tools() {
   const [confirmCache, setConfirmCache] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
   const canUse = can('view_tools');
+  const period = settings?.defaultReportDateRange;
+  const configured = reportDates(period);
+  const datesEdited = useRef(false);
+  const scope = `${currentStore?.id || ''}:${period || ''}`;
+  const scopeRef = useRef(scope);
+  if (scopeRef.current !== scope) { scopeRef.current = scope; datesEdited.current = false; }
 
   useEffect(() => { if (canUse) userAdminService.list({ limit: 100 }).then((r) => setUsers(r.data)).catch(() => {}); }, [currentStore?.id, canUse]);
+  useEffect(() => {
+    if (!configured || datesEdited.current) return;
+    if (filters.dateFrom === configured.startDate && filters.dateTo === configured.endDate) return;
+    setFilters((f) => ({ ...f, dateFrom: configured.startDate, dateTo: configured.endDate }));
+  }, [configured?.startDate, configured?.endDate, currentStore?.id, period]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const run = async (key, fn, ok) => { try { setBusy(key); await fn(); showSuccess(t(ok, lang)); } catch (err) { showError(err.message); } finally { setBusy(null); } };
   const loadLogs = useCallback(async (page) => {
     try { setLogs((l) => ({ ...l, loading: true })); const r = await toolsService.logs({ ...filters, page, limit: 25 }); setLogs((l) => ({ rows: page === 1 ? r.logs : [...l.rows, ...r.logs], total: r.total, page, loading: false, loaded: true })); }
     catch (err) { showError(err.message); setLogs((l) => ({ ...l, loading: false })); }
   }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
+  const loadedFor = useRef('');
+  useEffect(() => {
+    if (!canUse || !configured) return;
+    if (filters.dateFrom !== configured.startDate || filters.dateTo !== configured.endDate) return;
+    const key = `${currentStore?.id || ''}:${configured.startDate}:${configured.endDate}`;
+    if (loadedFor.current === key) return;
+    loadedFor.current = key;
+    loadLogs(1);
+  }, [canUse, currentStore?.id, filters.dateFrom, filters.dateTo, configured?.startDate, configured?.endDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const card = (title, desc, children) => <div className="bg-white rounded shadow p-5 text-left space-y-3"><div><h2 className="text-sm font-semibold text-gray-800">{title}</h2><p className="text-xs text-gray-500 mt-0.5">{desc}</p></div>{children}</div>;
 
@@ -57,8 +80,8 @@ export default function Tools() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
             <Select label={t('filter_by_action', lang)} value={filters.action} onChange={(e) => setFilters((f) => ({ ...f, action: e.target.value }))} options={[{ value: '', label: t('all_actions', lang) }, ...ACTIONS.map((a) => ({ value: a, label: t(a, lang) }))]} />
             <Select searchable label={t('filter_by_user', lang)} value={filters.userId} onChange={(e) => setFilters((f) => ({ ...f, userId: e.target.value }))} options={[{ value: '', label: t('all_users', lang) }, ...users.map((u) => ({ value: u.id, label: u.name }))]} />
-            <DatePicker label={t('start_date', lang)} value={filters.dateFrom} onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))} /><DatePicker label={t('end_date', lang)} align="right" value={filters.dateTo} onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))} />
-            <div className="flex gap-2"><Button loading={logs.loading && logs.page === 0} onClick={() => loadLogs(1)}>{t('filter', lang)}</Button><Button variant="secondary" onClick={() => { setFilters({ action: '', userId: '', dateFrom: '', dateTo: '' }); setLogs({ rows: [], total: 0, page: 0, loading: false, loaded: false }); }}>{t('clear', lang)}</Button></div></div>
+            <DatePicker label={t('start_date', lang)} value={filters.dateFrom} onChange={(e) => { datesEdited.current = true; setFilters((f) => ({ ...f, dateFrom: e.target.value })); }} /><DatePicker label={t('end_date', lang)} align="right" value={filters.dateTo} onChange={(e) => { datesEdited.current = true; setFilters((f) => ({ ...f, dateTo: e.target.value })); }} />
+            <div className="flex gap-2"><Button loading={logs.loading && logs.page === 0} onClick={() => loadLogs(1)}>{t('filter', lang)}</Button><Button variant="secondary" onClick={() => { datesEdited.current = true; setFilters({ action: '', userId: '', dateFrom: '', dateTo: '' }); setLogs({ rows: [], total: 0, page: 0, loading: false, loaded: false }); }}>{t('clear', lang)}</Button></div></div>
           {logs.loaded && (logs.rows.length === 0 ? <p className="text-sm text-gray-400 py-4 text-center">{t('no_data', lang)}</p> : <div className="overflow-x-auto border border-gray-100 rounded"><table className="table-cards w-full text-sm"><thead className="bg-gray-50 text-gray-600"><tr><th className="px-3 py-2 text-left">{t('log_time', lang)}</th><th className="px-3 py-2 text-left">{t('log_user', lang)}</th><th className="px-3 py-2 text-left">{t('action', lang)}</th><th className="px-3 py-2 text-left">IP</th><th className="w-16" /></tr></thead>
             <tbody>{logs.rows.map((l) => <tr key={l.id} className="border-t border-gray-100"><td className="px-3 py-2 whitespace-nowrap">{when(l.created_at)}</td><td className="px-3 py-2">{l.user_name || '—'}<span className="block text-[11px] text-gray-400">{l.user_email}</span></td><td className="px-3 py-2">{t(l.action, lang)}</td><td className="px-3 py-2 text-gray-500">{l.ip_address || '—'}</td><td className="px-2"><button type="button" className="text-primary text-xs hover:underline" onClick={() => { setShowTechnical(false); setDetail(l); }}>{t('view', lang)}</button></td></tr>)}</tbody></table></div>)}
           {logs.loaded && logs.rows.length < logs.total && <div className="text-center"><Button variant="secondary" loading={logs.loading} onClick={() => loadLogs(logs.page + 1)}>{t('load_more', lang)} ({logs.rows.length}/{logs.total})</Button></div>}

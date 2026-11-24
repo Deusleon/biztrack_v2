@@ -1,11 +1,13 @@
 // FILE PATH: frontend/src/pages/messaging/Recent.jsx
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import MainLayout from '../../components/MainLayout';
 import SendMessageModal from './SendMessageModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useStore } from '../../contexts/StoreContext';
+import { useStoreSettings } from '../../hooks/useStoreSettings';
+import { reportDates } from '../../utils/dateRange';
 import { messagingService } from '../../services/api';
 import { DataTable, Button, Input, Select, RowActions, ACTION_ICONS, DatePicker } from '../../components/ui';
 import FormModal from '../../components/ui/FormModal';
@@ -18,6 +20,7 @@ const localDay = (v) => { const d = new Date(v); if (Number.isNaN(d.getTime())) 
 export default function Recent() {
   const { can } = useAuth();
   const { currentStore } = useStore();
+  const { settings, loading: settingsLoading } = useStoreSettings();
   const { showError } = useToast();
   const { lang } = useLanguage();
   const [rows, setRows] = useState([]);
@@ -25,9 +28,25 @@ export default function Recent() {
   const [groups, setGroups] = useState([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const period = settings?.defaultReportDateRange;
+  const configured = reportDates(period);
+  const edited = useRef(false);
+  const scope = `${currentStore?.id || ''}:${period || ''}`;
+  const scopeRef = useRef(scope);
+  if (scopeRef.current !== scope) { scopeRef.current = scope; edited.current = false; }
+  const [from, setFrom] = useState(() => reportDates(settings?.defaultReportDateRange)?.startDate || '');
+  const [to, setTo] = useState(() => reportDates(settings?.defaultReportDateRange)?.endDate || '');
   const [page, setPage] = useState(1);
+  const datesReady = edited.current || (configured
+    ? from === configured.startDate && to === configured.endDate
+    : !settingsLoading);
+  useEffect(() => {
+    if (!configured || edited.current) return;
+    if (from === configured.startDate && to === configured.endDate) return;
+    setFrom(configured.startDate);
+    setTo(configured.endDate);
+    setPage(1);
+  }, [configured?.startDate, configured?.endDate, currentStore?.id, period]); // eslint-disable-line react-hooks/exhaustive-deps
   const [send, setSend] = useState(false);
   const [smsDraft, setSmsDraft] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -63,10 +82,10 @@ export default function Recent() {
         <div className="bg-white p-4 rounded shadow grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-end">
           <Input className="w-full min-w-0" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={t('ui_search_placeholder', lang)} />
           <Select className="w-full min-w-0" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} options={[{ value: '', label: t('all', lang) }, ...['sent', 'partial', 'failed'].map((x) => ({ value: x, label: t(x === 'partial' ? 'partially_sent' : x, lang) }))]} />
-          <DatePicker className="w-full min-w-0" label={t('start_date', lang)} value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} />
-          <DatePicker className="w-full min-w-0" label={t('end_date', lang)} align="right" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} />
+          <DatePicker className="w-full min-w-0" label={t('start_date', lang)} value={from} onChange={(e) => { edited.current = true; setFrom(e.target.value); setPage(1); }} />
+          <DatePicker className="w-full min-w-0" label={t('end_date', lang)} align="right" value={to} onChange={(e) => { edited.current = true; setTo(e.target.value); setPage(1); }} />
         </div>
-        <DataTable columns={columns} data={shown.slice((cur - 1) * PAGE, cur * PAGE)} loading={loading} rowId="batch_id" emptyMessage={search || status || from || to ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={{ currentPage: cur, totalPages: pages, totalItems: shown.length, limit: PAGE }} onPageChange={setPage} renderActions={(r) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(r) }]} />} />
+        <DataTable columns={columns} data={datesReady ? shown.slice((cur - 1) * PAGE, cur * PAGE) : []} loading={loading || !datesReady} rowId="batch_id" emptyMessage={search || status || from || to ? t('ui_nothing_matches', lang) : t('ui_nothing_yet', lang)} pagination={{ currentPage: cur, totalPages: pages, totalItems: datesReady ? shown.length : 0, limit: PAGE }} onPageChange={setPage} renderActions={(r) => <RowActions actions={[{ label: t('view', lang), icon: ACTION_ICONS.view, onClick: () => open(r) }]} />} />
       </div>
       <SendMessageModal isOpen={send} onClose={() => setSend(false)} groups={groups} onSent={load} initialNumbers={smsDraft?.phone || ''} initialMessage={smsDraft?.message || ''} />
       <FormModal isOpen={!!detail} onClose={() => setDetail(null)} size="xl" title={t('message_details', lang)}>
