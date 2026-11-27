@@ -2,6 +2,10 @@
   "name": "biztrack-backend",
   "version": "2.0.0",
   "main": "src/server.js",
+  "nodemonConfig": {
+    "watch": ["src", ".env"],
+    "ext": "js,json,env"
+  },
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
