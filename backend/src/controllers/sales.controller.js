@@ -334,7 +334,8 @@ export const getActiveCart = async (req, res) => {
     const cart_code = codeResult.rows[0].cart_code;
 
     const itemsResult = await pool.query(
-      `SELECT c.id, c.product_id, c.quantity, c.price, c.discount, c.cart_code, c.status,
+      `SELECT c.id, c.product_id, c.quantity, c.price, c.discount, c.cart_code, c.status, c.customer_id,
+                    c.note, c.draft_sales_date, c.draft_amount_paid,
                     p.name AS product_name, p.barcode, p.image_url, p.unit, p.status AS product_status
              FROM cart c
              JOIN products p ON c.product_id = p.id
@@ -343,10 +344,14 @@ export const getActiveCart = async (req, res) => {
       [cart_code, storeId, userId],
     );
 
+    const header = itemsResult.rows[0] || {};
     res.json({
       success: true,
       cart_code,
-      status: itemsResult.rows[0].status,
+      status: header.status,
+      sales_date: header.draft_sales_date || null,
+      amount_paid: header.draft_amount_paid ?? null,
+      notes: header.note || "",
       items: itemsResult.rows,
     });
   } catch (err) {
@@ -361,7 +366,10 @@ export const getActiveCart = async (req, res) => {
  * Replaces all OnProcess items for this user with the provided items.
  */
 export const syncActiveCart = async (req, res) => {
-  const { items, cart_code } = req.body;
+  const { items, cart_code, sales_date, amount_paid, notes } = req.body;
+  const draftSalesDate = String(sales_date || "").slice(0, 16);
+  const draftAmountPaid = amount_paid == null ? "" : String(amount_paid).slice(0, 40);
+  const draftNotes = String(notes || "");
   const storeId = req.user.current_store_id;
   const userId = req.user.id;
   const lang = getLang(req);
@@ -393,8 +401,8 @@ export const syncActiveCart = async (req, res) => {
 
     for (const item of validItems) {
       await client.query(
-        `INSERT INTO cart (store_id, user_id, product_id, quantity, price, discount, status, discount_mode, cart_code, customer_id)
-                 VALUES ($1, $2, $3, $4, $5, $6, 'OnProcess', $7, $8, $9)`,
+        `INSERT INTO cart (store_id, user_id, product_id, quantity, price, discount, status, discount_mode, cart_code, customer_id, note, draft_sales_date, draft_amount_paid)
+                 VALUES ($1, $2, $3, $4, $5, $6, 'OnProcess', $7, $8, $9, $10, $11, $12)`,
         [
           storeId,
           userId,
@@ -405,6 +413,9 @@ export const syncActiveCart = async (req, res) => {
           item.discount_mode || "amount",
           groupCode,
           item.customer_id || null,
+          draftNotes,
+          draftSalesDate || null,
+          draftAmountPaid,
         ],
       );
     }
