@@ -11,7 +11,7 @@ import { useStoreSettings } from '../../hooks/useStoreSettings';
 import { useSaleItems } from '../../hooks/useSaleItems';
 import { salesService, productService, customerService, priceCategoryService } from '../../services/api';
 import { Input, NumberInput, Select, Textarea, Button, ConfirmModal, FormModal, DatePicker } from '../../components/ui';
-import { formatCurrency, formatNumberWithCommas, removeNumberFormatting, getMoneyInputProps, getQuantityInputProps } from '../../utils/numberUtils';
+import { formatCurrency, formatNumberWithCommas, formatQuantity, removeNumberFormatting, getMoneyInputProps, getQuantityInputProps } from '../../utils/numberUtils';
 import { getMoneyDecimals } from '../../utils/money';
 import { printReceiptViaQz } from '../../utils/qzReceipt';
 import { t } from '../../utils/i18n';
@@ -161,6 +161,11 @@ export default function Invoice() {
         } else {
           const r = await salesService.getActiveCart();
           if (r.cart_code) setCartCode(r.cart_code);
+          const savedCustomer = (r.items || []).find((c) => c.customer_id)?.customer_id;
+          if (savedCustomer) setCustomerId(savedCustomer);
+          if (r.sales_date) setSaleDate(String(r.sales_date).slice(0, 16));
+          if (r.amount_paid != null && String(r.amount_paid) !== "") setPaid(String(r.amount_paid));
+          if (r.notes) setNotes(r.notes);
           if ((r.items || []).length) sale.loadItems(r.items.map((c) => ({ ...c, currentStock: stockOf(c.product_id) })));
         }
       } catch { /* nothing to restore */ }
@@ -174,9 +179,9 @@ export default function Invoice() {
   useEffect(() => {
     if (!restored.current || editCode) return undefined;
     clearTimeout(syncTimer.current);
-    syncTimer.current = setTimeout(() => { salesService.syncActiveCart({ cart_code: cartCode, items: cartItems() }).catch(() => {}); }, 800);
+    syncTimer.current = setTimeout(() => { salesService.syncActiveCart({ cart_code: cartCode, items: cartItems(), sales_date: saleDate, amount_paid: paid, notes }).catch(() => {}); }, 800);
     return () => clearTimeout(syncTimer.current);
-  }, [items, customerId, cartCode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [items, customerId, cartCode, saleDate, paid, notes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── adding products ──────────────────────────────────────────────────────────────────────────────
   const addProduct = (p) => {
@@ -356,7 +361,7 @@ export default function Invoice() {
                     <input type="checkbox" style={{ accentColor: 'var(--color-primary)' }} checked={pickedIds.includes(r.id)} onChange={() => setPicked((p) => (p.includes(r.id) ? p.filter((x) => x !== r.id) : [...p, r.id]))} />
                     <span className="flex-1 min-w-0 text-sm font-semibold truncate">{r.productName}</span>
                   </label>
-                  <div className="text-sm ms-6 opacity-70">{formatNumberWithCommas(r.quantity || 0)} × {formatNumberWithCommas(r.rawPrice || 0, moneyDecimals)} = <span className="opacity-100">{r.total}</span></div>
+                  <div className="text-sm ms-6 opacity-70">{formatQuantity(r.quantity) || "0"} × {formatNumberWithCommas(r.rawPrice || 0, moneyDecimals)} = <span className="opacity-100">{r.total}</span></div>
                   <div className="flex items-center justify-between gap-2 mt-2 ps-6">
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button type="button" className="item-btn" onClick={() => stepQty(r, -1)} aria-label={t('quantity', lang)}>−</button>

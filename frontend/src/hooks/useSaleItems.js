@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { formatNumberWithCommas, removeNumberFormatting } from "@/utils/numberUtils";
+import { formatNumberWithCommas, plainQuantity, removeNumberFormatting } from "@/utils/numberUtils";
 
 /**
  * Custom hook to manage sale item rows with live calculations
@@ -214,7 +214,7 @@ export const useSaleItems = ({ discountEnabled = false, vatEnabled = false, vatR
         unit: ci.unit || "",
         status: ci.status || "",
         quantityLeft: removeNumberFormatting(ci.currentStock || ci.quantityLeft || 0),
-        quantity: String(ci.quantity || 1),
+        quantity: plainQuantity(ci.quantity) || "1",
         price: formatNumberWithCommas(ci.price || 0, decimalPlaces),
         discount: formatNumberWithCommas(ci.discount || 0, decimalPlaces),
         vat: formatNumberWithCommas(0, decimalPlaces),

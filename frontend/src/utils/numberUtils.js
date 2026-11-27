@@ -39,11 +39,20 @@ export const getMoneyInputProps = (settings = {}, maxDecimals = null) => {
 /** Quantity never follows the store's money decimals: at most two places, and no trailing zeros. */
 export const QTY_MAX_DECIMALS = 2;
 
-export const formatQuantity = (value) => {
+/** "1.00" from the database is "1". "2.50" is "2.5". A whole quantity stays whole. */
+export const plainQuantity = (value) => {
     if (value === undefined || value === null || value === "") return "";
     const n = Number(String(value).replace(/,/g, ""));
     if (!Number.isFinite(n)) return "";
-    return formatNumberWithCommas(String(Number(n.toFixed(QTY_MAX_DECIMALS))));
+    return String(Number(n.toFixed(QTY_MAX_DECIMALS)));
+};
+
+export const formatQuantity = (value) => {
+    const plain = plainQuantity(value);
+    if (!plain) return "";
+    const [intPart, decPart] = plain.split(".");
+    const withCommas = Number(intPart).toLocaleString("en-US");
+    return decPart ? `${withCommas}.${decPart}` : withCommas;
 };
 
 export const getQuantityInputProps = () => ({
