@@ -2,8 +2,8 @@
 // as the reports exported from the app.
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { pdfDesignId, tableTheme, paintBandHeader, paintBandFooter, rgbFromHex } from './pdfDesign.js';
 
-const NAVY = [30, 58, 95];
 const WHITE = [255, 255, 255];
 const VALUE = [31, 41, 55];
 const LABEL = [107, 114, 128];
@@ -53,7 +53,12 @@ export function buildTablePdf({
   rows: inputRows,
   totals = null,
   index = true,
+  design: designValue = '1',
+  primary: primaryValue,
 }) {
+  const design = pdfDesignId(designValue);
+  const primary = Array.isArray(primaryValue) && primaryValue.length >= 3 ? primaryValue.slice(0, 3) : rgbFromHex(primaryValue);
+  const theme = tableTheme(design, primary);
   const columns = index
     ? [{ key: '__no', label: '#', type: 'index' }, ...inputColumns]
     : inputColumns;
@@ -76,8 +81,27 @@ export function buildTablePdf({
     author: store,
   });
 
+  const contacts = [address, phone ? `Phone: ${phone}` : '', email ? `Email: ${email}` : ''].filter(Boolean);
+
+  let startY = 32;
   const drawHeader = () => {
-    doc.setFillColor(...NAVY);
+    if (design !== '1') {
+      startY = paintBandHeader(doc, design, {
+        pageWidth,
+        margin,
+        primary,
+        kicker: 'Report',
+        title,
+        businessName: store,
+        contactLines: contacts,
+        facts: [
+          subtitle ? { label: 'Period', value: subtitle } : null,
+          { label: 'Generated', value: generatedOn() },
+        ].filter(Boolean),
+      }) + 3;
+      return;
+    }
+    doc.setFillColor(...primary);
     doc.rect(0, 0, pageWidth, 26, 'F');
     doc.setFillColor(...WHITE);
     doc.triangle(0, 0, 9, 0, 0, 20, 'F');
@@ -89,7 +113,6 @@ export function buildTablePdf({
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    const contacts = [address, phone ? `Phone: ${phone}` : '', email ? `Email: ${email}` : ''].filter(Boolean);
     let y = 14;
     contacts.slice(0, 2).forEach((line) => {
       doc.text(String(line).slice(0, 70), margin, y);
@@ -108,7 +131,7 @@ export function buildTablePdf({
   drawHeader();
 
   autoTable(doc, {
-    startY: 32,
+    startY,
     head: [columns.map((col) => ({ content: col.label, styles: { halign: alignOf(col) } }))],
     body: rows.map((row) => columns.map((col) => row[col.key] ?? '')),
     foot: totals
@@ -119,7 +142,7 @@ export function buildTablePdf({
         })]
       : undefined,
     showFoot: 'lastPage',
-    footStyles: { fillColor: [238, 242, 247], textColor: NAVY, fontStyle: 'bold', fontSize: 9 },
+    footStyles: { fillColor: theme?.footFill || [238, 242, 247], textColor: theme?.footText || primary, fontStyle: 'bold', fontSize: 9 },
     styles: {
       font: 'helvetica',
       fontSize: 9,
@@ -129,15 +152,17 @@ export function buildTablePdf({
       lineColor: LINE,
       lineWidth: 0.15,
       valign: 'middle',
+      ...(theme?.styles || {}),
     },
     headStyles: {
-      fillColor: NAVY,
+      fillColor: primary,
       textColor: WHITE,
       fontStyle: 'bold',
       fontSize: 9,
       cellPadding: { top: 1.6, right: 1.6, bottom: 1.6, left: 1.6 },
+      ...(theme?.headStyles || {}),
     },
-    alternateRowStyles: { fillColor: ZEBRA },
+    alternateRowStyles: theme?.alternateRowStyles || { fillColor: ZEBRA },
     columnStyles: Object.fromEntries(columns.map((col, i) => [i, {
       halign: alignOf(col),
       ...(col.type === 'index' ? { cellWidth: 11 } : {}),
@@ -149,6 +174,18 @@ export function buildTablePdf({
   const pages = doc.internal.getNumberOfPages();
   for (let page = 1; page <= pages; page += 1) {
     doc.setPage(page);
+    if (design !== '1') {
+      paintBandFooter(doc, design, {
+        pageWidth,
+        pageHeight,
+        margin,
+        primary,
+        left: store,
+        center: 'Powered by BizTrack',
+        right: `Page ${page} / ${pages}`,
+      });
+      continue;
+    }
     const footerY = pageHeight - 12;
     doc.setDrawColor(...LINE);
     doc.setLineWidth(0.3);

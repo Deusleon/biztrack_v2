@@ -1,6 +1,7 @@
 // A short table PDF attached to a notification email when the record has lines worth keeping.
 import pool from '../config/db.js';
 import { buildTablePdf } from './simplePdf.js';
+import { rgbFromHex } from './pdfDesign.js';
 
 export const pdfQty = (n) => {
   const v = Number(n);
@@ -18,7 +19,9 @@ export const pdfMoney = (n) => {
 export async function recordAttachment(storeId, { title, subtitle = '', filename, columns, rows, totals = null, index = true }) {
   const store = await pool.query('SELECT name, location FROM stores WHERE id = $1', [storeId]);
   const system = await pool.query('SELECT settings FROM system_settings LIMIT 1').catch(() => ({ rows: [] }));
-  const info = system.rows[0]?.settings?.businessInfo || {};
+  const saved = system.rows[0]?.settings || {};
+  const info = saved.businessInfo || {};
+  const design = saved.systemDefaults?.defaultPdfDesign || '1';
   const row = store.rows[0] || {};
   const pdf = buildTablePdf({
     title,
@@ -31,6 +34,8 @@ export async function recordAttachment(storeId, { title, subtitle = '', filename
     rows,
     totals,
     index,
+    design,
+    primary: rgbFromHex(saved.systemDefaults?.themePrimary),
   });
   const safe = String(filename || 'record.pdf').replace(/[^\w.-]+/g, '-');
   return [{ filename: safe.endsWith('.pdf') ? safe : `${safe}.pdf`, content: pdf, contentType: 'application/pdf' }];

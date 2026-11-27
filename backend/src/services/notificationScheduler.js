@@ -147,12 +147,15 @@ async function getPaymentDueSummary(storeId) {
 
 async function storeLetterhead(storeName, location) {
   const system = await pool.query('SELECT settings FROM system_settings LIMIT 1').catch(() => ({ rows: [] }));
-  const info = system.rows[0]?.settings?.businessInfo || {};
+  const saved = system.rows[0]?.settings || {};
+  const info = saved.businessInfo || {};
   return {
     businessName: info.businessName || storeName,
     address: info.address || location || '',
     phone: info.phone || '',
     email: info.email || '',
+    design: saved.systemDefaults?.defaultPdfDesign || '1',
+    primary: saved.systemDefaults?.themePrimary,
   };
 }
 

@@ -76,8 +76,8 @@ export const getDashboardStats = async (req, res) => {
          p.invoice_number,
          p.sales_date,
          p.total_amount,
-         p.amount_paid,
-         p.amount_due,
+         COALESCE(cs.amount_paid, p.amount_paid) AS amount_paid,
+         COALESCE(cs.amount_due, p.amount_due) AS amount_due,
          p.payment_method,
          p.sale_type,
          cust.name AS customer_name,
@@ -86,6 +86,13 @@ export const getDashboardStats = async (req, res) => {
        JOIN cart c       ON p.cart_code  = c.cart_code
        LEFT JOIN customers cust ON c.customer_id = cust.id
        LEFT JOIN users u        ON p.user_id      = u.id
+       LEFT JOIN LATERAL (
+         SELECT amount_paid, amount_due
+         FROM credit_sales
+         WHERE invoice_number = p.invoice_number AND store_id = p.store_id AND status <> 'cancelled'
+         ORDER BY updated_at DESC NULLS LAST, created_at DESC
+         LIMIT 1
+       ) cs ON true
        WHERE p.store_id = $1 AND c.status = 'Sold'
        ORDER BY p.invoice_number DESC, p.sales_date DESC
        LIMIT 8`, [storeId]],

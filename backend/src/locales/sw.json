@@ -234,6 +234,7 @@
   "invalid_direction": "Kichujio cha mwelekeo si sahihi",
   "integration_saved": "Mipangilio ya ujumuishaji imehifadhiwa",
   "invalid_gateway_provider": "Mtoa huduma wa SMS si sahihi",
+  "invalid_pdf_design": "Chagua muundo wa PDF 1, 2, au 3",
   "gateway_not_configured": "Lango la SMS halijasanidiwa. Tafadhali hifadhi vitambulisho kwanza.",
   "phone_required_for_test": "Nambari ya simu inahitajika kutuma ujumbe wa jaribio",
   "test_sms_sent_successfully": "SMS ya jaribio imetumwa",

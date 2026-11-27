@@ -2096,11 +2096,21 @@ export const recordCreditPayment = async (req, res) => {
     const newAmountDue = parseFloat(sale.total_amount) - newAmountPaid;
     const newStatus = newAmountDue <= 0 ? "paid" : "partial_paid";
 
+    const settledDue = Math.max(0, newAmountDue);
     await client.query(
       `UPDATE credit_sales SET amount_paid = $1, amount_due = $2, status = $3, 
              updated_at = NOW() ${newStatus === "paid" ? ", paid_at = NOW()" : ""}
              WHERE id = $4`,
-      [newAmountPaid, Math.max(0, newAmountDue), newStatus, creditSaleId],
+      [newAmountPaid, settledDue, newStatus, creditSaleId],
+    );
+
+    // The sale stays a credit sale. Only the paid amount and the balance move,
+    // so sales history and a scanned receipt show what is still owed.
+    await client.query(
+      `UPDATE payments
+       SET amount_paid = $1, amount_due = $2
+       WHERE invoice_number = $3 AND store_id = $4`,
+      [newAmountPaid, settledDue, sale.invoice_number, storeId],
     );
 
     // Update customer balance
@@ -2124,9 +2134,12 @@ export const recordCreditPayment = async (req, res) => {
     
     await client.query("COMMIT");
 
+    emitToStore(storeId, "creditPayment", { invoice_number: sale.invoice_number, amount_paid: newAmountPaid, amount_due: settledDue });
+    emitToStore(storeId, "saleUpdated", { invoice_number: sale.invoice_number });
+
     const payer = await customerById(storeId, sale.customer_id);
     const received = Number(amount || 0).toLocaleString("en-US");
-    const remaining = Math.max(0, newAmountDue).toLocaleString("en-US");
+    const remaining = settledDue.toLocaleString("en-US");
     const debitVars = { invoice: sale.invoice_number, amount: received, balance: remaining, customer: payer?.name || "" };
     const debitPdf = await singleRecordAttachment(storeId, {
       title: `Payment ${sale.invoice_number}`,
@@ -2137,7 +2150,7 @@ export const recordCreditPayment = async (req, res) => {
         { key: 'paid', label: 'Amount paid', type: 'money' },
         { key: 'balance', label: 'Balance left', type: 'money' },
       ],
-      row: { invoice: sale.invoice_number, paid: pdfMoney(amount), balance: pdfMoney(Math.max(0, newAmountDue)) },
+      row: { invoice: sale.invoice_number, paid: pdfMoney(amount), balance: pdfMoney(settledDue) },
     });
     notifyStore({ storeId, type: "debit_paid", title: "Debit payment received", note: "payment_received_store", vars: debitVars, attachments: debitPdf }).catch(() => { });
     notifyParty({ storeId, type: "debit_paid_customer", to: payer, title: "Payment received", note: "payment_received", vars: debitVars, attachments: debitPdf }).catch(() => { });
@@ -2146,7 +2159,7 @@ export const recordCreditPayment = async (req, res) => {
       success: true,
       message: "payment_recorded",
       new_amount_paid: newAmountPaid,
-      new_amount_due: Math.max(0, newAmountDue),
+      new_amount_due: settledDue,
       status: newStatus,
     });
   } catch (err) {
@@ -2228,11 +2241,22 @@ export const getSalesHistory = async (req, res) => {
             WHERE sr.original_invoice_number = p.invoice_number
               AND sr.store_id = p.store_id
               AND sr.status IN ('completed', 'approved')
-          ) AS was_returned
+          ) AS was_returned,
+          COALESCE(cs.amount_paid, p.amount_paid) AS amount_paid,
+          COALESCE(cs.amount_due, p.amount_due) AS amount_due
       FROM payments p
       LEFT JOIN cart c ON p.cart_code = c.cart_code
       LEFT JOIN customers cust ON c.customer_id = cust.id
       LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN LATERAL (
+        SELECT amount_paid, amount_due
+        FROM credit_sales
+        WHERE invoice_number = p.invoice_number
+          AND store_id = p.store_id
+          AND status <> 'cancelled'
+        ORDER BY updated_at DESC NULLS LAST, created_at DESC
+        LIMIT 1
+      ) cs ON true
       ${baseWhere}
       ORDER BY p.invoice_number DESC, p.sales_date DESC
       LIMIT $${limitIdx} OFFSET $${offsetIdx}
@@ -2272,9 +2296,20 @@ export const getSaleDetails = async (req, res) => {
   try {
     // Get payment info
     const paymentResult = await pool.query(
-      `SELECT p.*, u.name as cashier_name
+      `SELECT p.*, u.name as cashier_name,
+              COALESCE(cs.amount_paid, p.amount_paid) AS amount_paid,
+              COALESCE(cs.amount_due, p.amount_due) AS amount_due
              FROM payments p
              JOIN users u ON p.user_id = u.id
+             LEFT JOIN LATERAL (
+               SELECT amount_paid, amount_due
+               FROM credit_sales
+               WHERE invoice_number = p.invoice_number
+                 AND store_id = p.store_id
+                 AND status <> 'cancelled'
+               ORDER BY updated_at DESC NULLS LAST, created_at DESC
+               LIMIT 1
+             ) cs ON true
              WHERE p.invoice_number = $1 AND p.store_id = $2`,
       [invoiceNumber, storeId],
     );
@@ -2339,7 +2374,18 @@ export const verifyReceipt = async (req, res) => {
   if (!invoice || !uuid.test(storeId)) return res.json({ valid: false });
   try {
     const found = await pool.query(
-      `SELECT p.invoice_number, p.sales_date, p.total_amount, p.amount_due, s.name AS business_name,
+      `SELECT p.invoice_number, p.sales_date,
+              COALESCE(cs.total_amount, p.total_amount) AS total_amount,
+              COALESCE(cs.amount_paid, p.amount_paid) AS amount_paid,
+              COALESCE(cs.amount_due, p.amount_due) AS amount_due,
+              p.payment_method, p.sale_type,
+              s.name AS store_name,
+              u.name AS served_by,
+              cust.name AS customer_name,
+              (
+                SELECT COUNT(*)::int FROM cart c
+                WHERE c.invoice_number = p.invoice_number AND c.store_id = p.store_id AND c.status = 'Sold'
+              ) AS item_count,
               EXISTS (
                 SELECT 1 FROM sales_returns sr
                 WHERE sr.original_invoice_number = p.invoice_number AND sr.store_id = p.store_id
@@ -2347,21 +2393,49 @@ export const verifyReceipt = async (req, res) => {
               ) AS returned
        FROM payments p
        JOIN stores s ON s.id = p.store_id
+       LEFT JOIN users u ON u.id = p.user_id
+       LEFT JOIN LATERAL (
+         SELECT customer_id FROM cart
+         WHERE invoice_number = p.invoice_number AND store_id = p.store_id AND customer_id IS NOT NULL
+         LIMIT 1
+       ) cart_customer ON true
+       LEFT JOIN customers cust ON cust.id = cart_customer.customer_id
+       LEFT JOIN LATERAL (
+         SELECT total_amount, amount_paid, amount_due
+         FROM credit_sales
+         WHERE invoice_number = p.invoice_number AND store_id = p.store_id AND status <> 'cancelled'
+         ORDER BY updated_at DESC NULLS LAST, created_at DESC
+         LIMIT 1
+       ) cs ON true
        WHERE p.invoice_number = $1 AND p.store_id = $2::uuid
        LIMIT 1`,
       [invoice, storeId],
     );
     if (!found.rows.length) return res.json({ valid: false });
     const row = found.rows[0];
-    const due = Number(row.amount_due) || 0;
+    const settings = await getStoreSettings(storeId).catch(() => ({}));
+    const ops = settings.operations || settings;
+    const systemDefaults = settings.systemDefaults || {};
+    const businessInfo = settings.businessInfo || {};
     res.json({
       valid: true,
       invoice_number: row.invoice_number,
       sales_date: row.sales_date,
       total_amount: row.total_amount,
-      business_name: row.business_name,
+      amount_paid: row.amount_paid,
+      amount_due: row.amount_due,
+      payment_method: row.payment_method,
+      sale_type: row.sale_type,
+      store_name: row.store_name,
+      business_name: businessInfo.businessName || ops.businessName || row.store_name,
+      served_by: row.served_by,
+      customer_name: row.customer_name,
+      item_count: row.item_count,
       returned: row.returned,
-      status: row.returned ? "returned" : due > 0 ? "partial_paid" : "paid",
+      currency: ops.defaultCurrency || systemDefaults.defaultCurrency || null,
+      decimal_places: ops.defaultDecimalPlaces ?? systemDefaults.defaultDecimalPlaces ?? 0,
+      show_currency: (ops.showCurrency ?? systemDefaults.showCurrency) !== false,
+      currency_position: ops.defaultCurrencyPosition || systemDefaults.defaultCurrencyPosition || "before",
     });
   } catch (err) {
     console.error(err);

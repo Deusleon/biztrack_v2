@@ -139,6 +139,7 @@ export const updateStoreSettings = async (req, res) => {
     "multiStoreSupport",
     "interStoreTransfer",
     "defaultSmsGateway",
+    "defaultPdfDesign",
   ];
   keysToMove.forEach((key) => {
     if (operations.hasOwnProperty(key)) {
@@ -150,15 +151,23 @@ export const updateStoreSettings = async (req, res) => {
   // The default SMS gateway can only be changed by the developer account
   // (DEVELOPER_EMAIL). For anyone else the submitted value is ignored and the
   // saved one is kept (see below).
-  const canChangeSmsGateway = isDeveloper(req.user);
+  const canChangeDeveloperSettings = isDeveloper(req.user);
   const VALID_SMS_GATEWAYS = ["", "beem_africa", "next_sms", "meseji", "swala_sms"];
-  if (!canChangeSmsGateway) {
+  const VALID_PDF_DESIGNS = ["1", "2", "3"];
+  if (!canChangeDeveloperSettings) {
     delete systemDefaults.defaultSmsGateway;
+    delete systemDefaults.defaultPdfDesign;
   } else if (
     systemDefaults.defaultSmsGateway !== undefined &&
     !VALID_SMS_GATEWAYS.includes(systemDefaults.defaultSmsGateway)
   ) {
     return res.status(400).json({ message: t("invalid_gateway_provider", lang) });
+  } else if (
+    systemDefaults.defaultPdfDesign !== undefined &&
+    systemDefaults.defaultPdfDesign !== "" &&
+    !VALID_PDF_DESIGNS.includes(String(systemDefaults.defaultPdfDesign))
+  ) {
+    return res.status(400).json({ message: t("invalid_pdf_design", lang) });
   }
   // systemDefaults.defaultStore = operations.defaultStore;
   // systemDefaults.multiStoreSupport = operations.multiStoreSupport;
@@ -242,13 +251,11 @@ export const updateStoreSettings = async (req, res) => {
       // Never lose the saved default SMS gateway: it is only replaced when the
       // developer account explicitly sends a new value.
       let nextSystemDefaults = systemDefaults || existingSysSettings.systemDefaults;
-      const savedGateway = existingSysSettings.systemDefaults?.defaultSmsGateway;
-      if (
-        nextSystemDefaults &&
-        nextSystemDefaults.defaultSmsGateway === undefined &&
-        savedGateway !== undefined
-      ) {
-        nextSystemDefaults = { ...nextSystemDefaults, defaultSmsGateway: savedGateway };
+      for (const key of ["defaultSmsGateway", "defaultPdfDesign"]) {
+        const saved = existingSysSettings.systemDefaults?.[key];
+        if (nextSystemDefaults && nextSystemDefaults[key] === undefined && saved !== undefined) {
+          nextSystemDefaults = { ...nextSystemDefaults, [key]: saved };
+        }
       }
 
       const updatedSysSettings = {
@@ -547,6 +554,31 @@ export const getBrandingAssets = async (req, res) => {
     return res.status(200).json({ branding });
   } catch (err) {
     console.error("Get branding assets error:", err.message);
+    return respondWithError(req, res, 500, "server_error");
+  }
+};
+
+// The theme lives in the browser. Remember the last chosen primary so emailed PDFs use the same colour.
+export const updatePdfTheme = async (req, res) => {
+  const hex = String(req.body?.primary || "").trim().toLowerCase();
+  if (!/^#[0-9a-f]{6}$/.test(hex)) {
+    return res.status(400).json({ message: "Choose a theme colour" });
+  }
+  try {
+    const sys = await pool.query("SELECT id, settings FROM system_settings LIMIT 1");
+    if (!sys.rows[0]) return res.status(404).json({ message: "Settings not found" });
+    const settings = sys.rows[0].settings || {};
+    const next = {
+      ...settings,
+      systemDefaults: { ...(settings.systemDefaults || {}), themePrimary: hex },
+    };
+    await pool.query(
+      "UPDATE system_settings SET settings = $1, updated_at = NOW() WHERE id = $2",
+      [next, sys.rows[0].id],
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Update PDF theme error:", err.message);
     return respondWithError(req, res, 500, "server_error");
   }
 };

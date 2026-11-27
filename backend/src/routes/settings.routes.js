@@ -21,6 +21,7 @@ router.get('/',                    authMiddleware, settingsController.getStoreSe
 router.get('/notifications',       authMiddleware, checkStorePermission(['view_notifications', 'manage_notifications']), settingsController.getNotificationSettings);
 router.put('/notifications',       authMiddleware, checkStorePermission(['manage_notifications']), settingsController.updateNotificationSettings);
 router.post('/notifications/test-run', authMiddleware, checkStorePermission(['manage_notifications']), settingsController.testRunNotifications);
+router.put('/pdf-theme',           authMiddleware, settingsController.updatePdfTheme);
 router.get('/branding',            authMiddleware, settingsController.getBrandingAssets);
 router.post('/branding/upload',    authMiddleware, checkStorePermission(['manage_uploads']), upload.single('file'), settingsController.uploadBrandingAsset);
 router.delete('/branding/:asset_type', authMiddleware, checkStorePermission(['manage_uploads']), settingsController.removeBrandingAsset);

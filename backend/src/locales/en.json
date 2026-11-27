@@ -247,6 +247,7 @@
   "product_adjustments_fetched": "Product adjustments fetched successfully",
   "integration_saved": "Integration settings saved successfully",
   "invalid_gateway_provider": "Invalid SMS gateway provider",
+  "invalid_pdf_design": "Choose PDF design 1, 2, or 3",
   "gateway_not_configured": "SMS gateway is not configured yet. Please save credentials first.",
   "phone_required_for_test": "Phone number is required to send a test message",
   "test_sms_sent_successfully": "Test SMS sent successfully",

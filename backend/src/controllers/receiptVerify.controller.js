@@ -23,21 +23,34 @@ export const verifyReceipt = async (req, res) => {
       `SELECT
          p.invoice_number,
          p.sales_date,
-         p.total_amount,
-         p.amount_paid,
-         p.amount_due,
+         COALESCE(cs.total_amount, p.total_amount) AS total_amount,
+         COALESCE(cs.amount_paid, p.amount_paid) AS amount_paid,
+         COALESCE(cs.amount_due, p.amount_due) AS amount_due,
          p.payment_method,
          p.sale_type,
          s.name AS store_name,
-         cust.name AS customer_name
+         u.name AS served_by,
+         cust.name AS customer_name,
+         (
+           SELECT COUNT(*)::int FROM cart
+           WHERE invoice_number = p.invoice_number AND store_id = p.store_id AND status = 'Sold'
+         ) AS item_count
        FROM payments p
        JOIN stores s ON s.id = p.store_id
+       LEFT JOIN users u ON u.id = p.user_id
        LEFT JOIN LATERAL (
          SELECT customer_id FROM cart
-         WHERE cart_code = p.cart_code AND store_id = p.store_id
+         WHERE cart_code = p.cart_code AND store_id = p.store_id AND customer_id IS NOT NULL
          LIMIT 1
        ) c ON true
        LEFT JOIN customers cust ON cust.id = c.customer_id
+       LEFT JOIN LATERAL (
+         SELECT total_amount, amount_paid, amount_due
+         FROM credit_sales
+         WHERE invoice_number = p.invoice_number AND store_id = p.store_id AND status <> 'cancelled'
+         ORDER BY updated_at DESC NULLS LAST, created_at DESC
+         LIMIT 1
+       ) cs ON true
        WHERE p.invoice_number = $1 AND p.store_id = $2
        LIMIT 1`,
       [invoice, storeId],
@@ -70,7 +83,9 @@ export const verifyReceipt = async (req, res) => {
         sale_type: row.sale_type,
         store_name: row.store_name,
         business_name: businessInfo.businessName || ops.businessName || row.store_name,
+        served_by: row.served_by || null,
         customer_name: row.customer_name || null,
+        item_count: row.item_count,
         currency: ops.defaultCurrency || systemDefaults.defaultCurrency || null,
         decimal_places: ops.defaultDecimalPlaces ?? systemDefaults.defaultDecimalPlaces ?? 0,
         show_currency: (ops.showCurrency ?? systemDefaults.showCurrency) !== false,
