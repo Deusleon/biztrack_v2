@@ -21,6 +21,7 @@ export default function Receipt() {
   const { lang } = useLanguage();
   const { settings } = useStoreSettings();
   const saleData = state?.saleData;
+  const returnTo = state?.returnTo;
   const [picked, setSize] = useState(null);
   const size = picked || settings?.defaultReceiptSize || '80mm'; // the person's choice wins, otherwise the store's default size
 
@@ -68,7 +69,7 @@ export default function Receipt() {
             />
             <Button onClick={printQz} loading={qzBusy} disabled={!saleData || !settings || !url}>{t('print', lang)}</Button>
             {url && <a href={url} download={`receipt-${saleData?.invoice_number || 'sale'}.pdf`} className="px-4 py-2 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50">{t('download', lang)}</a>}
-            <Button variant="secondary" onClick={() => navigate('/sales/invoice')}>{t('new_sale', lang)}</Button>
+            <Button variant="secondary" onClick={() => (returnTo ? navigate(returnTo) : navigate(-1))}>{t('go_back', lang)}</Button>
           </div>
         </div>
         {!saleData && <div className="bg-white rounded shadow p-8 text-center text-sm text-gray-500">{t('no_receipt_data', lang)}</div>}

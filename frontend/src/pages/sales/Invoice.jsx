@@ -251,7 +251,7 @@ export default function Invoice() {
       if (type === 'pending') { if (editCode) navigate('/sales/pending'); return; }
       if (settings?.enableReceiptPrinting) {
         if (settings.receiptPreview === false) await printSilently(res);
-        else navigate('/sales/receipt', { state: { saleData: res } });
+        else navigate('/sales/receipt', { state: { saleData: res, returnTo: '/sales/invoice' } });
       } else if (editCode) navigate('/sales/pending');
     } catch (err) { showError(err.message || t('something_went_wrong', lang)); }
     finally { setBusy(null); }

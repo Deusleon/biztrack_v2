@@ -129,7 +129,7 @@ export default function OrderPreview() {
               if (settings.receiptPreview === false) {
                 try { await printReceiptViaQz({ saleData: res, settings, cashierName: user?.name }); showSuccess('receipt_printed_successfully'); } catch (err) { showError(err.message || t('print_failed', lang)); }
                 navigate('/sales/pending');
-              } else navigate('/sales/receipt', { state: { saleData: res } });
+              } else navigate('/sales/receipt', { state: { saleData: res, returnTo: '/sales/pending' } });
             } else navigate('/sales/pending');
           });
           else if (confirm === 'cancel') run('cancel', () => salesService.cancelOrder(code), 'order_cancelled');

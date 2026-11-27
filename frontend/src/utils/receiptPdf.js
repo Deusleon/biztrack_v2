@@ -155,10 +155,11 @@ function renderDocumentReceipt(data, receiptSize) {
   // ── BUSINESS HEADER ─────────────────────────────────────
   const headerRightX = W - M;
   const headerStartY = y;
-  const invoiceLabel =
-    parseFloat(String(paymentInfo.amountDue || "0").replace(/,/g, "")) > 0
-      ? t("credit_invoice") || "CREDIT INVOICE"
-      : t("sales_invoice") || "SALES INVOICE";
+  const due = parseFloat(String(paymentInfo.amountDue || "0").replace(/,/g, "")) || 0;
+  const creditSale = String(paymentInfo.saleType || "") === "credit";
+  const invoiceLabel = creditSale || due > 0
+    ? t("credit_invoice") || "CREDIT INVOICE"
+    : t("sales_invoice") || "SALES INVOICE";
 
   if (design === "2") {
     doc.setFont("helvetica", "bold");
@@ -395,8 +396,7 @@ function renderDocumentReceipt(data, receiptSize) {
   doc.setTextColor(0, 0, 0);
   payY += smallFs * 0.35 + 1;
 
-  const due = parseFloat(String(paymentInfo.amountDue || "0").replace(/,/g, ""));
-  if (due > 0) {
+  if (creditSale || due > 0) {
     doc.text(`${t("amount_due") || "Amount Due"}: ${fmt(paymentInfo.amountDue)}`, colRightX, payY + smallFs * 0.35);
     payY += smallFs * 0.35 + 1;
     if (paymentInfo.dueDate) {
@@ -520,11 +520,11 @@ function renderDocumentReceipt(data, receiptSize) {
 
   if (settings.showChangeOnReceipt) {
     totalsRow(`${t("amount_paid") || "Amount Paid"}:`, fmt(paymentInfo.amountPaid));
-    if (due > 0) {
+    if (creditSale || due > 0) {
       totalsRow(`${t("amount_due") || "Amount Due"}:`, fmt(paymentInfo.amountDue));
     }
     const change = parseFloat(String(paymentInfo.amountChange || "0").replace(/,/g, ""));
-    if (due <= 0 && change >= 0) {
+    if (!creditSale && due <= 0 && change >= 0) {
       totalsRow(`${t("change") || "Change"}:`, fmt(paymentInfo.amountChange));
       doc.setDrawColor(200, 200, 200);
       doc.setLineWidth(0.2);
@@ -696,10 +696,9 @@ function renderReceipt(pageHeight, data, receiptSize) {
 
   const design = pdfDesignId(settings);
   const brand = themePrimary();
-  const receiptType =
-    parseFloat(String(paymentInfo.amountDue || "0").replace(/,/g, "")) > 0
-      ? "CREDIT RECEIPT"
-      : "CASH RECEIPT";
+  const dueNow = parseFloat(String(paymentInfo.amountDue || "0").replace(/,/g, "")) || 0;
+  const creditSale = String(paymentInfo.saleType || "") === "credit";
+  const receiptType = creditSale || dueNow > 0 ? "CREDIT RECEIPT" : "CASH RECEIPT";
 
   const printBusiness = () => {
     if (businessInfo.name) {
@@ -879,17 +878,15 @@ function renderReceipt(pageHeight, data, receiptSize) {
     y += 0.2; // py-1
     lrRow("Paid:", formatCurrency(paymentInfo.amountPaid, settings), p.bodySize);
 
-    const due = parseFloat(
-      String(paymentInfo.amountDue || "0").replace(/,/g, ""),
-    );
-    if (due > 0) {
+    const due = dueNow;
+    if (creditSale || due > 0) {
       lrRow("Due:", formatCurrency(paymentInfo.amountDue, settings), p.bodySize);
     }
 
     const change = parseFloat(
       String(paymentInfo.amountChange || "0").replace(/,/g, ""),
     );
-    if (due <= 0 && change >= 0) {
+    if (!creditSale && due <= 0 && change >= 0) {
       lrRow("Change:", formatCurrency(paymentInfo.amountChange, settings), p.bodySize);
       // border-b on change row
     }

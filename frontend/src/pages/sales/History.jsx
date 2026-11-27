@@ -29,7 +29,7 @@ export default function History() {
   const { settings } = useStoreSettings();
   const navigate = useNavigate();
   const list = useServerList({ fetcher: fetchSales, initialFilters: { search: '', saleType: '', startDate: '', endDate: '' } });
-  useLiveRefresh(['newSale', 'saleCreated', 'saleUpdated', 'sales_return'], list.reload);
+  useLiveRefresh(['newSale', 'saleCreated', 'saleUpdated', 'creditPayment', 'sales_return'], list.reload);
   const [detail, setDetail] = useState(null);
   const [editDate, setEditDate] = useState(null); // { invoice, value }
   const [savingDate, setSavingDate] = useState(false);
@@ -52,7 +52,7 @@ export default function History() {
     // Receipt preview switched off in Configuration → reprint straight to the printer (QZ Tray), as the original did.
     if (settings?.receiptPreview === false) {
       try { await printReceiptViaQz({ saleData, settings, cashierName: user?.name }); showSuccess('receipt_printed_successfully'); } catch (err) { showError(err.message || t('print_failed', lang)); }
-    } else navigate('/sales/receipt', { state: { saleData } });
+    } else navigate('/sales/receipt', { state: { saleData, returnTo: '/sales/history' } });
   });
 
   // Delivery note (A4, no prices) — same document the original produced
@@ -180,7 +180,7 @@ export default function History() {
             </div>
             <div className="flex flex-wrap justify-end gap-2 pt-1 border-t border-gray-100">
               {canEditDate && <Button variant="secondary" onClick={() => setEditDate({ invoice: pay.invoice_number, value: calendarDay(pay.sales_date || pay.created_at) })}>{t('edit_sales_date', lang)}</Button>}
-              <Button variant="secondary" onClick={() => { const s = { invoice_number: pay.invoice_number, customer_name: pay.customer_name, customer_phone: pay.customer_phone }; setDetail(null); navigate('/sales/receipt', { state: { saleData: { ...d, invoice_number: s.invoice_number, items: d.items, paymentInfo: d.payment, customerInfo: { name: s.customer_name, phone: s.customer_phone } } } }); }}>{t('receipt', lang)}</Button>
+              <Button variant="secondary" onClick={() => { const s = { invoice_number: pay.invoice_number, customer_name: pay.customer_name, customer_phone: pay.customer_phone }; setDetail(null); navigate('/sales/receipt', { state: { returnTo: '/sales/history', saleData: { ...d, invoice_number: s.invoice_number, items: d.items, paymentInfo: d.payment, customerInfo: { name: s.customer_name, phone: s.customer_phone } } } }); }}>{t('receipt', lang)}</Button>
               <Button variant="secondary" onClick={() => deliveryNote({ invoice_number: pay.invoice_number, customer_name: pay.customer_name, customer_phone: pay.customer_phone, cashier_name: pay.cashier_name })}>{t('delivery_note', lang)}</Button>
               <Button variant="secondary" onClick={() => setDetail(null)}>{t('close', lang)}</Button>
             </div>

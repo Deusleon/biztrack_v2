@@ -24,6 +24,7 @@ export const buildReceiptData = ({ sale = {}, settings = {}, cashierName, storeI
     customerInfo: { name: cust?.name || t('walk_in'), phone: cust?.phone || '', tin: cust?.tin || '', address: cust?.address || '', email: cust?.email || '' },
     paymentInfo: {
       method: pay.payment_method || sale.payment_method,
+      saleType: pay.sale_type || sale.sale_type || '',
       status: pay.payment_status || (Number(pay.amount_due) > 0 ? 'partial_paid' : 'paid'),
       subTotal: pay.subtotal || '0', taxAmount: pay.total_vat || '0', amountDue: pay.amount_due || '0', amountPaid: pay.amount_paid || '0',
       amountChange: pay.amount_change || '0', amountTotal: pay.total_amount || sale.total_amount || '0', amountDiscount: pay.total_discount || '0',
