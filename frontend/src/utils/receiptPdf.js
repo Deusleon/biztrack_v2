@@ -19,7 +19,7 @@ import { pdfDesignId, themePrimary } from "./pdfDesign";
 const PAPER = {
   "58mm": {
     width: 48,
-    padding: 0,
+    padding: 1.6,
     bodySize: 9, // base body text
     headerSize: 12, // business name (text-base equivalent)
     subHeaderSize: 10, // receipt type (font-semibold)
@@ -613,13 +613,10 @@ function renderReceipt(pageHeight, data, receiptSize) {
     });
   };
 
-  const fmtPrc = (val) => {
+  const qtyText = (val) => {
     const num = parseFloat(String(val).replace(/,/g, ""));
     if (isNaN(num)) return "0";
-    return num.toLocaleString("en-US", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: dp,
-    });
+    return num.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   };
 
   const now = new Date();
@@ -650,14 +647,19 @@ function renderReceipt(pageHeight, data, receiptSize) {
     }
   };
 
-  /** Print a left-aligned label + right-aligned value on the same line. */
+  /** Print a left-aligned label + right-aligned value on the same line. Shrinks so the decimals stay on the page. */
   const lrRow = (left, right, size = p.bodySize, style = "normal") => {
-    doc.setFontSize(size);
-    doc.setFont("helvetica", style);
-    const lh = size * 0.38;
     const rightStr = String(right);
+    let use = size;
+    doc.setFont("helvetica", style);
+    doc.setFontSize(use);
+    while (use > 6.5 && doc.getTextWidth(rightStr) > CW - doc.getTextWidth(String(left)) - 1.5) {
+      use -= 0.5;
+      doc.setFontSize(use);
+    }
+    const lh = use * 0.38;
     const rw = doc.getTextWidth(rightStr);
-    const leftMaxW = CW - rw - 1;
+    const leftMaxW = Math.max(8, CW - rw - 1);
     const leftLines = doc.splitTextToSize(String(left), leftMaxW);
     for (let i = 0; i < leftLines.length; i++) {
       doc.text(leftLines[i], M, y + lh);
@@ -791,13 +793,34 @@ function renderReceipt(pageHeight, data, receiptSize) {
   // ── ITEMS TABLE ─────────────────────────────────────────
 
   const tableHead = [["Item", "Total"]];
-  const tableBody = items.map((item, i) => {
-    const total = parseFloat(item.price) * parseFloat(item.quantity);
-    return [
-      `${i + 1}. ${item.name}\n(${item.quantity} x ${fmtPrc(item.price)})`,
-      fmt(total),
-    ];
-  });
+  const amountOf = (item) => fmt(parseFloat(item.price) * parseFloat(item.quantity));
+  const detailOf = (item) => `(${qtyText(item.quantity)} x ${fmt(item.price)})`;
+  const textWidth = (text, size, style = "normal") => {
+    doc.setFont("helvetica", style);
+    doc.setFontSize(size);
+    return doc.getTextWidth(String(text));
+  };
+  // The amount column must hold the full figure, including the decimal digits, on one line.
+  let itemFont = p.itemSize;
+  const minItemFont = Math.max(6.5, p.itemSize - 4);
+  let moneyW = CW * 0.42;
+  while (itemFont >= minItemFont) {
+    const widest = Math.max(
+      textWidth("Total", itemFont, "bold"),
+      ...items.map((item) => textWidth(amountOf(item), itemFont)),
+      8,
+    );
+    moneyW = Math.min(CW * 0.62, Math.max(widest + 1.2, CW * 0.34));
+    const itemW = CW - moneyW;
+    const moneyFits = items.every((item) => textWidth(amountOf(item), itemFont) <= moneyW - 0.4);
+    const detailFits = items.every((item) => textWidth(detailOf(item), itemFont) <= itemW);
+    if (moneyFits && detailFits) break;
+    itemFont -= 0.5;
+  }
+  const tableBody = items.map((item, i) => [
+    `${i + 1}. ${item.name}\n${detailOf(item)}`,
+    amountOf(item),
+  ]);
 
   autoTable(doc, {
     startY: y,
@@ -807,25 +830,20 @@ function renderReceipt(pageHeight, data, receiptSize) {
     margin: { left: M, right: M },
     tableWidth: CW,
     styles: {
-      fontSize: p.itemSize,
-      cellPadding: { top: 0.8, bottom: 0.8, left: 0, right: 0 },
+      fontSize: itemFont,
+      cellPadding: { top: 0.8, bottom: 0.8, left: 0, right: 0.4 },
       textColor: [0, 0, 0],
       font: "helvetica",
       overflow: "linebreak",
     },
     headStyles: {
       fontStyle: "bold",
-      fontSize: p.itemSize,
-      cellPadding: { top: 1, bottom: 1, left: 0, right: 0 },
+      fontSize: itemFont,
+      cellPadding: { top: 1, bottom: 1, left: 0, right: 0.4 },
     },
     columnStyles: {
-      0: { halign: "left", cellWidth: CW * 0.6, valign: "middle" },
-      1: {
-        halign: "right",
-        cellWidth: CW * 0.4,
-        valign: "middle",
-        whitespace: "nowrap",
-      },
+      0: { halign: "left", cellWidth: CW - moneyW, valign: "middle" },
+      1: { halign: "right", cellWidth: moneyW, valign: "middle", overflow: "visible" },
     },
     // Draw border-t-2 border-b-2 on header, border-b border-gray-200 on body rows
     didParseCell: (hookData) => {
@@ -960,7 +978,12 @@ export function generateReceiptPDFBase64(data, receiptSize = "80mm") {
 
 export async function generateReceiptPDFBase64Async(data, receiptSize = "80mm") {
   const ready = await prepareReceiptPdfData(data);
-  return generateReceiptPDFBase64(ready, receiptSize);
+  const doc = generateReceiptPDF(ready, receiptSize);
+  return {
+    base64: doc.output("datauristring").split(",")[1],
+    width: doc.internal.pageSize.getWidth(),
+    height: doc.internal.pageSize.getHeight(),
+  };
 }
 
 // Generate the receipt PDF and return as a Blob URL for preview.

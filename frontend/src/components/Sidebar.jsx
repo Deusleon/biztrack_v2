@@ -76,7 +76,7 @@ const Sidebar = ({ isOpen, toggleSidebar, closeSidebar, isCollapsed, onHelp }) =
         <div className="h-full flex flex-col gradient-primary-dark text-white shadow-2xl sidebar-edge">
           <div className={`sidebar-rule flex items-center transition-all duration-300 ${isCollapsed ? 'lg:justify-center p-4 lg:py-2.5 lg:px-4' : 'justify-between p-4'}`}>
             <div className={`flex items-center space-x-3 ${isCollapsed ? 'lg:space-x-0' : ''}`}>
-              <BrandMark variant="color" className="w-11 h-auto flex-shrink-0" />
+              <BrandMark variant="white" className="w-11 h-auto flex-shrink-0" />
               <div className={isCollapsed ? 'lg:hidden' : ''}>
                 <h1 className="text-xl font-bold tracking-tight">BizTrack</h1>
                 <p className="text-xs text-white opacity-80 truncate max-w-[9rem]">{currentStore?.name || 'Business Management'}</p>
