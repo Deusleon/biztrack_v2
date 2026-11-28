@@ -6,21 +6,63 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
-// Prefer the key pasted in .env (QZ_PRIVATE_KEY). A file path is the fallback (QZ_PRIVATE_KEY_PATH or backend/certs/qz-private-key.pem).
-const PRIVATE_KEY_PATH = () => process.env.QZ_PRIVATE_KEY_PATH || path.join(__dirname, '..', '..', 'certs', 'qz-private-key.pem');
+const BACKEND_ROOT = path.join(__dirname, '..', '..');
+// cPanel's environment screen often keeps only the first line of a pasted key.
+// Reading the .env file here still finds the END line, and a .pem file works too.
+const ENV_CANDIDATES = () => [
+  path.join(BACKEND_ROOT, '.env'),
+  path.join(process.cwd(), '.env'),
+  path.join(process.cwd(), 'backend', '.env'),
+];
+const KEY_FILES = () => [
+  process.env.QZ_PRIVATE_KEY_PATH,
+  path.join(BACKEND_ROOT, 'certs', 'qz-private-key.pem'),
+].filter(Boolean);
+
+let keyProblem = 'The printer signing key is not loaded on the server.';
+
+function readText(file) {
+  try {
+    return fs.readFileSync(file, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+function normalizePem(label, body) {
+  const b64 = String(body).replace(/\\n/g, '').replace(/[^A-Za-z0-9+/=]/g, '');
+  if (b64.length < 80) return null;
+  return `-----BEGIN ${label}-----\n${b64.match(/.{1,64}/g).join('\n')}\n-----END ${label}-----\n`;
+}
+
+function pemFromText(text) {
+  if (!text) return null;
+  const match = String(text).match(/-----BEGIN ([A-Z0-9 ]*PRIVATE KEY)-----([\s\S]*?)-----END \1-----/);
+  if (!match) return null;
+  return normalizePem(match[1].trim(), match[2]);
+}
 
 function loadPrivateKey() {
-  const inline = String(process.env.QZ_PRIVATE_KEY || '').trim().replace(/\\n/g, '\n');
-  if (inline.includes('BEGIN') && !inline.includes('END')) {
-    console.error('QZ private key is truncated. Keep QZ_PRIVATE_KEY in double quotes with \\n between lines, or set QZ_PRIVATE_KEY_PATH.');
-    return null;
+  keyProblem = 'The printer signing key is not loaded on the server.';
+  const envText = ENV_CANDIDATES().map(readText).join('\n');
+  const sources = [envText, String(process.env.QZ_PRIVATE_KEY || '').replace(/\\n/g, '\n')];
+  for (const source of sources) {
+    const pem = pemFromText(source);
+    if (pem) return pem;
   }
-  if (inline) return inline;
-  try {
-    return fs.readFileSync(PRIVATE_KEY_PATH(), 'utf8');
-  } catch {
-    return null;
+  for (const file of KEY_FILES()) {
+    const pem = pemFromText(readText(file));
+    if (pem) return pem;
   }
+
+  const blob = sources.join('\n');
+  if (/BEGIN CERTIFICATE/.test(blob) && !/PRIVATE KEY/.test(blob)) {
+    keyProblem = 'The server has the printer certificate, not the private key. QZ_PRIVATE_KEY must be the private key.';
+  } else if (/BEGIN/.test(blob) && !/END/.test(blob)) {
+    keyProblem = 'The printer private key on the server stops at the first line. Keep the whole key, including the END line.';
+  }
+  console.error(keyProblem);
+  return null;
 }
 
 // The key is often pasted into .env while the server is already running. Read it again
@@ -29,9 +71,8 @@ let privateKey = loadPrivateKey();
 
 function signingKey(force = false) {
   if (privateKey && !force) return privateKey;
-  dotenv.config({ override: true });
+  for (const file of ENV_CANDIDATES()) dotenv.config({ path: file, override: true });
   privateKey = loadPrivateKey();
-  if (!privateKey) console.error('QZ Tray private key is not set. Add QZ_PRIVATE_KEY to backend/.env, or set QZ_PRIVATE_KEY_PATH.');
   return privateKey;
 }
 
@@ -44,7 +85,7 @@ export const sign = (req, res) => {
 
   const key = signingKey();
   if (!key) {
-    return res.status(500).json({ error: 'Signing key not configured', message: 'The printer signing key is not loaded on the server.' });
+    return res.status(500).json({ error: 'Signing key not configured', message: keyProblem });
   }
 
   const produce = (pem) => {
