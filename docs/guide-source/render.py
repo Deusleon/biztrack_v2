@@ -195,7 +195,7 @@ def build(lang,out,entries=None):
     fw=W-2*20*2.8346
     cover_state={}
     def draw_cover(cv,doc):
-        lw=270; img=ImageReader(LOGO); iw,ih=img.getSize(); lh=lw*ih/iw
+        lw=168; img=ImageReader(LOGO); iw,ih=img.getSize(); lh=lw*ih/float(iw)
         block=lh+16+14+40+118+3+40+16+18   # whole block height
         top=(H+block)/2                    # centred on the page
         y=top-lh; cv.drawImage(img,(W-lw)/2,y,width=lw,height=lh,mask='auto')
@@ -220,7 +220,8 @@ def build(lang,out,entries=None):
             wm=ImageReader(WM)
         iw,ih=wm.getSize(); ww=400; wh=ww*ih/iw
         cv.drawImage(wm,(W-ww)/2,(H-wh)/2,width=ww,height=wh,mask='auto')
-        cv.drawImage(ICON,57,H-48,width=26,height=26*631/878,mask='auto')
+        ic=ImageReader(ICON); iw,ih=ic.getSize(); side=24
+        cv.drawImage(ic,57,H-50,width=side,height=side*ih/float(iw),mask='auto')
         cv.setFont('Carlito-Bold',11); cv.setFillColor(NAVY); cv.drawString(88,H-40,'BizTrack')
         cv.setFont('Carlito',9); cv.setFillColor(GREY); cv.drawRightString(W-57,H-39,L['hdr'])
         cv.setStrokeColor(LINE); cv.setLineWidth(.5); cv.line(57,H-52,W-57,H-52); cv.line(57,40,W-57,40)
